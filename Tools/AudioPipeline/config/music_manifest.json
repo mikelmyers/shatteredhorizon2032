@@ -1,0 +1,288 @@
+{
+  "meta": {
+    "project": "Shattered Horizon 2032",
+    "studio": "Primordia Games",
+    "pipeline": "Music / Soundtrack",
+    "version": "1.0.0",
+    "default_sample_rate": 48000,
+    "default_bit_depth": 16,
+    "ue5_content_root": "/Game/Audio/Music"
+  },
+  "tracks": [
+    {
+      "id": "patrol_ambient",
+      "category": "ambient",
+      "description": "Sparse, slowly evolving drone with muted synth pads and distant metallic resonances. Conveys cautious movement through an empty urban zone at twilight. Occasional low sub-bass swells suggest latent threat. Calm but uneasy.",
+      "duration_seconds": 180,
+      "bpm": null,
+      "key": "Dm",
+      "loop": true,
+      "crossfade_ms": 4000,
+      "ue5_path": "/Game/Audio/Music/Ambient/MUS_Patrol_Ambient"
+    },
+    {
+      "id": "beach_atmosphere",
+      "category": "ambient",
+      "description": "Desolate coastal ambience layered with low droning synthesizers and distant wind. Subtle granular textures evoke sand and debris carried on a salt breeze. Melancholic, cinematic, post-apocalyptic shoreline.",
+      "duration_seconds": 180,
+      "bpm": null,
+      "key": "Am",
+      "loop": true,
+      "crossfade_ms": 5000,
+      "ue5_path": "/Game/Audio/Music/Ambient/MUS_Beach_Atmosphere"
+    },
+    {
+      "id": "urban_atmosphere",
+      "category": "ambient",
+      "description": "Gritty industrial ambient with reverberant concrete textures, distant metallic clangs, and low filtered pads. A sense of ruined city infrastructure, hollow corridors, broken glass underfoot. Dark and immersive.",
+      "duration_seconds": 180,
+      "bpm": null,
+      "key": "Cm",
+      "loop": true,
+      "crossfade_ms": 4000,
+      "ue5_path": "/Game/Audio/Music/Ambient/MUS_Urban_Atmosphere"
+    },
+    {
+      "id": "night_ops",
+      "category": "ambient",
+      "description": "Ultra-minimal tension bed for night operations. Almost subliminal low-frequency hum with sparse high-frequency ticks and a slow heartbeat-like pulse. Silence between elements creates dread. Very quiet and restrained.",
+      "duration_seconds": 240,
+      "bpm": null,
+      "key": "Em",
+      "loop": true,
+      "crossfade_ms": 6000,
+      "ue5_path": "/Game/Audio/Music/Ambient/MUS_Night_Ops"
+    },
+    {
+      "id": "pre_dawn",
+      "category": "ambient",
+      "description": "Ethereal ambient wash suggesting the transition from night to early morning. Slowly brightening pad layers with soft choral tones emerging through haze. A sense of gathering resolve before an operation begins.",
+      "duration_seconds": 150,
+      "bpm": null,
+      "key": "G",
+      "loop": true,
+      "crossfade_ms": 5000,
+      "ue5_path": "/Game/Audio/Music/Ambient/MUS_Pre_Dawn"
+    },
+    {
+      "id": "overwatch",
+      "category": "ambient",
+      "description": "Isolated high-altitude ambience for overwatch and sniper positions. Thin wind textures, sparse piano notes with heavy reverb, subtle ticking clock element. Patience and focus embodied in sound.",
+      "duration_seconds": 180,
+      "bpm": null,
+      "key": "Fm",
+      "loop": true,
+      "crossfade_ms": 4000,
+      "ue5_path": "/Game/Audio/Music/Ambient/MUS_Overwatch"
+    },
+    {
+      "id": "tension_low",
+      "category": "combat",
+      "description": "Building unease with slow rhythmic pulse at 80 BPM. Muted bass plucks, subtle string tremolo, and restrained electronic percussion. Something is wrong but contact has not been made yet.",
+      "duration_seconds": 120,
+      "bpm": 80,
+      "key": "Dm",
+      "loop": true,
+      "crossfade_ms": 2000,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Tension_Low"
+    },
+    {
+      "id": "tension_medium",
+      "category": "combat",
+      "description": "Escalating tension with driving 100 BPM pulse. Distorted bass synth ostinato, staccato strings, and aggressive hi-hat patterns. Urgent radio chatter energy. Squad knows contact is imminent.",
+      "duration_seconds": 120,
+      "bpm": 100,
+      "key": "Dm",
+      "loop": true,
+      "crossfade_ms": 1500,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Tension_Medium"
+    },
+    {
+      "id": "combat_active",
+      "category": "combat",
+      "description": "Full combat engagement music at 120 BPM. Aggressive electronic drums, distorted bass, sharp brass stabs, and relentless energy. Modern military action score with hybrid orchestral and electronic elements.",
+      "duration_seconds": 120,
+      "bpm": 120,
+      "key": "Cm",
+      "loop": true,
+      "crossfade_ms": 1000,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Combat_Active"
+    },
+    {
+      "id": "combat_intense",
+      "category": "combat",
+      "description": "Peak intensity combat at 140 BPM. Wall of sound with layered percussion, screaming synth leads, dissonant brass, and relentless eighth-note bass. Overwhelming sensory overload matching a desperate firefight.",
+      "duration_seconds": 90,
+      "bpm": 140,
+      "key": "Cm",
+      "loop": true,
+      "crossfade_ms": 800,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Combat_Intense"
+    },
+    {
+      "id": "suppression_heavy",
+      "category": "combat",
+      "description": "Oppressive heavy suppression music at 110 BPM. Deep sub-bass hits on every beat, muffled percussion suggesting being pinned down, claustrophobic filtered textures. Player is suppressed and under heavy fire.",
+      "duration_seconds": 90,
+      "bpm": 110,
+      "key": "Bbm",
+      "loop": true,
+      "crossfade_ms": 1000,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Suppression_Heavy"
+    },
+    {
+      "id": "firefight_close",
+      "category": "combat",
+      "description": "Close-quarters firefight at 130 BPM. Tight, punchy electronic drums, aggressive staccato bass, sharp percussive stabs. Chaotic energy of room-clearing and hallway combat. Short melodic fragments between bursts.",
+      "duration_seconds": 90,
+      "bpm": 130,
+      "key": "Em",
+      "loop": true,
+      "crossfade_ms": 800,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Firefight_Close"
+    },
+    {
+      "id": "artillery_incoming",
+      "category": "combat",
+      "description": "Chaotic bombardment score at 150 BPM. Thunderous timpani and taiko hits, shrieking string glissandi, massive sub impacts, and swirling synth chaos. The world is being torn apart by explosions overhead.",
+      "duration_seconds": 60,
+      "bpm": 150,
+      "key": "Fm",
+      "loop": true,
+      "crossfade_ms": 500,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Artillery_Incoming"
+    },
+    {
+      "id": "last_stand",
+      "category": "combat",
+      "description": "Heroic last-stand score at 100 BPM. Soaring brass melody over driving percussion and distorted guitars. Emotional weight of sacrifice mixed with defiant energy. Bittersweet major-minor shifts.",
+      "duration_seconds": 120,
+      "bpm": 100,
+      "key": "Gm",
+      "loop": true,
+      "crossfade_ms": 1500,
+      "ue5_path": "/Game/Audio/Music/Combat/MUS_Last_Stand"
+    },
+    {
+      "id": "mission_start",
+      "category": "stingers",
+      "description": "Short authoritative stinger marking mission commencement. Deep brass hit followed by a rising synth sweep and resolving into a focused rhythmic pulse. Determination and readiness.",
+      "duration_seconds": 8,
+      "bpm": 120,
+      "key": "Dm",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_MissionStart"
+    },
+    {
+      "id": "first_contact",
+      "category": "stingers",
+      "description": "Sudden tension spike stinger. Sharp dissonant string hit with metallic impact, swelling into urgent low brass. The moment peaceful patrol becomes combat. Jarring and electrifying.",
+      "duration_seconds": 6,
+      "bpm": null,
+      "key": "Cm",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_FirstContact"
+    },
+    {
+      "id": "squad_casualty",
+      "category": "stingers",
+      "description": "Somber casualty stinger. A single sustained low cello note with subtle tremolo, joined by a descending piano motif. Brief silence, then a muted drum hit. Loss and gravity in five seconds.",
+      "duration_seconds": 5,
+      "bpm": null,
+      "key": "Fm",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_SquadCasualty"
+    },
+    {
+      "id": "mission_victory",
+      "category": "stingers",
+      "description": "Triumphant victory stinger. Bold brass fanfare with snare roll building to a major chord resolution. Relief and accomplishment. Clean, powerful, and satisfying.",
+      "duration_seconds": 10,
+      "bpm": 120,
+      "key": "D",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_MissionVictory"
+    },
+    {
+      "id": "mission_failure",
+      "category": "stingers",
+      "description": "Defeat stinger. Descending brass and strings collapse into a deep reverberant bass drum hit. Dissonant cluster fading to silence. Defeat, regret, emptiness.",
+      "duration_seconds": 8,
+      "bpm": null,
+      "key": "Bbm",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_MissionFailure"
+    },
+    {
+      "id": "objective_complete",
+      "category": "stingers",
+      "description": "Short positive objective-complete stinger. Quick ascending synth arpeggio resolving on a bright major chord with subtle cymbal shimmer. Acknowledgment of progress without over-celebration.",
+      "duration_seconds": 4,
+      "bpm": 120,
+      "key": "C",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_ObjectiveComplete"
+    },
+    {
+      "id": "reinforcements",
+      "category": "stingers",
+      "description": "Reinforcement arrival stinger. Building snare crescendo with rising horn line bursting into a confident brass motif. Hope arriving in a desperate moment. Energizing and bold.",
+      "duration_seconds": 7,
+      "bpm": 110,
+      "key": "Eb",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_Reinforcements"
+    },
+    {
+      "id": "retreat_order",
+      "category": "stingers",
+      "description": "Urgent retreat stinger. Rapid descending brass motif with aggressive snare pattern and alarm-like synth pulse. Communicates immediate withdrawal. Tense, fast, no hesitation.",
+      "duration_seconds": 6,
+      "bpm": 140,
+      "key": "Am",
+      "loop": false,
+      "crossfade_ms": 0,
+      "ue5_path": "/Game/Audio/Music/Stingers/MUS_Stinger_RetreatOrder"
+    },
+    {
+      "id": "main_menu_theme",
+      "category": "menu",
+      "description": "Main menu theme for Shattered Horizon 2032. Cinematic hybrid orchestral-electronic piece. Opens with a lonely piano melody over ambient pads, gradually building with strings, brass, and electronic percussion into a powerful but melancholic main theme. Conveys a world scarred by conflict but not without hope. Epic yet intimate.",
+      "duration_seconds": 180,
+      "bpm": 90,
+      "key": "Dm",
+      "loop": true,
+      "crossfade_ms": 5000,
+      "ue5_path": "/Game/Audio/Music/Menu/MUS_MainMenu_Theme"
+    },
+    {
+      "id": "loading_ambient",
+      "category": "menu",
+      "description": "Understated loading screen ambience. Soft granular synthesis textures with slow-moving filtered pads and occasional deep sub pulses. Non-intrusive background that maintains atmosphere during loading without demanding attention.",
+      "duration_seconds": 120,
+      "bpm": null,
+      "key": "Am",
+      "loop": true,
+      "crossfade_ms": 3000,
+      "ue5_path": "/Game/Audio/Music/Menu/MUS_Loading_Ambient"
+    },
+    {
+      "id": "briefing_theme",
+      "category": "menu",
+      "description": "Mission briefing music. Focused, professional tone with subtle military snare pattern at 85 BPM, restrained brass pads, and a clear melodic line on muted trumpet. Communicates strategic planning and pre-mission focus. Authoritative but not bombastic.",
+      "duration_seconds": 120,
+      "bpm": 85,
+      "key": "Gm",
+      "loop": true,
+      "crossfade_ms": 3000,
+      "ue5_path": "/Game/Audio/Music/Menu/MUS_Briefing_Theme"
+    }
+  ]
+}
