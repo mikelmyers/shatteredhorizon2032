@@ -16,6 +16,11 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "Primordia/SHPrimordiaEcho.h"
+#include "Primordia/SHPrimordiaAletheia.h"
+#include "Primordia/SHPrimordiaSimulon.h"
+#include "Primordia/SHPrimordiaAstraea.h"
+#include "Primordia/SHPrimordiaDebugOverlay.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSHEnemyAI, Log, All);
 
@@ -34,6 +39,13 @@ ASHEnemyAIController::ASHEnemyAIController(const FObjectInitializer& ObjectIniti
 	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComp"));
 
 	SetPerceptionComponent(*AIPerceptionComp);
+
+	// Primordia AI subsystems.
+	PrimordiaEcho = CreateDefaultSubobject<USHPrimordiaEcho>(TEXT("PrimordiaEcho"));
+	PrimordiaAletheia = CreateDefaultSubobject<USHPrimordiaAletheia>(TEXT("PrimordiaAletheia"));
+	PrimordiaSimulon = CreateDefaultSubobject<USHPrimordiaSimulon>(TEXT("PrimordiaSimulon"));
+	PrimordiaAstraea = CreateDefaultSubobject<USHPrimordiaAstraea>(TEXT("PrimordiaAstraea"));
+	PrimordiaDebugOverlay = CreateDefaultSubobject<USHPrimordiaDebugOverlay>(TEXT("PrimordiaDebugOverlay"));
 }
 
 // -----------------------------------------------------------------------
@@ -145,6 +157,45 @@ void ASHEnemyAIController::Tick(float DeltaSeconds)
 	KnownThreats.RemoveAll([](const TWeakObjectPtr<AActor>& T) { return !T.IsValid(); });
 
 	UpdateBlackboard();
+
+	// --- Primordia subsystem updates ---
+
+	// Feed threat observations to Simulon for predictive modeling.
+	if (PrimordiaSimulon)
+	{
+		for (const auto& Threat : KnownThreats)
+		{
+			if (Threat.IsValid())
+			{
+				PrimordiaSimulon->UpdateThreatModel(Threat.Get());
+			}
+		}
+	}
+
+	// Feed suppression/combat state to Astraea for cognitive modeling.
+	if (PrimordiaAstraea && EnemyCharacter)
+	{
+		const float Suppression = EnemyCharacter->GetSuppressionLevel();
+		if (Suppression > 0.3f)
+		{
+			PrimordiaAstraea->ApplyStressor(Suppression * DeltaSeconds, FName(TEXT("Suppression")));
+		}
+	}
+
+	// Record AI decision for debug overlay.
+	if (PrimordiaDebugOverlay && PrimordiaDebugOverlay->IsOverlayVisible())
+	{
+		FSHAIDebugEntry DebugEntry;
+		DebugEntry.SubsystemName = FName(TEXT("EnemyAIController"));
+		DebugEntry.InputState = FString::Printf(TEXT("Awareness=%d Behavior=%d"),
+			static_cast<int32>(AwarenessState), static_cast<int32>(CurrentBehavior));
+		DebugEntry.OutputDecision = CurrentOrderType.IsEmpty()
+			? FString(TEXT("AutonomousBehavior"))
+			: FString::Printf(TEXT("Order:%s"), *CurrentOrderType);
+		DebugEntry.Confidence = 1.f;
+		DebugEntry.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		PrimordiaDebugOverlay->RecordDecision(DebugEntry);
+	}
 }
 
 void ASHEnemyAIController::UpdateControlRotation(float DeltaTime, bool bUpdatePawn)
@@ -422,6 +473,17 @@ AActor* ASHEnemyAIController::SelectBestTarget() const
 		{
 			BestScore = Score;
 			Best = Threat.Get();
+		}
+	}
+
+	// Primordia Aletheia validation — reject obviously bad target selections.
+	if (Best && PrimordiaAletheia)
+	{
+		if (!PrimordiaAletheia->ValidateTargetSelection(Best, BestScore))
+		{
+			UE_LOG(LogSHEnemyAI, Verbose, TEXT("Aletheia rejected target %s (score %.1f)"),
+				*Best->GetName(), BestScore);
+			return nullptr;
 		}
 	}
 

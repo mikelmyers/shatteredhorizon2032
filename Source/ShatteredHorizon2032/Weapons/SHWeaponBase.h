@@ -10,6 +10,7 @@
 class USHWeaponDataAsset;
 class ASHProjectile;
 class USHBallisticsSystem;
+class USHWeaponAnimSystem;
 
 /* -----------------------------------------------------------------------
  *  Reload state machine
@@ -72,6 +73,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
 	TObjectPtr<USkeletalMeshComponent> WeaponMeshComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
+	TObjectPtr<USHWeaponAnimSystem> WeaponAnimSystem;
 
 	/* --- Input Actions --- */
 

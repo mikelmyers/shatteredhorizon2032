@@ -7,6 +7,7 @@
 #include "SHEnemyCharacter.generated.h"
 
 class USHAIPerceptionConfig;
+class USHDeathSystem;
 
 // -----------------------------------------------------------------------
 //  Enums
@@ -268,6 +269,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Enemy|Perception")
 	TObjectPtr<USHAIPerceptionConfig> PerceptionConfig;
+
+	/** Death physics — ragdoll with momentum transfer and body persistence. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Enemy|Components")
+	TObjectPtr<USHDeathSystem> DeathSystemComp;
 
 	// ------------------------------------------------------------------
 	//  Delegates

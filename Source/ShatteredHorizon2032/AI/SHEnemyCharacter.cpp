@@ -2,6 +2,8 @@
 
 #include "AI/SHEnemyCharacter.h"
 #include "AI/SHAIPerceptionConfig.h"
+#include "Combat/SHDeathSystem.h"
+#include "Combat/SHDamageSystem.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -19,6 +21,9 @@ ASHEnemyCharacter::ASHEnemyCharacter()
 
 	CurrentHealth = MaxHealth;
 	bReplicates = true;
+
+	// Death physics system.
+	DeathSystemComp = CreateDefaultSubobject<USHDeathSystem>(TEXT("DeathSystem"));
 
 	// Sensible defaults for a military-sim character.
 	GetCharacterMovement()->MaxWalkSpeed = 450.f;
@@ -379,7 +384,22 @@ void ASHEnemyCharacter::Die()
 
 	PlayVoiceLine(ESHVoiceLineContext::ManDown);
 	SpawnEquipmentDrops();
-	EnableRagdoll();
+
+	// --- Use DeathSystem for physics-driven ragdoll if available ---
+	if (DeathSystemComp)
+	{
+		FSHDamageInfo KillingBlow;
+		KillingBlow.DamageType = ESHDamageType::Ballistic;
+		KillingBlow.HitZone = ESHHitZone::Torso;
+		KillingBlow.DamageDirection = FVector::ForwardVector;
+		DeathSystemComp->ExecuteDeath(KillingBlow);
+		bRagdollActive = true;
+	}
+	else
+	{
+		// Fallback: simple ragdoll.
+		EnableRagdoll();
+	}
 
 	// Notify squad mates (nearby morale penalty).
 	TArray<FOverlapResult> Overlaps;

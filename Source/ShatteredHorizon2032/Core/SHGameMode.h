@@ -17,7 +17,9 @@ enum class ESHMissionPhase : uint8
 	PreInvasion     UMETA(DisplayName = "Pre-Invasion"),
 	BeachAssault    UMETA(DisplayName = "Beach Assault"),
 	UrbanFallback   UMETA(DisplayName = "Urban Fallback"),
-	Counterattack   UMETA(DisplayName = "Counterattack")
+	Counterattack   UMETA(DisplayName = "Counterattack"),
+	Collapse        UMETA(DisplayName = "Collapse"),           // Defensive line breaks, fighting withdrawal
+	GuerrillaHoldout UMETA(DisplayName = "Guerrilla Holdout")  // Urban survival until relief arrives
 };
 
 /** Descriptor for an enemy reinforcement wave. */

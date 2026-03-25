@@ -3,6 +3,7 @@
 #include "SHWeaponBase.h"
 #include "SHProjectile.h"
 #include "SHBallisticsSystem.h"
+#include "SHWeaponAnimSystem.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -21,6 +22,8 @@ ASHWeaponBase::ASHWeaponBase()
 	WeaponMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	RootComponent = WeaponMeshComp;
 	WeaponMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	WeaponAnimSystem = CreateDefaultSubobject<USHWeaponAnimSystem>(TEXT("WeaponAnimSystem"));
 }
 
 void ASHWeaponBase::BeginPlay()
@@ -39,6 +42,12 @@ void ASHWeaponBase::BeginPlay()
 
 		// Ensure we can fire immediately
 		TimeSinceLastShot = WeaponData->GetSecondsBetweenShots();
+	}
+
+	// Wire weapon animation system with weapon data.
+	if (WeaponAnimSystem && WeaponData)
+	{
+		WeaponAnimSystem->SetRecoilPattern(WeaponData->RecoilPattern);
 	}
 }
 
@@ -91,6 +100,16 @@ void ASHWeaponBase::Tick(float DeltaTime)
 	TickHeatCooldown(DeltaTime);
 	TickReload(DeltaTime);
 	TickADSTransition(DeltaTime);
+
+	// Feed movement state to weapon animation system.
+	if (WeaponAnimSystem)
+	{
+		WeaponAnimSystem->SetMovementState(
+			GetOwner() ? GetOwner()->GetVelocity().Size2D() : 0.f,
+			bIsMoving, CurrentStance);
+		WeaponAnimSystem->SetADSAlpha(ADSAlpha);
+		WeaponAnimSystem->SetFatigueLevel(FatigueLevel);
+	}
 
 	// Malfunction clear timer
 	if (WeaponState == ESHWeaponState::Malfunctioned && MalfunctionClearTimer > 0.0f)
@@ -318,6 +337,12 @@ void ASHWeaponBase::FireShot()
 
 	// Recoil
 	ApplyRecoil();
+
+	// Feed the animation system.
+	if (WeaponAnimSystem)
+	{
+		WeaponAnimSystem->OnShotFired(ShotsFiredInString);
+	}
 
 	// Heat
 	AddHeat();
@@ -725,6 +750,8 @@ void ASHWeaponBase::BeginReloadSequence()
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, ReloadSnd, GetActorLocation());
 	}
+
+	if (WeaponAnimSystem) { WeaponAnimSystem->OnReloadStarted(); }
 }
 
 void ASHWeaponBase::TickReload(float DeltaTime)
@@ -835,6 +862,8 @@ void ASHWeaponBase::CompleteReload()
 	SetWeaponState(ESHWeaponState::Idle);
 
 	OnAmmoChanged.Broadcast(CurrentMagAmmo, ReserveAmmo);
+
+	if (WeaponAnimSystem) { WeaponAnimSystem->OnReloadFinished(); }
 }
 
 /* -----------------------------------------------------------------------

@@ -10,6 +10,13 @@
 class UCameraComponent;
 class USkeletalMeshComponent;
 class USpringArmComponent;
+class USHCameraSystem;
+class USHHitFeedback;
+class USHDeathSystem;
+class USHDamageSystem;
+class USHFatigueSystem;
+class USHReverbZoneManager;
+class USHAmbientSoundscape;
 
 // Forward declare the lean enum from the controller.
 enum class ESHLeanState : uint8;
@@ -201,6 +208,34 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArms;
+
+	/** Camera feel system — head bob, ADS FOV, suppression FX, screen punch. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHCameraSystem> CameraSystem;
+
+	/** Hit feedback — screen punch, hit indicators, impact VFX. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHHitFeedback> HitFeedback;
+
+	/** Death physics — ragdoll with momentum transfer and body persistence. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHDeathSystem> DeathSystem;
+
+	/** Damage model — wounds, armor, bleeding, vital status. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHDamageSystem> DamageSystemComp;
+
+	/** Fatigue — stamina, long-term fatigue, breath control. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHFatigueSystem> FatigueSystem;
+
+	/** Dynamic reverb classification based on environment geometry. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHReverbZoneManager> ReverbZoneManager;
+
+	/** Layered ambient soundscape (wind, insects, distant battle). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHAmbientSoundscape> AmbientSoundscape;
 
 protected:
 	// ------------------------------------------------------------------
