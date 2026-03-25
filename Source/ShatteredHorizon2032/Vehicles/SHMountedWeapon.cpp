@@ -2,6 +2,7 @@
 
 #include "SHMountedWeapon.h"
 #include "ShatteredHorizon2032/Weapons/SHBallisticsSystem.h"
+#include "ShatteredHorizon2032/Weapons/SHProjectile.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
