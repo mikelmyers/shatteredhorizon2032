@@ -1,0 +1,31 @@
+{
+  "characters": [
+    {"id": "player_fp_arms", "description": "First-person military arms and hands, US Marine combat gloves, rolled sleeves, desert MARPAT camouflage, muscular forearms, realistic proportions", "poly_target": 15000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/SK_PlayerArms"},
+    {"id": "enemy_rifleman", "description": "Chinese PLA soldier, Type 07 digital camouflage uniform, QBZ-95 rifle, combat helmet, body armor, full body standing pose", "poly_target": 25000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Enemy/SK_Enemy_Rifleman"},
+    {"id": "enemy_mg", "description": "Chinese PLA machine gunner, heavy weapons vest, ammo belt, light machine gun, combat helmet with visor", "poly_target": 25000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Enemy/SK_Enemy_MG"},
+    {"id": "enemy_officer", "description": "Chinese PLA officer, distinctive rank insignia, radio headset, pistol holster, command bearing", "poly_target": 25000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Enemy/SK_Enemy_Officer"},
+    {"id": "squad_team_leader", "description": "US Marine team leader, MARPAT desert camo, AN/PRC-152 radio, M4A1 carbine, patrol cap, leadership presence", "poly_target": 30000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Squad/SK_Squad_TeamLeader"},
+    {"id": "squad_rifleman", "description": "US Marine rifleman, MARPAT desert camo, M27 IAR, standard MOLLE vest, combat helmet with NVG mount", "poly_target": 25000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Squad/SK_Squad_Rifleman"},
+    {"id": "squad_saw", "description": "US Marine SAW gunner, heavy loadout, M249 SAW, extra ammo pouches, reinforced vest", "poly_target": 28000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Squad/SK_Squad_SAW"},
+    {"id": "squad_grenadier", "description": "US Marine grenadier, M320 grenade launcher attached to M4, 40mm grenade pouches on vest", "poly_target": 27000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Squad/SK_Squad_Grenadier"},
+    {"id": "squad_marksman", "description": "US Marine designated marksman, M110 SASS with scope, ghillie wrap on rifle, boonie hat, low profile", "poly_target": 27000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Characters/Squad/SK_Squad_Marksman"}
+  ],
+  "weapons": [
+    {"id": "M4A1", "description": "M4A1 carbine, 5.56mm, Picatinny rail, collapsible stock, 14.5 inch barrel, black anodized", "poly_target": 12000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M4A1"},
+    {"id": "M27_IAR", "description": "M27 Infantry Automatic Rifle, 5.56mm, free-float handguard, bipod folded, ACOG sight mount", "poly_target": 13000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M27_IAR"},
+    {"id": "M249_SAW", "description": "M249 Squad Automatic Weapon, belt-fed 5.56mm, bipod extended, heat shield, ammo box", "poly_target": 15000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M249_SAW"},
+    {"id": "M110_SASS", "description": "M110 Semi-Automatic Sniper System, 7.62mm, suppressor, Leupold scope, adjustable stock", "poly_target": 14000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M110_SASS"},
+    {"id": "M17_SIG", "description": "SIG Sauer M17 pistol, 9mm, tan FDE finish, Picatinny rail, 17 round magazine", "poly_target": 8000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M17_SIG"},
+    {"id": "M320_GL", "description": "M320 grenade launcher standalone, 40mm, flip-up sight, pistol grip, olive drab", "poly_target": 8000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M320_GL"},
+    {"id": "Mossberg590", "description": "Mossberg 590 pump-action shotgun, 12 gauge, ghost ring sights, black synthetic stock", "poly_target": 10000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_Mossberg590"},
+    {"id": "QBZ95", "description": "QBZ-95 Chinese bullpup assault rifle, 5.56mm, integrated carry handle, olive drab polymer", "poly_target": 12000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_QBZ95"},
+    {"id": "Lapua338", "description": "Accuracy International AXMC sniper rifle, .338 Lapua Magnum, folding stock, long range scope, bipod, tan finish", "poly_target": 14000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_Lapua338"},
+    {"id": "M2_50BMG", "description": "M2 Browning heavy machine gun, .50 BMG, tripod mounted, belt-fed, black steel", "poly_target": 18000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_M2_50BMG"},
+    {"id": "AK_762x39", "description": "AK-47 style assault rifle, 7.62x39mm, wooden furniture, stamped receiver, classic silhouette", "poly_target": 11000, "mesh_type": "skeletal", "ue5_path": "/Game/Meshes/Weapons/SK_AK_762x39"}
+  ],
+  "drones": [
+    {"id": "isr_drone_body", "description": "Military ISR quadcopter drone, matte gray, camera gimbal mount, antenna array, compact tactical design", "poly_target": 5000, "mesh_type": "static", "ue5_path": "/Game/Meshes/Drones/SM_ISR_Drone_Body"},
+    {"id": "fpv_drone_body", "description": "FPV strike drone, small racing drone form factor, explosive payload attached underneath, carbon fiber frame", "poly_target": 3000, "mesh_type": "static", "ue5_path": "/Game/Meshes/Drones/SM_FPV_Drone_Body"},
+    {"id": "counter_drone_emitter", "description": "Counter-drone electronic warfare antenna, directional jammer, military tripod mount, olive drab", "poly_target": 4000, "mesh_type": "static", "ue5_path": "/Game/Meshes/Drones/SM_CounterDrone_Emitter"}
+  ]
+}
