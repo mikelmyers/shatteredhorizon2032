@@ -1,0 +1,424 @@
+{
+  "project": "ShatteredHorizon2032",
+  "engine": "UE5.4",
+  "output_format": "PNG",
+  "default_color_scheme": {
+    "hud_primary": [153, 204, 153],
+    "hud_secondary": [102, 153, 102],
+    "hud_warning": [255, 204, 0],
+    "hud_danger": [204, 51, 51],
+    "hud_background": [0, 0, 0, 128],
+    "icon_fill": [200, 220, 200],
+    "icon_stroke": [153, 204, 153]
+  },
+  "assets": {
+    "hud_elements": [
+      {
+        "id": "damage_indicator",
+        "category": "hud_elements",
+        "size": [512, 512],
+        "description": "Directional damage indicator wedge, red gradient fading from edge to center, semi-transparent, used to show direction of incoming fire on HUD",
+        "style": "milsim_hud",
+        "color_scheme": "hud_danger",
+        "ue5_path": "/Game/UI/HUD/T_DamageIndicator",
+        "format": "PNG"
+      },
+      {
+        "id": "suppression_vignette",
+        "category": "hud_elements",
+        "size": [1920, 1080],
+        "description": "Full-screen suppression vignette overlay, dark edges with subtle red tint, heavy blur on periphery, simulates tunnel vision under fire",
+        "style": "milsim_hud",
+        "color_scheme": "hud_danger",
+        "ue5_path": "/Game/UI/HUD/T_SuppressionVignette",
+        "format": "PNG"
+      },
+      {
+        "id": "stance_standing",
+        "category": "hud_elements",
+        "size": [64, 64],
+        "description": "Minimal soldier silhouette icon in standing upright position, military green, transparent background",
+        "style": "milsim_hud",
+        "color_scheme": "hud_primary",
+        "ue5_path": "/Game/UI/HUD/T_StanceStanding",
+        "format": "PNG"
+      },
+      {
+        "id": "stance_crouching",
+        "category": "hud_elements",
+        "size": [64, 64],
+        "description": "Minimal soldier silhouette icon in crouching position, military green, transparent background",
+        "style": "milsim_hud",
+        "color_scheme": "hud_primary",
+        "ue5_path": "/Game/UI/HUD/T_StanceCrouching",
+        "format": "PNG"
+      },
+      {
+        "id": "stance_prone",
+        "category": "hud_elements",
+        "size": [64, 64],
+        "description": "Minimal soldier silhouette icon in prone/lying flat position, military green, transparent background",
+        "style": "milsim_hud",
+        "color_scheme": "hud_primary",
+        "ue5_path": "/Game/UI/HUD/T_StanceProne",
+        "format": "PNG"
+      },
+      {
+        "id": "body_injury_diagram",
+        "category": "hud_elements",
+        "size": [256, 256],
+        "description": "Simple front-facing human body silhouette divided into hit zones (head, torso, left arm, right arm, left leg, right leg), military green outline on transparent background",
+        "style": "milsim_hud",
+        "color_scheme": "hud_primary",
+        "ue5_path": "/Game/UI/HUD/T_BodyInjuryDiagram",
+        "format": "PNG"
+      },
+      {
+        "id": "compass_background",
+        "category": "hud_elements",
+        "size": [1024, 64],
+        "description": "Horizontal compass bar with cardinal direction marks (N, NE, E, SE, S, SW, W, NW) and degree tick marks every 5 degrees, military green on dark transparent background",
+        "style": "milsim_hud",
+        "color_scheme": "hud_primary",
+        "ue5_path": "/Game/UI/HUD/T_CompassBackground",
+        "format": "PNG"
+      },
+      {
+        "id": "hit_marker",
+        "category": "hud_elements",
+        "size": [64, 64],
+        "description": "Simple crosshair hit confirmation marker, four short lines radiating from center with gap, white with slight transparency",
+        "style": "milsim_hud",
+        "color_scheme": "hud_primary",
+        "ue5_path": "/Game/UI/HUD/T_HitMarker",
+        "format": "PNG"
+      }
+    ],
+    "squad_command_icons": [
+      {
+        "id": "move_to",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: forward-pointing arrow indicating movement order, clean geometric military style",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdMoveTo",
+        "format": "PNG"
+      },
+      {
+        "id": "suppress",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: muzzle flash / burst fire symbol indicating suppressive fire order",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdSuppress",
+        "format": "PNG"
+      },
+      {
+        "id": "flank_left",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: curved arrow sweeping to the left indicating left flanking maneuver",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFlankLeft",
+        "format": "PNG"
+      },
+      {
+        "id": "flank_right",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: curved arrow sweeping to the right indicating right flanking maneuver",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFlankRight",
+        "format": "PNG"
+      },
+      {
+        "id": "hold_position",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: raised fist / stop hand symbol indicating hold position order",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdHoldPosition",
+        "format": "PNG"
+      },
+      {
+        "id": "regroup",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: multiple arrows converging to center point indicating regroup/rally order",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdRegroup",
+        "format": "PNG"
+      },
+      {
+        "id": "advance",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: bold upward arrow with double chevron indicating advance/push forward order",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdAdvance",
+        "format": "PNG"
+      },
+      {
+        "id": "cover_me",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: shield shape with eye symbol indicating cover/overwatch request",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdCoverMe",
+        "format": "PNG"
+      },
+      {
+        "id": "fall_back",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: downward/rearward arrow indicating retreat/fall back order",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFallBack",
+        "format": "PNG"
+      },
+      {
+        "id": "cease_fire",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: crossed-out bullet / X over muzzle indicating cease fire order",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdCeaseFire",
+        "format": "PNG"
+      },
+      {
+        "id": "formation_wedge",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: V-shaped dot pattern showing wedge formation layout",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFormationWedge",
+        "format": "PNG"
+      },
+      {
+        "id": "formation_line",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: horizontal row of dots showing line abreast formation",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFormationLine",
+        "format": "PNG"
+      },
+      {
+        "id": "formation_column",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: vertical column of dots showing single-file column formation",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFormationColumn",
+        "format": "PNG"
+      },
+      {
+        "id": "formation_echelon",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: diagonal staggered dots showing echelon formation layout",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdFormationEchelon",
+        "format": "PNG"
+      },
+      {
+        "id": "roe_hold_fire",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: bullet with lock/hold symbol, rules of engagement hold fire",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdROEHoldFire",
+        "format": "PNG"
+      },
+      {
+        "id": "roe_return_fire",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: bullet with circular arrow, rules of engagement return fire only",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdROEReturnFire",
+        "format": "PNG"
+      },
+      {
+        "id": "roe_fire_at_will",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: bullet with checkmark, rules of engagement fire at will",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdROEFireAtWill",
+        "format": "PNG"
+      },
+      {
+        "id": "roe_weapons_free",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: double bullet with exclamation mark, weapons free engagement",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdROEWeaponsFree",
+        "format": "PNG"
+      },
+      {
+        "id": "medical",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: medical cross symbol, request medical assistance",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdMedical",
+        "format": "PNG"
+      },
+      {
+        "id": "resupply",
+        "category": "squad_command_icons",
+        "size": [128, 128],
+        "description": "Tactical icon: ammunition box / magazine symbol, request ammunition resupply",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Squad/T_CmdResupply",
+        "format": "PNG"
+      }
+    ],
+    "menu_art": [
+      {
+        "id": "main_menu_bg",
+        "category": "menu_art",
+        "size": [3840, 2160],
+        "description": "Cinematic wide shot of a devastated coastal city at dusk, military vehicles in silhouette, smoke rising, dramatic orange and blue sky, photorealistic, moody atmosphere, Shattered Horizon 2032 milsim aesthetic",
+        "style": "concept_art",
+        "color_scheme": "cinematic_warm",
+        "ue5_path": "/Game/UI/Menu/T_MainMenuBG",
+        "format": "PNG"
+      },
+      {
+        "id": "loading_screen_1",
+        "category": "menu_art",
+        "size": [1920, 1080],
+        "description": "Squad of soldiers moving through dense tropical jungle at dawn, shafts of light through canopy, photorealistic military art, cinematic composition",
+        "style": "concept_art",
+        "color_scheme": "cinematic_warm",
+        "ue5_path": "/Game/UI/Menu/T_LoadingScreen01",
+        "format": "PNG"
+      },
+      {
+        "id": "loading_screen_2",
+        "category": "menu_art",
+        "size": [1920, 1080],
+        "description": "Aerial view of amphibious assault on a Pacific island beach, landing craft and helicopters, waves crashing, smoke and explosions in distance, photorealistic military concept art",
+        "style": "concept_art",
+        "color_scheme": "cinematic_cool",
+        "ue5_path": "/Game/UI/Menu/T_LoadingScreen02",
+        "format": "PNG"
+      },
+      {
+        "id": "loading_screen_3",
+        "category": "menu_art",
+        "size": [1920, 1080],
+        "description": "Night operation in urban ruins, soldiers with NVG green glow, laser designators cutting through smoke, destroyed buildings, photorealistic military art",
+        "style": "concept_art",
+        "color_scheme": "cinematic_dark",
+        "ue5_path": "/Game/UI/Menu/T_LoadingScreen03",
+        "format": "PNG"
+      },
+      {
+        "id": "loading_screen_4",
+        "category": "menu_art",
+        "size": [1920, 1080],
+        "description": "Sniper team on a hilltop overlooking a contested valley, long shadows, golden hour lighting, binoculars and rifle, photorealistic military concept art",
+        "style": "concept_art",
+        "color_scheme": "cinematic_warm",
+        "ue5_path": "/Game/UI/Menu/T_LoadingScreen04",
+        "format": "PNG"
+      },
+      {
+        "id": "loading_screen_5",
+        "category": "menu_art",
+        "size": [1920, 1080],
+        "description": "ISR drone flying over burning oil refinery at night, infrared glow, smoke columns illuminated by fire, photorealistic military concept art, top-down angle",
+        "style": "concept_art",
+        "color_scheme": "cinematic_dark",
+        "ue5_path": "/Game/UI/Menu/T_LoadingScreen05",
+        "format": "PNG"
+      },
+      {
+        "id": "settings_bg",
+        "category": "menu_art",
+        "size": [1920, 1080],
+        "description": "Close-up of military tactical map table with radio equipment, dim overhead lamp, scattered documents, depth of field blur, photorealistic, moody lighting",
+        "style": "concept_art",
+        "color_scheme": "cinematic_dark",
+        "ue5_path": "/Game/UI/Menu/T_SettingsBG",
+        "format": "PNG"
+      }
+    ],
+    "settings_icons": [
+      {
+        "id": "icon_video",
+        "category": "settings_icons",
+        "size": [64, 64],
+        "description": "Clean geometric monitor/display icon for video settings, military green, transparent background",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Settings/T_IconVideo",
+        "format": "PNG"
+      },
+      {
+        "id": "icon_audio",
+        "category": "settings_icons",
+        "size": [64, 64],
+        "description": "Clean geometric speaker/sound wave icon for audio settings, military green, transparent background",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Settings/T_IconAudio",
+        "format": "PNG"
+      },
+      {
+        "id": "icon_gameplay",
+        "category": "settings_icons",
+        "size": [64, 64],
+        "description": "Clean geometric gamepad/controller icon for gameplay settings, military green, transparent background",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Settings/T_IconGameplay",
+        "format": "PNG"
+      },
+      {
+        "id": "icon_controls",
+        "category": "settings_icons",
+        "size": [64, 64],
+        "description": "Clean geometric keyboard/mouse icon for control settings, military green, transparent background",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Settings/T_IconControls",
+        "format": "PNG"
+      },
+      {
+        "id": "icon_accessibility",
+        "category": "settings_icons",
+        "size": [64, 64],
+        "description": "Clean geometric universal accessibility symbol for accessibility settings, military green, transparent background",
+        "style": "tactical_icon",
+        "color_scheme": "icon_fill",
+        "ue5_path": "/Game/UI/Icons/Settings/T_IconAccessibility",
+        "format": "PNG"
+      }
+    ]
+  }
+}
