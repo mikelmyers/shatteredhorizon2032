@@ -100,6 +100,7 @@ class UE5Exporter:
         This maps directly to SHTerrainManager's terrain type enum.
         """
         csv_path = output_path / "DT_TerrainMaterials.csv"
+        output_path.mkdir(parents=True, exist_ok=True)
 
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
@@ -132,6 +133,7 @@ class UE5Exporter:
         Maps to SHDestructionSystem's 5-stage destruction model.
         """
         csv_path = output_path / f"DT_Destruction_{terrain_id}.csv"
+        output_path.mkdir(parents=True, exist_ok=True)
 
         stages = self.manifest.get("destruction_stages", [])
 
