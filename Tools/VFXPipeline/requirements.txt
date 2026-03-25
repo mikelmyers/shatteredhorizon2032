@@ -1,0 +1,2 @@
+# VFX Pipeline — no external dependencies needed
+# Pure JSON/code generation

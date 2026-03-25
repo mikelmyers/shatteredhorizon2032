@@ -1,0 +1,111 @@
+{
+  "weapons": {
+    "calibers": {
+      "556x45": {"weapons": ["M4A1", "M27_IAR", "M249_SAW", "QBZ95"], "sound_character": "sharp crack, moderate report, high-pitched"},
+      "762x51": {"weapons": ["M110_SASS"], "sound_character": "deep boom, heavy report, echoing"},
+      "762x39": {"weapons": ["AK_762x39"], "sound_character": "distinctive bark, hollow metallic ring, AK signature"},
+      "9x19": {"weapons": ["M17_SIG"], "sound_character": "snappy pop, light report, quick"},
+      "338lapua": {"weapons": ["Lapua338"], "sound_character": "massive concussive boom, long echo, deep chest thump"},
+      "50bmg": {"weapons": ["M2_50BMG"], "sound_character": "thunderous explosion, earth-shaking, overwhelming pressure wave"},
+      "40mm": {"weapons": ["M320_GL"], "sound_character": "hollow thump, grenade launcher blooping sound"},
+      "12gauge": {"weapons": ["Mossberg590"], "sound_character": "wide boom, spreading crack, pump-action mechanical"}
+    },
+    "sound_types": [
+      {"type": "fire", "description_template": "{caliber_sound}, single gunshot, outdoor environment, {weapon_name} firing", "duration": 1.5, "loop": false},
+      {"type": "fire_suppressed", "description_template": "suppressed {weapon_name} gunshot, muffled thud, mechanical action audible, quiet", "duration": 1.0, "loop": false},
+      {"type": "dry_fire", "description_template": "metallic click, gun trigger pull on empty chamber, sharp mechanical snap", "duration": 0.3, "loop": false},
+      {"type": "reload", "description_template": "{weapon_name} reload, magazine eject clatter, new magazine insertion click, bolt release snap", "duration": 2.5, "loop": false},
+      {"type": "fire_mode_switch", "description_template": "small metallic click, fire selector switch, precise mechanical toggle", "duration": 0.2, "loop": false},
+      {"type": "malfunction", "description_template": "gun jam, metallic grinding, failed action cycle, stuck bolt carrier", "duration": 0.5, "loop": false}
+    ]
+  },
+  "projectiles": [
+    {"id": "supersonic_crack_556", "category": "projectile", "description": "supersonic bullet crack whip-snap, 5.56mm passing close overhead, sharp zipping sound", "duration": 0.4, "loop": false},
+    {"id": "supersonic_crack_762", "category": "projectile", "description": "supersonic bullet crack, 7.62mm heavy round passing nearby, deeper whip crack", "duration": 0.5, "loop": false},
+    {"id": "supersonic_crack_338", "category": "projectile", "description": "supersonic crack of large caliber .338 round, intense sharp snap, air displacement", "duration": 0.5, "loop": false},
+    {"id": "supersonic_crack_50bmg", "category": "projectile", "description": "massive supersonic crack, .50 BMG round, thunderclap air displacement, terrifying", "duration": 0.6, "loop": false},
+    {"id": "ricochet_concrete", "category": "projectile", "description": "bullet ricochet off concrete, high-pitched zing with stone chip spray", "duration": 0.8, "loop": false},
+    {"id": "ricochet_metal", "category": "projectile", "description": "bullet ricochet off metal, sharp metallic ping and whine", "duration": 0.8, "loop": false},
+    {"id": "ricochet_rock", "category": "projectile", "description": "bullet ricochet off rock, sharp crack with stone fragment spray", "duration": 0.7, "loop": false},
+    {"id": "impact_concrete", "category": "projectile", "description": "bullet impact on concrete wall, sharp thud with dust and chip spray", "duration": 0.5, "loop": false},
+    {"id": "impact_metal", "category": "projectile", "description": "bullet impact on metal surface, sharp metallic clang and ringing", "duration": 0.5, "loop": false},
+    {"id": "impact_wood", "category": "projectile", "description": "bullet impact on wood, splintering crack, wood fragment spray", "duration": 0.4, "loop": false},
+    {"id": "impact_flesh", "category": "projectile", "description": "bullet impact on soft target, dull wet thud, muffled impact", "duration": 0.3, "loop": false},
+    {"id": "impact_water", "category": "projectile", "description": "bullet impact on water surface, sharp splash, water plume", "duration": 0.4, "loop": false},
+    {"id": "impact_glass", "category": "projectile", "description": "bullet impact through glass, shattering crack, glass fragments falling", "duration": 0.6, "loop": false},
+    {"id": "impact_dirt", "category": "projectile", "description": "bullet impact in dirt, dull thud with soil spray, earthy", "duration": 0.3, "loop": false},
+    {"id": "impact_vegetation", "category": "projectile", "description": "bullet tearing through leaves and branches, snapping twigs", "duration": 0.4, "loop": false},
+    {"id": "explosion_grenade", "category": "projectile", "description": "fragmentation grenade explosion, sharp blast wave, shrapnel whizz, debris rain", "duration": 2.0, "loop": false},
+    {"id": "explosion_mortar", "category": "projectile", "description": "mortar shell impact and explosion, deep concussive blast, earth-shaking, debris", "duration": 3.0, "loop": false},
+    {"id": "explosion_vehicle", "category": "projectile", "description": "vehicle explosion, massive fireball, metal tearing, secondary detonations", "duration": 4.0, "loop": false}
+  ],
+  "footsteps": {
+    "terrain_types": [
+      {"id": "wet_sand", "description": "footstep on wet beach sand, soft squelch, compressed sand"},
+      {"id": "dry_sand", "description": "footstep on dry loose sand, soft crunching, shifting grains"},
+      {"id": "mud", "description": "footstep in wet mud, sucking squelch, sticky pull"},
+      {"id": "grass", "description": "footstep on grass, soft rustling, earth beneath"},
+      {"id": "dirt", "description": "footstep on packed dirt, firm crunch, dry earth"},
+      {"id": "concrete", "description": "footstep on concrete, hard tap, sharp echo"},
+      {"id": "asphalt", "description": "footstep on asphalt road, gritty scrape, firm surface"},
+      {"id": "gravel", "description": "footstep on loose gravel, crunching stones, shifting pebbles"},
+      {"id": "rock", "description": "footstep on solid rock, hard clack, stone echo"},
+      {"id": "shallow_water", "description": "footstep splashing through shallow water, ankle-deep wade"},
+      {"id": "deep_water", "description": "swimming stroke in deep water, water displacement, splashing"},
+      {"id": "rubble", "description": "footstep on concrete rubble, unstable debris shifting, crunching"},
+      {"id": "metal", "description": "footstep on metal surface, hollow metallic clang, ringing"},
+      {"id": "wood", "description": "footstep on wooden floor, creaking boards, hollow thud"},
+      {"id": "vegetation", "description": "footstep through dense undergrowth, snapping twigs, rustling leaves"}
+    ],
+    "movement_types": [
+      {"type": "walk", "modifier": "slow careful step", "duration": 0.5},
+      {"type": "run", "modifier": "quick heavy step, faster pace", "duration": 0.35},
+      {"type": "crawl", "modifier": "dragging body across surface, slow scraping", "duration": 0.8},
+      {"type": "land", "modifier": "heavy landing impact from jump, weight compression", "duration": 0.4}
+    ]
+  },
+  "destruction": [
+    {"id": "destroy_wall", "description": "concrete wall collapsing, heavy crumbling, dust cloud, rebar snapping", "duration": 3.0},
+    {"id": "destroy_roof", "description": "roof section caving in, timber cracking, tiles shattering, falling debris", "duration": 3.5},
+    {"id": "destroy_floor", "description": "floor giving way, cracking concrete, falling rubble below", "duration": 2.5},
+    {"id": "destroy_column", "description": "structural support column breaking, concrete snapping, building groaning", "duration": 2.0},
+    {"id": "destroy_window", "description": "window shattering, glass fragments raining, frame splintering", "duration": 1.5},
+    {"id": "destroy_door", "description": "door being blown off hinges, wood splintering, metal bending", "duration": 1.0},
+    {"id": "destroy_sandbag", "description": "sandbag burst, sand spilling out, fabric tearing, dull thud", "duration": 1.0},
+    {"id": "destroy_fortification", "description": "heavy fortification crumbling, concrete and steel breaking apart", "duration": 4.0},
+    {"id": "destroy_vehicle", "description": "vehicle being destroyed, metal crushing, glass shattering, fuel igniting", "duration": 5.0},
+    {"id": "destroy_tree", "description": "tree falling, trunk cracking and splintering, branches snapping, ground impact", "duration": 4.0},
+    {"id": "destroy_furniture", "description": "furniture smashing, wood breaking, objects scattering", "duration": 1.5},
+    {"id": "destroy_fence", "description": "chain link fence tearing, metal posts bending, wire snapping", "duration": 1.5},
+    {"id": "destroy_generic", "description": "generic object breaking apart, cracking, debris scattering", "duration": 2.0}
+  ],
+  "drones": [
+    {"id": "drone_motor_loop", "description": "quadcopter drone motor humming, high-pitched electric buzz, steady hovering", "duration": 5.0, "loop": true},
+    {"id": "drone_dive_whine", "description": "FPV drone diving at high speed, increasing pitch whine, incoming attack warning", "duration": 2.0, "loop": false},
+    {"id": "drone_explosion", "description": "small drone exploding, sharp pop, electronic debris, propeller fragments", "duration": 1.5, "loop": false},
+    {"id": "drone_isr_buzz", "description": "distant surveillance drone buzzing overhead, faint high-altitude hum", "duration": 5.0, "loop": true},
+    {"id": "drone_detected_beep", "description": "electronic radar detection beep, short alert ping, military equipment tone", "duration": 0.3, "loop": false},
+    {"id": "drone_close_warning", "description": "rapid electronic warning alarm, close proximity drone alert, urgent beeping", "duration": 1.0, "loop": true},
+    {"id": "drone_jamming_active", "description": "electronic jamming noise, static interference, radio frequency disruption hum", "duration": 5.0, "loop": true}
+  ],
+  "comms": [
+    {"id": "radio_static", "description": "military radio static noise, white noise crackle, electronic hiss", "duration": 3.0, "loop": true},
+    {"id": "radio_crackle", "description": "radio transmission crackle, intermittent static bursts, signal breaking up", "duration": 2.0, "loop": true},
+    {"id": "comms_restored", "description": "radio signal restored, clean tone, static clearing to clean signal, relief beep", "duration": 1.0, "loop": false},
+    {"id": "comms_jammed", "description": "radio jammed, harsh electronic squeal, signal completely disrupted, alarm tone", "duration": 1.5, "loop": false}
+  ],
+  "ui_misc": [
+    {"id": "menu_click", "description": "clean UI button click, soft digital tap", "duration": 0.1, "loop": false, "synth": true},
+    {"id": "compass_tick", "description": "subtle compass bearing tick, quiet mechanical click", "duration": 0.05, "loop": false, "synth": true},
+    {"id": "squad_command_select", "description": "tactical radio squelch, command confirmation beep", "duration": 0.3, "loop": false, "synth": true},
+    {"id": "heartbeat_stress", "description": "human heartbeat, increasing BPM, thumping in ears, combat stress", "duration": 5.0, "loop": true, "synth": true},
+    {"id": "tinnitus", "description": "high-pitched ear ringing, tinnitus after explosion, gradual fade", "duration": 8.0, "loop": false, "synth": true},
+    {"id": "breathing_exertion", "description": "heavy breathing, labored exertion, gasping for air after sprint", "duration": 5.0, "loop": true}
+  ],
+  "output_format": {
+    "sample_rate": 48000,
+    "bit_depth": 16,
+    "format": "wav",
+    "channels_default": 1
+  }
+}

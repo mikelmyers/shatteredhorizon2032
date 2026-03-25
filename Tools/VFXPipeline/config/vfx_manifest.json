@@ -1,0 +1,70 @@
+{
+  "muzzle_flash": {
+    "556x45": {"flash_size": 0.3, "flash_duration": 0.05, "flash_color": [1.0, 0.9, 0.5, 1.0], "smoke_amount": 0.3, "spark_count": 8, "weapons": ["M4A1", "M27_IAR", "M249_SAW", "QBZ95"]},
+    "762x51": {"flash_size": 0.45, "flash_duration": 0.06, "flash_color": [1.0, 0.85, 0.4, 1.0], "smoke_amount": 0.5, "spark_count": 12, "weapons": ["M110_SASS"]},
+    "762x39": {"flash_size": 0.4, "flash_duration": 0.055, "flash_color": [1.0, 0.8, 0.35, 1.0], "smoke_amount": 0.45, "spark_count": 10, "weapons": ["AK_762x39"]},
+    "9x19": {"flash_size": 0.15, "flash_duration": 0.04, "flash_color": [1.0, 0.95, 0.6, 1.0], "smoke_amount": 0.15, "spark_count": 4, "weapons": ["M17_SIG"]},
+    "338lapua": {"flash_size": 0.6, "flash_duration": 0.07, "flash_color": [1.0, 0.8, 0.3, 1.0], "smoke_amount": 0.7, "spark_count": 15, "weapons": ["Lapua338"]},
+    "50bmg": {"flash_size": 1.0, "flash_duration": 0.09, "flash_color": [1.0, 0.75, 0.25, 1.0], "smoke_amount": 1.0, "spark_count": 25, "weapons": ["M2_50BMG"]},
+    "40mm": {"flash_size": 0.5, "flash_duration": 0.08, "flash_color": [1.0, 0.7, 0.3, 1.0], "smoke_amount": 0.8, "spark_count": 5, "weapons": ["M320_GL"]},
+    "12gauge": {"flash_size": 0.5, "flash_duration": 0.06, "flash_color": [1.0, 0.9, 0.45, 1.0], "smoke_amount": 0.6, "spark_count": 20, "weapons": ["Mossberg590"]}
+  },
+  "shell_eject": {
+    "556x45": {"shell_scale": [0.008, 0.008, 0.022], "eject_velocity": 5.0, "eject_angle": 80, "spin_rate": 15.0, "material": "brass"},
+    "762x51": {"shell_scale": [0.01, 0.01, 0.035], "eject_velocity": 4.5, "eject_angle": 75, "spin_rate": 12.0, "material": "brass"},
+    "762x39": {"shell_scale": [0.009, 0.009, 0.028], "eject_velocity": 5.5, "eject_angle": 85, "spin_rate": 14.0, "material": "steel_lacquer"},
+    "9x19": {"shell_scale": [0.008, 0.008, 0.016], "eject_velocity": 4.0, "eject_angle": 90, "spin_rate": 18.0, "material": "brass"},
+    "338lapua": {"shell_scale": [0.012, 0.012, 0.045], "eject_velocity": 3.5, "eject_angle": 70, "spin_rate": 10.0, "material": "brass"},
+    "12gauge": {"shell_scale": [0.018, 0.018, 0.055], "eject_velocity": 3.0, "eject_angle": 85, "spin_rate": 8.0, "material": "red_plastic"}
+  },
+  "impact_effects": {
+    "concrete": {"particle_count": 30, "particle_size": 0.02, "particle_color": [0.7, 0.7, 0.7, 1.0], "decal_size": 0.05, "dust_amount": 0.8, "spark_count": 3, "debris_type": "stone_chips"},
+    "metal": {"particle_count": 20, "particle_size": 0.01, "particle_color": [0.9, 0.9, 0.8, 1.0], "decal_size": 0.03, "dust_amount": 0.2, "spark_count": 15, "debris_type": "sparks"},
+    "wood": {"particle_count": 25, "particle_size": 0.03, "particle_color": [0.6, 0.4, 0.2, 1.0], "decal_size": 0.04, "dust_amount": 0.4, "spark_count": 0, "debris_type": "splinters"},
+    "flesh": {"particle_count": 15, "particle_size": 0.02, "particle_color": [0.8, 0.1, 0.1, 1.0], "decal_size": 0.06, "dust_amount": 0.0, "spark_count": 0, "debris_type": "none"},
+    "water": {"particle_count": 40, "particle_size": 0.04, "particle_color": [0.7, 0.8, 0.9, 0.8], "decal_size": 0.0, "dust_amount": 0.0, "spark_count": 0, "debris_type": "splash"},
+    "glass": {"particle_count": 50, "particle_size": 0.015, "particle_color": [0.9, 0.95, 1.0, 0.7], "decal_size": 0.08, "dust_amount": 0.1, "spark_count": 5, "debris_type": "shards"},
+    "dirt": {"particle_count": 20, "particle_size": 0.025, "particle_color": [0.5, 0.4, 0.3, 1.0], "decal_size": 0.04, "dust_amount": 0.9, "spark_count": 0, "debris_type": "clods"},
+    "vegetation": {"particle_count": 15, "particle_size": 0.03, "particle_color": [0.3, 0.5, 0.2, 1.0], "decal_size": 0.0, "dust_amount": 0.2, "spark_count": 0, "debris_type": "leaves"},
+    "default": {"particle_count": 20, "particle_size": 0.02, "particle_color": [0.6, 0.6, 0.6, 1.0], "decal_size": 0.04, "dust_amount": 0.5, "spark_count": 2, "debris_type": "generic"}
+  },
+  "destruction_vfx": {
+    "wall": {"debris_count": 50, "dust_cloud_size": 3.0, "smoke_duration": 5.0, "fragment_velocity": 8.0, "collapse_delay": 0.2},
+    "roof": {"debris_count": 60, "dust_cloud_size": 4.0, "smoke_duration": 6.0, "fragment_velocity": 5.0, "collapse_delay": 0.5},
+    "floor": {"debris_count": 40, "dust_cloud_size": 2.5, "smoke_duration": 4.0, "fragment_velocity": 6.0, "collapse_delay": 0.3},
+    "column": {"debris_count": 30, "dust_cloud_size": 2.0, "smoke_duration": 4.0, "fragment_velocity": 10.0, "collapse_delay": 0.1},
+    "window": {"debris_count": 80, "dust_cloud_size": 0.5, "smoke_duration": 1.0, "fragment_velocity": 12.0, "collapse_delay": 0.0},
+    "door": {"debris_count": 25, "dust_cloud_size": 1.0, "smoke_duration": 2.0, "fragment_velocity": 15.0, "collapse_delay": 0.0},
+    "sandbag": {"debris_count": 100, "dust_cloud_size": 2.0, "smoke_duration": 3.0, "fragment_velocity": 4.0, "collapse_delay": 0.1},
+    "fortification": {"debris_count": 70, "dust_cloud_size": 5.0, "smoke_duration": 8.0, "fragment_velocity": 7.0, "collapse_delay": 0.4},
+    "vehicle_wreck": {"debris_count": 40, "dust_cloud_size": 6.0, "smoke_duration": 15.0, "fragment_velocity": 20.0, "collapse_delay": 0.0},
+    "tree": {"debris_count": 30, "dust_cloud_size": 1.5, "smoke_duration": 2.0, "fragment_velocity": 5.0, "collapse_delay": 0.8},
+    "furniture": {"debris_count": 20, "dust_cloud_size": 0.8, "smoke_duration": 1.5, "fragment_velocity": 8.0, "collapse_delay": 0.0},
+    "fence": {"debris_count": 15, "dust_cloud_size": 0.5, "smoke_duration": 1.0, "fragment_velocity": 10.0, "collapse_delay": 0.0},
+    "generic": {"debris_count": 25, "dust_cloud_size": 2.0, "smoke_duration": 3.0, "fragment_velocity": 6.0, "collapse_delay": 0.1}
+  },
+  "footstep_vfx": {
+    "wet_sand": {"dust_size": 0.1, "dust_color": [0.76, 0.7, 0.5, 0.6], "splash_height": 0.0, "particle_count": 8, "lifetime": 0.8},
+    "dry_sand": {"dust_size": 0.15, "dust_color": [0.85, 0.78, 0.55, 0.5], "splash_height": 0.0, "particle_count": 12, "lifetime": 1.2},
+    "mud": {"dust_size": 0.05, "dust_color": [0.4, 0.3, 0.2, 0.7], "splash_height": 0.05, "particle_count": 6, "lifetime": 0.5},
+    "grass": {"dust_size": 0.05, "dust_color": [0.3, 0.5, 0.2, 0.3], "splash_height": 0.0, "particle_count": 4, "lifetime": 0.6},
+    "dirt": {"dust_size": 0.12, "dust_color": [0.6, 0.5, 0.35, 0.5], "splash_height": 0.0, "particle_count": 10, "lifetime": 1.0},
+    "concrete": {"dust_size": 0.03, "dust_color": [0.7, 0.7, 0.7, 0.3], "splash_height": 0.0, "particle_count": 3, "lifetime": 0.4},
+    "asphalt": {"dust_size": 0.03, "dust_color": [0.5, 0.5, 0.5, 0.3], "splash_height": 0.0, "particle_count": 3, "lifetime": 0.4},
+    "gravel": {"dust_size": 0.08, "dust_color": [0.65, 0.6, 0.55, 0.4], "splash_height": 0.0, "particle_count": 8, "lifetime": 0.7},
+    "rock": {"dust_size": 0.02, "dust_color": [0.6, 0.6, 0.6, 0.2], "splash_height": 0.0, "particle_count": 2, "lifetime": 0.3},
+    "shallow_water": {"dust_size": 0.0, "dust_color": [0.5, 0.7, 0.9, 0.6], "splash_height": 0.15, "particle_count": 20, "lifetime": 0.6},
+    "deep_water": {"dust_size": 0.0, "dust_color": [0.4, 0.6, 0.8, 0.5], "splash_height": 0.3, "particle_count": 30, "lifetime": 0.8},
+    "rubble": {"dust_size": 0.1, "dust_color": [0.65, 0.6, 0.55, 0.5], "splash_height": 0.0, "particle_count": 8, "lifetime": 0.9},
+    "metal": {"dust_size": 0.01, "dust_color": [0.7, 0.7, 0.7, 0.2], "splash_height": 0.0, "particle_count": 1, "lifetime": 0.2},
+    "wood": {"dust_size": 0.04, "dust_color": [0.6, 0.45, 0.3, 0.3], "splash_height": 0.0, "particle_count": 3, "lifetime": 0.5},
+    "vegetation": {"dust_size": 0.03, "dust_color": [0.3, 0.45, 0.2, 0.3], "splash_height": 0.0, "particle_count": 5, "lifetime": 0.6}
+  },
+  "drone_vfx": {
+    "rotor_wash": {"radius": 2.0, "particle_count": 50, "force_strength": 5.0, "dust_color": [0.7, 0.65, 0.5, 0.4]},
+    "trail": {"width": 0.05, "color": [0.8, 0.8, 0.8, 0.3], "lifetime": 1.0, "emit_rate": 30},
+    "destruction_explosion": {"radius": 3.0, "particle_count": 100, "flash_intensity": 5.0, "smoke_duration": 4.0},
+    "debris_falling": {"debris_count": 20, "fall_speed": 5.0, "spread": 3.0, "lifetime": 3.0},
+    "fpv_fragmentation": {"fragment_count": 50, "fragment_velocity": 25.0, "blast_radius": 5.0, "flash_intensity": 8.0}
+  }
+}

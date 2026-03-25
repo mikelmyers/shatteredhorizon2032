@@ -1,0 +1,48 @@
+{
+  "sfx_sourcing": {
+    "freesound": {
+      "enabled": true,
+      "base_url": "https://freesound.org/apiv2",
+      "env_key": "FREESOUND_API_KEY",
+      "results_per_query": 5,
+      "license_filter": "Creative Commons 0"
+    }
+  },
+  "sfx_generation": {
+    "elevenlabs": {
+      "enabled": true,
+      "base_url": "https://api.elevenlabs.io/v1",
+      "env_key": "ELEVENLABS_API_KEY",
+      "model": "eleven_sound_effects_v1"
+    },
+    "stable_audio": {
+      "enabled": false,
+      "base_url": "https://api.stability.ai/v2beta",
+      "env_key": "STABLE_AUDIO_API_KEY"
+    }
+  },
+  "voice_generation": {
+    "elevenlabs": {
+      "enabled": true,
+      "base_url": "https://api.elevenlabs.io/v1",
+      "env_key": "ELEVENLABS_API_KEY"
+    },
+    "azure_tts": {
+      "enabled": false,
+      "env_key": "AZURE_SPEECH_KEY",
+      "region": "eastus"
+    }
+  },
+  "music_generation": {
+    "suno": {
+      "enabled": true,
+      "base_url": "https://api.suno.ai/v1",
+      "env_key": "SUNO_API_KEY"
+    },
+    "stable_audio": {
+      "enabled": false,
+      "base_url": "https://api.stability.ai/v2beta",
+      "env_key": "STABLE_AUDIO_API_KEY"
+    }
+  }
+}
