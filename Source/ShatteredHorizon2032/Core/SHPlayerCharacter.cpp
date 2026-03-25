@@ -1,12 +1,19 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
 #include "SHPlayerCharacter.h"
+#include "SHCameraSystem.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
+#include "Combat/SHHitFeedback.h"
+#include "Combat/SHDeathSystem.h"
+#include "Combat/SHDamageSystem.h"
+#include "Combat/SHFatigueSystem.h"
+#include "Audio/SHReverbZoneManager.h"
+#include "Audio/SHAmbientSoundscape.h"
 
 ASHPlayerCharacter::ASHPlayerCharacter()
 {
@@ -27,6 +34,29 @@ ASHPlayerCharacter::ASHPlayerCharacter()
 
 	// Hide the third-person mesh from the owning player.
 	GetMesh()->SetOwnerNoSee(true);
+
+	// --- New Round 2-5 systems ---
+
+	// Camera feel system.
+	CameraSystem = CreateDefaultSubobject<USHCameraSystem>(TEXT("CameraSystem"));
+
+	// Hit feedback (screen punch, indicators, VFX).
+	HitFeedback = CreateDefaultSubobject<USHHitFeedback>(TEXT("HitFeedback"));
+
+	// Death physics (ragdoll, momentum transfer, body persistence).
+	DeathSystem = CreateDefaultSubobject<USHDeathSystem>(TEXT("DeathSystem"));
+
+	// Damage model (wounds, armor, bleeding).
+	DamageSystemComp = CreateDefaultSubobject<USHDamageSystem>(TEXT("DamageSystem"));
+
+	// Fatigue (stamina, long-term fatigue, breath control).
+	FatigueSystem = CreateDefaultSubobject<USHFatigueSystem>(TEXT("FatigueSystem"));
+
+	// Audio: dynamic reverb zones.
+	ReverbZoneManager = CreateDefaultSubobject<USHReverbZoneManager>(TEXT("ReverbZoneManager"));
+
+	// Audio: ambient soundscape layers.
+	AmbientSoundscape = CreateDefaultSubobject<USHAmbientSoundscape>(TEXT("AmbientSoundscape"));
 
 	// Configure movement defaults.
 	UCharacterMovementComponent* CMC = GetCharacterMovement();
@@ -83,6 +113,22 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 	TickSuppression(DeltaSeconds);
 	TickBleeding(DeltaSeconds);
 	TickLean(DeltaSeconds);
+
+	// --- Feed camera system with current character state ---
+	if (CameraSystem)
+	{
+		FSHCameraContext CamCtx;
+		CamCtx.GroundSpeed = GetVelocity().Size2D();
+		CamCtx.bIsSprinting = bIsSprinting;
+		CamCtx.bIsADS = bIsADS;
+		CamCtx.Suppression = SuppressionLevel;
+		CamCtx.Fatigue = FatigueSystem ? (1.f - FatigueSystem->GetStaminaPercent()) : 0.f;
+		CamCtx.HipFOV = 90.f;
+		// TODO: Read ADS FOV from equipped weapon data when weapon system is wired.
+		CamCtx.ADSFOV = 55.f;
+		CamCtx.ADSTransitionTime = 0.2f;
+		CameraSystem->SetCameraContext(CamCtx);
+	}
 
 	// Apply dynamic movement speed based on stance, weight, injuries.
 	UCharacterMovementComponent* CMC = GetCharacterMovement();
@@ -174,6 +220,35 @@ float ASHPlayerCharacter::TakeDamage(float DamageAmount, const FDamageEvent& Dam
 	// Incoming fire always adds suppression.
 	AddSuppression(0.15f);
 
+	// --- Wire hit feedback on damage received ---
+	if (HitFeedback)
+	{
+		FSHDamageInfo DmgInfo;
+		DmgInfo.BaseDamage = FinalDamage;
+		DmgInfo.DamageType = ESHDamageType::Ballistic;
+		DmgInfo.HitZone = static_cast<ESHHitZone>(static_cast<uint8>(HitLimb));
+		DmgInfo.Instigator = DamageCauser;
+
+		// Compute damage direction from causer.
+		if (DamageCauser)
+		{
+			DmgInfo.DamageDirection = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal();
+		}
+
+		if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+		{
+			const FPointDamageEvent& PointDmg = static_cast<const FPointDamageEvent&>(DamageEvent);
+			DmgInfo.ImpactLocation = PointDmg.HitInfo.ImpactPoint;
+		}
+
+		FSHDamageResult DmgResult;
+		DmgResult.DamageDealt = FinalDamage;
+		DmgResult.bIsLethal = CurrentHealth <= 0.f;
+		DmgResult.HitZone = DmgInfo.HitZone;
+
+		HitFeedback->OnDamageReceived(DmgInfo, DmgResult);
+	}
+
 	if (CurrentHealth <= 0.f)
 	{
 		Die();
@@ -212,15 +287,28 @@ void ASHPlayerCharacter::Die()
 	bIsDead = true;
 	OnPlayerDeath.Broadcast();
 
-	// Disable input and ragdoll.
+	// Disable input.
 	if (AController* PC = GetController())
 	{
 		DisableInput(Cast<APlayerController>(PC));
 	}
 
-	GetMesh()->SetSimulatePhysics(true);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// --- Use DeathSystem for physics-driven ragdoll ---
+	if (DeathSystem)
+	{
+		FSHDamageInfo KillingBlow;
+		KillingBlow.DamageDirection = FVector::ForwardVector; // overridden by last hit
+		KillingBlow.HitZone = ESHHitZone::Torso;
+		KillingBlow.DamageType = ESHDamageType::Ballistic;
+		DeathSystem->ExecuteDeath(KillingBlow);
+	}
+	else
+	{
+		// Fallback: simple ragdoll if DeathSystem is missing.
+		GetMesh()->SetSimulatePhysics(true);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[SHPlayerCharacter] Player killed"));
 }

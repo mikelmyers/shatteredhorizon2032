@@ -15,6 +15,11 @@ class UBehaviorTreeComponent;
 class UBlackboardComponent;
 class UBehaviorTree;
 struct FSHTacticalOrder;
+class USHPrimordiaEcho;
+class USHPrimordiaAletheia;
+class USHPrimordiaSimulon;
+class USHPrimordiaAstraea;
+class USHPrimordiaDebugOverlay;
 
 // -----------------------------------------------------------------------
 //  Enums
@@ -300,6 +305,26 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|AI|Components")
 	TObjectPtr<UBlackboardComponent> BlackboardComp;
+
+	/** Primordia: AI communication layer — squad callouts and coordination. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|AI|Primordia")
+	TObjectPtr<USHPrimordiaEcho> PrimordiaEcho;
+
+	/** Primordia: Decision validation — prevents obviously wrong AI actions. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|AI|Primordia")
+	TObjectPtr<USHPrimordiaAletheia> PrimordiaAletheia;
+
+	/** Primordia: Threat modeling and predictive player movement. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|AI|Primordia")
+	TObjectPtr<USHPrimordiaSimulon> PrimordiaSimulon;
+
+	/** Primordia: Cognitive state tracking — stress, decision quality, alertness. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|AI|Primordia")
+	TObjectPtr<USHPrimordiaAstraea> PrimordiaAstraea;
+
+	/** Primordia: Debug overlay for AI decision recording. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|AI|Primordia")
+	TObjectPtr<USHPrimordiaDebugOverlay> PrimordiaDebugOverlay;
 
 private:
 	// ------------------------------------------------------------------

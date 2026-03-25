@@ -2,6 +2,7 @@
 
 #include "SHPlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "Progression/SHProgressionSystem.h"
 
 ASHPlayerState::ASHPlayerState()
 {
@@ -61,6 +62,19 @@ void ASHPlayerState::RecordKill(float Distance)
 
 	// Kills improve morale.
 	AdjustMorale(3.f);
+
+	// Award XP via progression system.
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (USHProgressionSystem* Prog = GI->GetSubsystem<USHProgressionSystem>())
+		{
+			int32 XP = 100; // Base kill XP.
+			// Bonus for long-range kills (>300m = 30000cm).
+			if (Distance > 30000.f) { XP += 50; }
+			if (Distance > 60000.f) { XP += 100; }
+			Prog->AwardXP(XP, FName(TEXT("Kill")));
+		}
+	}
 }
 
 void ASHPlayerState::RecordAssist()
@@ -102,6 +116,15 @@ void ASHPlayerState::RecordRevive()
 {
 	EngagementRecord.Revives++;
 	AdjustMorale(4.f);
+
+	// Award XP for teamwork.
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (USHProgressionSystem* Prog = GI->GetSubsystem<USHProgressionSystem>())
+		{
+			Prog->AwardXP(150, FName(TEXT("Teamwork")));
+		}
+	}
 }
 
 void ASHPlayerState::RecordSquadOrderIssued()
@@ -119,6 +142,15 @@ void ASHPlayerState::RecordObjectiveCompleted()
 {
 	EngagementRecord.ObjectivesCompleted++;
 	AdjustMorale(10.f);
+
+	// Award XP for objective completion.
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (USHProgressionSystem* Prog = GI->GetSubsystem<USHProgressionSystem>())
+		{
+			Prog->AwardXP(500, FName(TEXT("Objective")));
+		}
+	}
 }
 
 // =======================================================================
