@@ -8,53 +8,53 @@ USHAIPerceptionConfig::USHAIPerceptionConfig()
 	{
 		FSHSightRangeEntry ClearDay;
 		ClearDay.Condition = ESHVisibilityCondition::ClearDay;
-		ClearDay.MaxRange = 15000.f;  // 150m
-		ClearDay.InstantDetectionRange = 2000.f;
+		ClearDay.MaxRange = 80000.f;  // 800m — doctrine minimum engagement distance
+		ClearDay.InstantDetectionRange = 15000.f; // 150m instant detection
 		SightRanges.Add(ClearDay);
 
 		FSHSightRangeEntry Overcast;
 		Overcast.Condition = ESHVisibilityCondition::Overcast;
-		Overcast.MaxRange = 12000.f;
-		Overcast.InstantDetectionRange = 1800.f;
+		Overcast.MaxRange = 60000.f;  // 600m
+		Overcast.InstantDetectionRange = 12000.f;
 		SightRanges.Add(Overcast);
 
 		FSHSightRangeEntry Dusk;
 		Dusk.Condition = ESHVisibilityCondition::Dusk;
-		Dusk.MaxRange = 8000.f;
-		Dusk.InstantDetectionRange = 1200.f;
+		Dusk.MaxRange = 30000.f;  // 300m
+		Dusk.InstantDetectionRange = 5000.f;
 		SightRanges.Add(Dusk);
 
 		FSHSightRangeEntry Night;
 		Night.Condition = ESHVisibilityCondition::Night;
-		Night.MaxRange = 3000.f;
-		Night.InstantDetectionRange = 500.f;
+		Night.MaxRange = 8000.f;   // 80m unaided night vision
+		Night.InstantDetectionRange = 1500.f;
 		Night.PeripheralHalfAngleDeg = 50.f;
 		SightRanges.Add(Night);
 
 		FSHSightRangeEntry NightNVG;
 		NightNVG.Condition = ESHVisibilityCondition::NightNVG;
-		NightNVG.MaxRange = 10000.f;
-		NightNVG.InstantDetectionRange = 1500.f;
+		NightNVG.MaxRange = 50000.f;  // 500m with NVGs
+		NightNVG.InstantDetectionRange = 8000.f;
 		NightNVG.PeripheralHalfAngleDeg = 40.f;  // NVG narrows field of view.
 		NightNVG.CentralHalfAngleDeg = 20.f;
 		SightRanges.Add(NightNVG);
 
 		FSHSightRangeEntry Fog;
 		Fog.Condition = ESHVisibilityCondition::Fog;
-		Fog.MaxRange = 4000.f;
-		Fog.InstantDetectionRange = 800.f;
+		Fog.MaxRange = 15000.f;  // 150m in fog
+		Fog.InstantDetectionRange = 3000.f;
 		SightRanges.Add(Fog);
 
 		FSHSightRangeEntry Rain;
 		Rain.Condition = ESHVisibilityCondition::HeavyRain;
-		Rain.MaxRange = 6000.f;
-		Rain.InstantDetectionRange = 1000.f;
+		Rain.MaxRange = 40000.f;  // 400m in heavy rain
+		Rain.InstantDetectionRange = 8000.f;
 		SightRanges.Add(Rain);
 
 		FSHSightRangeEntry Smoke;
 		Smoke.Condition = ESHVisibilityCondition::Smoke;
-		Smoke.MaxRange = 500.f;
-		Smoke.InstantDetectionRange = 200.f;
+		Smoke.MaxRange = 1500.f;  // 15m in smoke
+		Smoke.InstantDetectionRange = 500.f;
 		SightRanges.Add(Smoke);
 	}
 

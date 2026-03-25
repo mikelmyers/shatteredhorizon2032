@@ -16,6 +16,8 @@ enum class ESHWeaponCategory : uint8
 	AssaultRifle    UMETA(DisplayName = "Assault Rifle"),
 	SAW             UMETA(DisplayName = "Squad Automatic Weapon"),
 	DMR             UMETA(DisplayName = "Designated Marksman Rifle"),
+	SniperRifle     UMETA(DisplayName = "Sniper Rifle"),
+	HeavyMG         UMETA(DisplayName = "Heavy Machine Gun"),
 	Sidearm         UMETA(DisplayName = "Sidearm"),
 	GrenadeLauncher UMETA(DisplayName = "Grenade Launcher"),
 	Shotgun         UMETA(DisplayName = "Shotgun"),
@@ -481,6 +483,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
 	static void ApplyDefaults_Mossberg590(USHWeaponDataAsset* Data);
 
+	/** .338 Lapua Magnum sniper rifle. */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_SniperLapua(USHWeaponDataAsset* Data);
+
+	/** M2 Browning .50 BMG heavy machine gun. */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M2_Browning(USHWeaponDataAsset* Data);
+
+	/** QBZ-95 (PLA standard-issue 5.8×42mm, analogous role to 7.62×39mm AK-platform). */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_QBZ95(USHWeaponDataAsset* Data);
+
+	/** Type 56 (7.62×39mm AK-variant, PLA militia / reserve). */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_Type56(USHWeaponDataAsset* Data);
+
 private:
 	/** Populate the standard 5.56 penetration table. */
 	static void ApplyStandardPenetration_556(USHWeaponDataAsset* Data);
@@ -496,4 +514,13 @@ private:
 
 	/** Populate 40mm grenade penetration table. */
 	static void ApplyStandardPenetration_40mm(USHWeaponDataAsset* Data);
+
+	/** Populate .338 Lapua Magnum penetration table. */
+	static void ApplyStandardPenetration_338Lapua(USHWeaponDataAsset* Data);
+
+	/** Populate .50 BMG penetration table. */
+	static void ApplyStandardPenetration_50BMG(USHWeaponDataAsset* Data);
+
+	/** Populate 7.62x39mm penetration table. */
+	static void ApplyStandardPenetration_762x39(USHWeaponDataAsset* Data);
 };

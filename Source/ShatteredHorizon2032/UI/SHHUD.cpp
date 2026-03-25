@@ -289,7 +289,29 @@ void ASHHUD::UpdateAmmoDisplay(int32 InCurrentMagazine, int32 InMagazineCapacity
 	MagCapacity = InMagazineCapacity;
 	ReserveAmmo = InReserveAmmo;
 
-	// In production, push to UMG bindings via property binding or event dispatch
+	// In production, push to UMG bindings via property binding or event dispatch.
+	// NOTE: Reserve ammo is NOT shown as exact count on HUD. Use GetReserveAmmoEstimate().
+}
+
+FText ASHHUD::GetReserveAmmoEstimate() const
+{
+	// Doctrine: no magical ammo counter. Player estimates reserve by feel.
+	// Display a rough categorical estimate, not an exact number.
+	if (MagCapacity <= 0) return FText::FromString(TEXT("---"));
+
+	const int32 FullLoadMags = 7; // Typical combat load: 7 magazines
+	const float MagsRemaining = static_cast<float>(ReserveAmmo) / FMath::Max(1, MagCapacity);
+
+	if (MagsRemaining >= FullLoadMags * 0.75f)
+		return FText::FromString(TEXT("FULL"));
+	else if (MagsRemaining >= FullLoadMags * 0.5f)
+		return FText::FromString(TEXT("GOOD"));
+	else if (MagsRemaining >= FullLoadMags * 0.25f)
+		return FText::FromString(TEXT("LOW"));
+	else if (ReserveAmmo > 0)
+		return FText::FromString(TEXT("LAST MAG"));
+	else
+		return FText::FromString(TEXT("DRY"));
 }
 
 void ASHHUD::UpdateStance(ESHPlayerStance NewStance)
