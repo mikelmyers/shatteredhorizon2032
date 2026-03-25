@@ -1,350 +1,494 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
-#include "Weapons/SHProjectile.h"
-#include "Weapons/SHBallisticsSystem.h"
-#include "Weapons/SHWeaponData.h"
+#include "SHProjectile.h"
+#include "SHBallisticsSystem.h"
+#include "SHWeaponBase.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-#include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/DamageType.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
-// ---------------------------------------------------------------------------
-// Constructor
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Construction
+ * --------------------------------------------------------------------- */
 
 ASHProjectile::ASHProjectile()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.TickGroup = TG_PrePhysics;
+	bReplicates = true;
 
-	// Collision sphere — small radius for bullet
-	CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
-	CollisionSphere->SetSphereRadius(0.5f);
-	CollisionSphere->SetCollisionProfileName(TEXT("Projectile"));
-	CollisionSphere->SetGenerateOverlapEvents(false);
-	CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision); // We do manual traces
-	SetRootComponent(CollisionSphere);
+	// Collision sphere
+	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
+	CollisionComp->SetSphereRadius(1.0f); // Bullet-sized
+	CollisionComp->SetCollisionProfileName(TEXT("Projectile"));
+	CollisionComp->SetGenerateOverlapEvents(false);
+	CollisionComp->CanCharacterStepUpOn = ECB_No;
+	RootComponent = CollisionComp;
 
-	// Projectile movement — we override its physics in Tick, but keep the
-	// component for network replication and interop.
+	// Projectile movement — we'll override most of its behavior with custom ballistics,
+	// but keep it for sweep-based collision detection.
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
+	ProjectileMovement->UpdatedComponent = CollisionComp;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = false;
 	ProjectileMovement->ProjectileGravityScale = 0.0f; // We handle gravity ourselves
 	ProjectileMovement->InitialSpeed = 0.0f;
-	ProjectileMovement->MaxSpeed = 0.0f; // Uncapped by setting to 0
-	ProjectileMovement->bSimulationEnabled = false; // We drive manually
+	ProjectileMovement->MaxSpeed = 0.0f; // Will be set during init
 
-	// Tracer VFX component — activated only for tracer rounds
-	TracerVFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TracerVFX"));
-	TracerVFX->SetupAttachment(RootComponent);
-	TracerVFX->SetAutoActivate(false);
+	// Tracer VFX — created but inactive until flagged
+	TracerVFXComp = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("TracerVFX"));
+	TracerVFXComp->SetupAttachment(RootComponent);
+	TracerVFXComp->bAutoActivate = false;
 
-	// Defaults
-	CurrentVelocity = FVector::ZeroVector;
-	CurrentDamage = 0.0f;
-	DistanceTravelled = 0.0f;
-	bIsTracer = false;
-	PenetrationCount = 0;
-	RicochetCount = 0;
-	LifetimeElapsed = 0.0f;
-	PreviousPosition = FVector::ZeroVector;
+	// Collision binding
+	CollisionComp->OnComponentHit.AddDynamic(this, &ASHProjectile::OnProjectileHit);
 
-	// No replication for now (server-authoritative projectiles would need it)
-	bReplicates = false;
+	// Default lifetime
+	InitialLifeSpan = 0.0f; // Managed manually
 }
 
-// ---------------------------------------------------------------------------
-// Initialization
-// ---------------------------------------------------------------------------
-
-void ASHProjectile::InitProjectile(
-	const USHWeaponData* InWeaponData,
-	const FVector& InMuzzleVelocity,
-	float InDamage,
-	bool bInIsTracer,
-	APawn* InInstigator)
-{
-	WeaponData = InWeaponData;
-	CurrentVelocity = InMuzzleVelocity;
-	CurrentDamage = InDamage;
-	bIsTracer = bInIsTracer;
-	InstigatorPawn = InInstigator;
-	PreviousPosition = GetActorLocation();
-	PenetrationCount = 0;
-	RicochetCount = 0;
-	DistanceTravelled = 0.0f;
-	LifetimeElapsed = 0.0f;
-
-	if (InInstigator)
-	{
-		SetInstigator(InInstigator);
-	}
-
-	SetTracerVisible(bIsTracer);
-}
-
-// ---------------------------------------------------------------------------
-// BeginPlay
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  BeginPlay
+ * --------------------------------------------------------------------- */
 
 void ASHProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
+	SpawnLocation = GetActorLocation();
+
+	// Cache ballistics subsystem
 	if (UWorld* World = GetWorld())
 	{
 		BallisticsSystem = World->GetSubsystem<USHBallisticsSystem>();
 	}
 
-	PreviousPosition = GetActorLocation();
+	// Lifetime safety
+	SetLifeSpan(MaxLifetime);
 }
 
-// ---------------------------------------------------------------------------
-// Tick
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Initialization
+ * --------------------------------------------------------------------- */
+
+void ASHProjectile::InitializeProjectile(
+	const FVector& InitialVelocity,
+	float InBaseDamage,
+	const FSHBallisticCoefficients& InBC,
+	float InMaxRangeCm,
+	float InDamageFalloffStartCm,
+	float InMinDamageMultiplier,
+	bool bInIsTracer,
+	AActor* InWeaponOwner)
+{
+	SimulatedVelocity = InitialVelocity;
+	BaseDamage = InBaseDamage;
+	BallisticCoeffs = InBC;
+	MaxRangeCm = InMaxRangeCm;
+	DamageFalloffStartCm = InDamageFalloffStartCm;
+	MinDamageMultiplier = InMinDamageMultiplier;
+	MuzzleVelocityCmS = InitialVelocity.Size();
+	bIsTracer = bInIsTracer;
+	WeaponOwner = InWeaponOwner;
+
+	// Configure ProjectileMovementComponent for collision sweeps
+	ProjectileMovement->MaxSpeed = MuzzleVelocityCmS * 2.0f; // Allow headroom
+	ProjectileMovement->Velocity = InitialVelocity;
+
+	// Copy penetration table from weapon data if available
+	if (InWeaponOwner)
+	{
+		if (const ASHWeaponBase* Weapon = Cast<ASHWeaponBase>(InWeaponOwner))
+		{
+			if (Weapon->WeaponData)
+			{
+				PenetrationTable = Weapon->WeaponData->PenetrationTable;
+			}
+		}
+	}
+
+	// Ignore the firing weapon and its owner for collision
+	if (InWeaponOwner)
+	{
+		CollisionComp->MoveIgnoreActors.Add(InWeaponOwner);
+		if (AActor* WeaponOwnerOwner = InWeaponOwner->GetOwner())
+		{
+			CollisionComp->MoveIgnoreActors.Add(WeaponOwnerOwner);
+		}
+	}
+
+	// Activate tracer
+	if (bIsTracer && TracerParticle)
+	{
+		TracerVFXComp->SetTemplate(TracerParticle);
+		TracerVFXComp->Activate(true);
+	}
+}
+
+/* -----------------------------------------------------------------------
+ *  Tick — Custom Ballistic Simulation
+ * --------------------------------------------------------------------- */
 
 void ASHProjectile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	LifetimeElapsed += DeltaTime;
-
-	// Lifetime cutoff
-	if (LifetimeElapsed >= MaxLifetime || HasExceededMaxRange())
+	if (!bIsActive)
 	{
-		Destroy();
 		return;
 	}
 
-	TickBallistics(DeltaTime);
-	CheckSupersonicCracks();
+	CustomBallisticTick(DeltaTime);
+	CheckSupersonicCrack();
 }
 
-// ---------------------------------------------------------------------------
-// Ballistic tick
-// ---------------------------------------------------------------------------
-
-void ASHProjectile::TickBallistics(float DeltaTime)
+void ASHProjectile::CustomBallisticTick(float DeltaTime)
 {
-	if (!BallisticsSystem || !WeaponData)
+	if (!BallisticsSystem)
 	{
-		// Fallback: simple linear motion
-		const FVector NewPos = GetActorLocation() + CurrentVelocity * DeltaTime;
-		SetActorLocation(NewPos);
-		return;
-	}
+		// Fallback: simple integration without drag/wind
+		const FVector Gravity(0.0f, 0.0f, -981.0f);
+		SimulatedVelocity += Gravity * DeltaTime;
 
-	PreviousPosition = GetActorLocation();
-
-	// Use the ballistics subsystem to compute new position / velocity
-	FVector NewPosition, NewVelocity;
-	BallisticsSystem->StepProjectile(
-		PreviousPosition,
-		CurrentVelocity,
-		DeltaTime,
-		WeaponData,
-		NewPosition,
-		NewVelocity);
-
-	// Sweep trace for collision between old and new position
-	FHitResult Hit;
-	if (PerformSweepTrace(PreviousPosition, NewPosition, Hit))
-	{
-		// Move to impact point
-		SetActorLocation(Hit.ImpactPoint);
-		ProcessHit(Hit);
-		// If we're still alive after processing (penetration/ricochet), the
-		// position and velocity have been updated in ProcessHit.
+		FVector NewPos = GetActorLocation() + SimulatedVelocity * DeltaTime;
+		SetActorLocation(NewPos, true); // Sweep for collision
 	}
 	else
 	{
-		// No hit — update position and velocity
-		const float StepDistance = FVector::Dist(PreviousPosition, NewPosition);
-		DistanceTravelled += StepDistance;
+		FVector CurrentPos = GetActorLocation();
+		FVector PrevPos = CurrentPos;
 
-		SetActorLocation(NewPosition);
-		CurrentVelocity = NewVelocity;
+		// Let the ballistics system step the simulation
+		BallisticsSystem->StepSimulation(CurrentPos, SimulatedVelocity, BallisticCoeffs, DeltaTime);
 
-		// Orient along velocity
-		if (!CurrentVelocity.IsNearlyZero())
+		// Use sweep move for collision detection
+		FHitResult SweepHit;
+		const FVector MoveDelta = CurrentPos - PrevPos;
+
+		SetActorLocation(CurrentPos, true, &SweepHit);
+
+		if (SweepHit.bBlockingHit)
 		{
-			SetActorRotation(CurrentVelocity.Rotation());
+			HandleImpact(SweepHit);
+			return;
 		}
 	}
-}
 
-// ---------------------------------------------------------------------------
-// Sweep trace
-// ---------------------------------------------------------------------------
+	// Update projectile movement component velocity for rotation following
+	ProjectileMovement->Velocity = SimulatedVelocity;
 
-bool ASHProjectile::PerformSweepTrace(const FVector& Start, const FVector& End, FHitResult& OutHit) const
-{
-	UWorld* World = GetWorld();
-	if (!World)
+	// Track distance
+	DistanceTraveled = FVector::Dist(SpawnLocation, GetActorLocation());
+
+	// Max range check
+	if (DistanceTraveled >= MaxRangeCm)
 	{
-		return false;
+		DeactivateAndDestroy();
 	}
 
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(SHProjectile), true, this);
-	Params.bReturnPhysicalMaterial = true;
-
-	if (InstigatorPawn.IsValid())
+	// Minimum velocity check (projectile has effectively stopped)
+	if (SimulatedVelocity.SizeSquared() < 100.0f * 100.0f) // < 1 m/s
 	{
-		Params.AddIgnoredActor(InstigatorPawn.Get());
+		DeactivateAndDestroy();
 	}
-
-	return World->LineTraceSingleByChannel(OutHit, Start, End, ECC_GameTraceChannel1, Params);
 }
 
-// ---------------------------------------------------------------------------
-// Hit processing
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Collision
+ * --------------------------------------------------------------------- */
 
-void ASHProjectile::ProcessHit(const FHitResult& HitResult)
+void ASHProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (!BallisticsSystem || !WeaponData)
+	if (!bIsActive)
 	{
-		Destroy();
 		return;
 	}
 
-	// Determine material
-	const ESHPenetrationMaterial Material =
-		USHBallisticsSystem::PhysMaterialToSHMaterial(HitResult.PhysMaterial.Get());
+	HandleImpact(Hit);
+}
 
-	// Calculate damage at this distance
-	CurrentDamage = BallisticsSystem->CalcDamageAtDistance(WeaponData, DistanceTravelled);
-
-	// Spawn impact VFX
-	SpawnImpactEffect(HitResult, Material);
-
-	// --- Explosive rounds detonate on impact ---
-	if (WeaponData->bIsExplosive)
+void ASHProjectile::HandleImpact(const FHitResult& HitResult)
+{
+	if (!bIsActive)
 	{
-		BallisticsSystem->ProcessExplosion(
-			HitResult.ImpactPoint,
-			WeaponData,
-			InstigatorPawn.Get(),
-			this);
-		Destroy();
 		return;
 	}
 
-	// --- Apply damage to hit actor ---
-	ApplyDamageToActor(HitResult, CurrentDamage);
-
-	// --- Try penetration ---
-	const FVector InDir = CurrentVelocity.GetSafeNormal();
-	const float InSpeed = CurrentVelocity.Size();
-
-	if (PenetrationCount < MaxPenetrations)
+	// Explosive projectiles detonate on any impact
+	if (bIsExplosive)
 	{
-		FSHPenetrationResult PenResult = BallisticsSystem->TryPenetrate(
-			HitResult, InDir, InSpeed, CurrentDamage, WeaponData, Material);
+		Detonate(HitResult.ImpactPoint);
+		return;
+	}
 
-		if (PenResult.bPenetrated)
+	// Calculate current damage with falloff
+	DistanceTraveled = FVector::Dist(SpawnLocation, HitResult.ImpactPoint);
+	const float CurrentDamage = USHBallisticsSystem::CalculateDamageAtDistance(
+		BaseDamage, DamageFalloffStartCm, MaxRangeCm, MinDamageMultiplier, DistanceTraveled);
+
+	// Apply direct damage to the hit actor
+	if (AActor* HitActor = HitResult.GetActor())
+	{
+		ApplyDamage(HitActor, CurrentDamage, HitResult);
+	}
+
+	// Spawn impact effects
+	SpawnImpactEffects(HitResult);
+
+	// Check penetration / ricochet via ballistics system
+	if (BallisticsSystem)
+	{
+		// Determine material and find penetration data
+		const ESHPenetrableMaterial MatType = BallisticsSystem->ClassifyMaterial(HitResult);
+
+		// Find penetration entry for this material
+		const FSHPenetrationEntry* PenData = nullptr;
+		for (const FSHPenetrationEntry& Entry : PenetrationTable)
 		{
-			PenetrationCount++;
-			CurrentDamage = PenResult.DamageAfterPenetration;
-			CurrentVelocity = PenResult.ExitDirection * PenResult.VelocityAfterPenetration;
-			SetActorLocation(PenResult.ExitPoint);
-			SetActorRotation(PenResult.ExitDirection.Rotation());
-			return; // Continue flight
+			if (Entry.Material == MatType)
+			{
+				PenData = &Entry;
+				break;
+			}
+		}
+
+		if (PenData)
+		{
+			FSHBallisticHitResult BallisticResult;
+			const bool bContinues = BallisticsSystem->EvaluateImpact(
+				HitResult,
+				SimulatedVelocity,
+				CurrentDamage,
+				*PenData,
+				MuzzleVelocityCmS,
+				BallisticResult);
+
+			if (bContinues)
+			{
+				if (BallisticResult.bPenetrated && PenetrationCount < MaxPenetrations)
+				{
+					ContinueAfterPenetration(BallisticResult, HitResult);
+					return;
+				}
+				else if (BallisticResult.bRicocheted && RicochetCount < MaxRicochets)
+				{
+					ApplyRicochet(BallisticResult, HitResult);
+					return;
+				}
+			}
 		}
 	}
 
-	// --- Try ricochet ---
-	if (RicochetCount < MaxRicochets)
-	{
-		FSHRicochetResult RicResult = BallisticsSystem->TryRicochet(
-			HitResult, InDir, InSpeed, CurrentDamage, Material);
-
-		if (RicResult.bRicocheted)
-		{
-			RicochetCount++;
-			CurrentDamage = RicResult.RicochetDamage;
-			CurrentVelocity = RicResult.RicochetDirection * RicResult.RicochetSpeed;
-			SetActorLocation(RicResult.RicochetOrigin);
-			SetActorRotation(RicResult.RicochetDirection.Rotation());
-			return; // Continue flight
-		}
-	}
-
-	// --- Neither penetrated nor ricocheted — bullet stops ---
-	Destroy();
+	// Round stops here
+	DeactivateAndDestroy();
 }
 
-// ---------------------------------------------------------------------------
-// Damage application
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Damage Application
+ * --------------------------------------------------------------------- */
 
-void ASHProjectile::ApplyDamageToActor(const FHitResult& HitResult, float Damage)
+void ASHProjectile::ApplyDamage(AActor* HitActor, float Damage, const FHitResult& HitResult)
 {
-	AActor* HitActor = HitResult.GetActor();
 	if (!HitActor || Damage <= 0.0f)
 	{
 		return;
 	}
 
 	AController* InstigatorController = nullptr;
-	if (InstigatorPawn.IsValid())
+	if (AActor* OwnerActor = WeaponOwner.Get())
 	{
-		InstigatorController = InstigatorPawn->GetController();
+		if (APawn* OwnerPawn = Cast<APawn>(OwnerActor->GetOwner()))
+		{
+			InstigatorController = OwnerPawn->GetController();
+		}
 	}
 
 	FPointDamageEvent DamageEvent;
 	DamageEvent.Damage = Damage;
 	DamageEvent.HitInfo = HitResult;
-	DamageEvent.ShotDirection = CurrentVelocity.GetSafeNormal();
+	DamageEvent.ShotDirection = SimulatedVelocity.GetSafeNormal();
 
-	HitActor->TakeDamage(Damage, DamageEvent, InstigatorController, this);
+	HitActor->TakeDamage(
+		Damage,
+		FDamageEvent(DamageEvent.GetTypeID()),
+		InstigatorController,
+		this);
 }
 
-// ---------------------------------------------------------------------------
-// Impact VFX
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Impact Effects
+ * --------------------------------------------------------------------- */
 
-void ASHProjectile::SpawnImpactEffect(const FHitResult& HitResult, ESHPenetrationMaterial Material)
+void ASHProjectile::SpawnImpactEffects(const FHitResult& HitResult)
 {
-	UNiagaraSystem* EffectToSpawn = nullptr;
-
-	if (const TObjectPtr<UNiagaraSystem>* Found = ImpactEffects.Find(Material))
+	UWorld* World = GetWorld();
+	if (!World)
 	{
-		EffectToSpawn = *Found;
+		return;
 	}
 
-	if (!EffectToSpawn)
+	// Choose effect based on surface type
+	UParticleSystem* EffectToSpawn = DefaultImpactEffect;
+
+	if (const UPhysicalMaterial* PhysMat = HitResult.PhysMaterial.Get())
 	{
-		EffectToSpawn = DefaultImpactEffect;
+		if (TObjectPtr<UParticleSystem>* Found = ImpactEffects.Find(PhysMat->SurfaceType))
+		{
+			if (*Found)
+			{
+				EffectToSpawn = *Found;
+			}
+		}
 	}
 
 	if (EffectToSpawn)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			EffectToSpawn,
-			HitResult.ImpactPoint,
-			HitResult.ImpactNormal.Rotation(),
-			FVector::OneVector,
-			true,  // bAutoDestroy
-			true,  // bAutoActivate
-			ENCPoolMethod::AutoRelease);
+		const FRotator ImpactRotation = HitResult.ImpactNormal.Rotation();
+		UGameplayStatics::SpawnEmitterAtLocation(
+			World, EffectToSpawn, HitResult.ImpactPoint, ImpactRotation, true);
+	}
+
+	// Impact sound
+	if (ImpactSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(World, ImpactSound, HitResult.ImpactPoint);
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Supersonic crack
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Explosive Detonation
+ * --------------------------------------------------------------------- */
 
-void ASHProjectile::CheckSupersonicCracks()
+void ASHProjectile::Detonate(const FVector& Location)
 {
-	if (!BallisticsSystem || !SupersonicCrackSound)
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		DeactivateAndDestroy();
+		return;
+	}
+
+	// Radial damage
+	AController* InstigatorController = nullptr;
+	if (AActor* OwnerActor = WeaponOwner.Get())
+	{
+		if (APawn* OwnerPawn = Cast<APawn>(OwnerActor->GetOwner()))
+		{
+			InstigatorController = OwnerPawn->GetController();
+		}
+	}
+
+	TArray<AActor*> IgnoreActors;
+	IgnoreActors.Add(this);
+
+	UGameplayStatics::ApplyRadialDamageWithFalloff(
+		World,
+		ExplosionDamage,
+		ExplosionDamage * 0.1f,  // Minimum damage at edge
+		Location,
+		ExplosionRadiusCm * 0.3f, // Inner radius (full damage)
+		ExplosionRadiusCm,         // Outer radius
+		2.0f,                      // Damage falloff exponent
+		nullptr,                   // DamageTypeClass
+		IgnoreActors,
+		this,
+		InstigatorController);
+
+	// Fragmentation / shrapnel
+	if (BallisticsSystem && FragmentationParams.FragmentCount > 0)
+	{
+		BallisticsSystem->SpawnFragmentation(
+			Location, FragmentationParams, InstigatorController, this);
+	}
+
+	// VFX
+	if (ExplosionVFX)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(
+			World, ExplosionVFX, Location, FRotator::ZeroRotator, true);
+	}
+
+	// Sound
+	if (ExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(World, ExplosionSound, Location);
+	}
+
+	DeactivateAndDestroy();
+}
+
+/* -----------------------------------------------------------------------
+ *  Penetration
+ * --------------------------------------------------------------------- */
+
+void ASHProjectile::ContinueAfterPenetration(
+	const FSHBallisticHitResult& BallisticResult,
+	const FHitResult& OriginalHit)
+{
+	PenetrationCount++;
+
+	// Move to exit point and continue with reduced velocity
+	const FVector ExitOffset = BallisticResult.PostPenetrationVelocity.GetSafeNormal() * 5.0f; // 5cm past the surface
+	SetActorLocation(OriginalHit.ImpactPoint + ExitOffset, false);
+
+	SimulatedVelocity = BallisticResult.PostPenetrationVelocity;
+	BaseDamage = BallisticResult.PostPenetrationDamage;
+
+	// Update rotation to match new velocity
+	if (!SimulatedVelocity.IsNearlyZero())
+	{
+		SetActorRotation(SimulatedVelocity.Rotation());
+	}
+
+	ProjectileMovement->Velocity = SimulatedVelocity;
+}
+
+/* -----------------------------------------------------------------------
+ *  Ricochet
+ * --------------------------------------------------------------------- */
+
+void ASHProjectile::ApplyRicochet(
+	const FSHBallisticHitResult& BallisticResult,
+	const FHitResult& OriginalHit)
+{
+	RicochetCount++;
+
+	// Move slightly off the surface along ricochet direction
+	const FVector RicochetStart = OriginalHit.ImpactPoint +
+		BallisticResult.RicochetDirection * 5.0f; // 5cm off surface
+
+	SetActorLocation(RicochetStart, false);
+
+	SimulatedVelocity = BallisticResult.RicochetDirection * BallisticResult.RicochetSpeed;
+	BaseDamage = BallisticResult.RicochetDamage;
+
+	if (!SimulatedVelocity.IsNearlyZero())
+	{
+		SetActorRotation(SimulatedVelocity.Rotation());
+	}
+
+	ProjectileMovement->Velocity = SimulatedVelocity;
+
+	// Ricochet sound
+	if (RicochetSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(
+			GetWorld(), RicochetSound, OriginalHit.ImpactPoint);
+	}
+}
+
+/* -----------------------------------------------------------------------
+ *  Supersonic Crack
+ * --------------------------------------------------------------------- */
+
+void ASHProjectile::CheckSupersonicCrack()
+{
+	if (!SupersonicCrackSound)
 	{
 		return;
 	}
@@ -355,16 +499,14 @@ void ASHProjectile::CheckSupersonicCracks()
 		return;
 	}
 
+	const FVector ProjectilePos = GetActorLocation();
+	const float NearMissRadius = 300.0f; // 3 meters
+
+	// Check all player pawns
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();
 		if (!PC)
-		{
-			continue;
-		}
-
-		TWeakObjectPtr<APlayerController> WeakPC(PC);
-		if (CrackTriggeredForControllers.Contains(WeakPC))
 		{
 			continue;
 		}
@@ -375,61 +517,65 @@ void ASHProjectile::CheckSupersonicCracks()
 			continue;
 		}
 
-		FVector CrackLocation;
-		if (BallisticsSystem->ShouldTriggerSupersonicCrack(
-				GetActorLocation(),
-				CurrentVelocity,
-				ListenerPawn->GetActorLocation(),
-				CrackLocation))
+		// Skip the shooter
+		if (WeaponOwner.IsValid())
 		{
-			CrackTriggeredForControllers.Add(WeakPC);
+			if (AActor* OwnerActor = WeaponOwner->GetOwner())
+			{
+				if (OwnerActor == ListenerPawn)
+				{
+					continue;
+				}
+			}
+		}
 
+		// Already notified?
+		if (SupersonicCrackNotifiedActors.Contains(ListenerPawn))
+		{
+			continue;
+		}
+
+		const FVector ListenerPos = ListenerPawn->GetActorLocation();
+
+		if (USHBallisticsSystem::ShouldTriggerSupersonicCrack(
+			ProjectilePos, SimulatedVelocity, ListenerPos, NearMissRadius))
+		{
+			SupersonicCrackNotifiedActors.Add(ListenerPawn);
+
+			// Play the supersonic crack at the listener's location (it's a local phenomenon)
 			UGameplayStatics::PlaySoundAtLocation(
-				World,
-				SupersonicCrackSound,
-				CrackLocation,
-				FRotator::ZeroRotator,
-				1.0f,
-				1.0f,
-				0.0f,
-				CrackAttenuation);
+				World, SupersonicCrackSound, ListenerPos, 1.0f, 1.0f, 0.0f, nullptr);
 		}
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Tracer
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Cleanup
+ * --------------------------------------------------------------------- */
 
-void ASHProjectile::SetTracerVisible(bool bVisible)
+void ASHProjectile::DeactivateAndDestroy()
 {
-	if (TracerVFX)
-	{
-		if (bVisible && TracerNiagaraAsset)
-		{
-			TracerVFX->SetAsset(TracerNiagaraAsset);
-			TracerVFX->SetColorParameter(FName(TEXT("TracerColor")), TracerColor);
-			TracerVFX->SetFloatParameter(FName(TEXT("Width")), TracerWidth);
-			TracerVFX->Activate(true);
-		}
-		else
-		{
-			TracerVFX->Deactivate();
-		}
-	}
-}
+	bIsActive = false;
 
-// ---------------------------------------------------------------------------
-// Range check
-// ---------------------------------------------------------------------------
-
-bool ASHProjectile::HasExceededMaxRange() const
-{
-	if (!WeaponData)
+	// Disable collision
+	if (CollisionComp)
 	{
-		return false;
+		CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	const float MaxRangeCm = WeaponData->MaxRangeM * 100.0f;
-	return DistanceTravelled >= MaxRangeCm;
+	// Stop movement
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->StopMovementImmediately();
+		ProjectileMovement->SetActive(false);
+	}
+
+	// Deactivate tracer
+	if (TracerVFXComp && TracerVFXComp->IsActive())
+	{
+		TracerVFXComp->Deactivate();
+	}
+
+	// Destroy after a short delay (let particles finish)
+	SetLifeSpan(2.0f);
 }
