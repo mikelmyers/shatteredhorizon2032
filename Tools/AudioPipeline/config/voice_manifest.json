@@ -1,0 +1,244 @@
+{
+  "friendly_squad": {
+    "roles": {
+      "team_leader": {
+        "voice_description": "Male, early 30s, deep authoritative voice, composed under pressure, clear diction, natural leader",
+        "language": "en"
+      },
+      "rifleman": {
+        "voice_description": "Male, mid 20s, standard military cadence, clear and direct, slight Southern accent",
+        "language": "en"
+      },
+      "automatic_rifleman": {
+        "voice_description": "Male, late 20s, gruff and loud, barrel-chested resonance, no-nonsense",
+        "language": "en"
+      },
+      "grenadier": {
+        "voice_description": "Male, late 20s, calm and methodical, slightly quieter, deliberate speech",
+        "language": "en"
+      },
+      "marksman": {
+        "voice_description": "Male, early 30s, quiet and precise, measured speech, soft-spoken intensity",
+        "language": "en"
+      }
+    },
+    "contexts": {
+      "contact_report": {
+        "team_leader": ["Contact front, two hundred meters!", "Eyes on hostiles, twelve o'clock, building line!", "I've got movement, squad hold!"],
+        "rifleman": ["Contact! Eleven o'clock!", "I see 'em, two tangos moving left!", "Hostiles spotted, bearing zero-niner-zero!"],
+        "automatic_rifleman": ["Contact front! I see multiple!", "Targets in the open, twelve o'clock!", "Enemy movement, I count four!"],
+        "grenadier": ["Contact, two hundred meters, near the wall.", "I've got eyes on, looks like a fire team.", "Hostiles at the tree line, bearing two-seven-zero."],
+        "marksman": ["I've got two targets, four hundred meters, rooftop.", "Spotter, I see movement at range.", "Contact. Sniper position on the ridge."]
+      },
+      "order_acknowledge": {
+        "team_leader": ["Copy all, executing.", "Roger, squad moving.", "Solid copy, we're on it."],
+        "rifleman": ["Roger that!", "Copy, moving!", "Aye aye, on my way!"],
+        "automatic_rifleman": ["Copy, setting up!", "Roger, gun's moving!", "Got it, repositioning!"],
+        "grenadier": ["Understood, moving to position.", "Copy that, launcher ready.", "Roger, I'm on it."],
+        "marksman": ["Copy. Relocating.", "Roger, eyes on.", "Acknowledged."]
+      },
+      "reloading": {
+        "team_leader": ["Reloading! Cover the sector!", "Mag change, keep firing!", "I'm out, reloading!"],
+        "rifleman": ["Reloading, cover me!", "Changing mag!", "I'm dry, reloading!"],
+        "automatic_rifleman": ["Barrel change! Gimme a sec!", "Reloading the SAW, cover!", "Belt's out, reloading!"],
+        "grenadier": ["Loading forty mike-mike!", "Reloading the two-oh-three!", "Launcher reloading!"],
+        "marksman": ["Reloading, one moment.", "Changing magazine.", "Cycling rounds."]
+      },
+      "suppressed": {
+        "team_leader": ["We're pinned! Find me a flanking route!", "Heavy fire on our position, can't move!", "Suppressed! Need covering fire!"],
+        "rifleman": ["I'm pinned down!", "Can't move, too much fire!", "Taking heavy fire over here!"],
+        "automatic_rifleman": ["They've got me locked down!", "I'm eating dirt over here!", "Pinned! Can't get the gun up!"],
+        "grenadier": ["Pinned down, can't get a shot!", "Heavy incoming, staying low!", "I'm suppressed, need support!"],
+        "marksman": ["I'm compromised. Taking fire.", "Can't hold this position, too exposed.", "Suppressed. Need them off me."]
+      },
+      "wounded_self": {
+        "team_leader": ["I'm hit! Still in the fight!", "Took a round, I can push through!", "Hit in the arm, I'm still good!"],
+        "rifleman": ["I'm hit! Corpsman up!", "I'm bleeding, need a tourniquet!", "Took one in the leg, I'm down!"],
+        "automatic_rifleman": ["I'm hit! Ahh, my shoulder!", "Took a hit, still on the gun!", "I'm bleeding bad over here!"],
+        "grenadier": ["I'm hit. Still mobile.", "Caught one in the side, need aid.", "Wounded, I can still fight."],
+        "marksman": ["I'm hit. Lost my scope zero.", "Took a round. I can still spot.", "Wounded. Need a minute."]
+      },
+      "wounded_friendly": {
+        "team_leader": ["Corpsman! We've got a casualty!", "Man hit! Get aid to him now!", "Casualty, southwest corner, get on him!"],
+        "rifleman": ["Man down! He needs a corpsman!", "He's hit! Somebody help him!", "We got a wounded Marine here!"],
+        "automatic_rifleman": ["Corpsman! He's bleeding out!", "Get over here, he's hit bad!", "Marine down, need medical!"],
+        "grenadier": ["Casualty on the left, need aid.", "He took a hit, get the corpsman.", "Wounded friendly, near the wall."],
+        "marksman": ["Friendly hit. Fifty meters south of me.", "I see a man down near the berm.", "Casualty. He's not moving."]
+      },
+      "man_down": {
+        "team_leader": ["We lost one! Keep pushing, honor him!", "KIA. Stay focused, finish the mission.", "He's gone. Nothing we can do, keep moving."],
+        "rifleman": ["He's gone, man! He's gone!", "KIA! Oh God... keep fighting!", "We lost him!"],
+        "automatic_rifleman": ["He's done! Stay on that trigger!", "Lost one! Make 'em pay!", "Marine down! Keep shooting!"],
+        "grenadier": ["KIA confirmed. We press on.", "He didn't make it. Stay sharp.", "Lost a good Marine. Keep moving."],
+        "marksman": ["He's KIA. Confirmed.", "We lost him. Stay in the fight.", "Gone. Focus on the mission."]
+      },
+      "ammo_low": {
+        "team_leader": ["Running low! Conserve your ammo!", "Last few mags, make every shot count!", "Ammo check, I'm getting low!"],
+        "rifleman": ["Running low on ammo!", "Down to my last mag!", "I need ammo over here!"],
+        "automatic_rifleman": ["Last belt on the SAW!", "Gun's almost dry, need ammo!", "Running out, somebody get me a belt!"],
+        "grenadier": ["Two rounds left for the launcher.", "Running low on forty mike.", "Almost out of grenades."],
+        "marksman": ["Last five rounds.", "Running low. Making them count.", "Need resupply on match ammo."]
+      },
+      "grenade_throwing": {
+        "team_leader": ["Frag out! Heads down!", "Grenade going in, get clear!", "Throwing frag!"],
+        "rifleman": ["Frag out!", "Grenade!", "Fire in the hole!"],
+        "automatic_rifleman": ["Frag out! Get some!", "Throwing grenade!", "Fire in the hole!"],
+        "grenadier": ["Forty mike-mike out!", "HE round, watch the back blast!", "Grenade away!"],
+        "marksman": ["Frag out.", "Grenade, far side.", "Throwing."]
+      },
+      "all_clear": {
+        "team_leader": ["Area secure. Good work, squad.", "All clear, consolidate and reorganize.", "Sector clear. Set security."],
+        "rifleman": ["All clear over here!", "This side's clear!", "No more movement, we're good!"],
+        "automatic_rifleman": ["Clear! No more targets!", "I got nothing, we're clear!", "All quiet on this end!"],
+        "grenadier": ["Clear on my side.", "No contacts, area secure.", "All clear."],
+        "marksman": ["Clear. No targets visible.", "Sector clear through the scope.", "Nothing moving out there."]
+      },
+      "moving_up": {
+        "team_leader": ["Oscar Mike! Squad, advance by bounds!", "Moving up, cover our six!", "Pushing forward, stay tight!"],
+        "rifleman": ["Moving up!", "Oscar Mike!", "Advancing to next cover!"],
+        "automatic_rifleman": ["Moving the gun forward!", "Displacing, cover me!", "Shifting position!"],
+        "grenadier": ["Moving to next position.", "Advancing.", "Pushing up, watch the flanks."],
+        "marksman": ["Relocating. New hide.", "Moving to better vantage.", "Displacing."]
+      },
+      "cover_me": {
+        "team_leader": ["Cover me, I'm pushing left!", "Suppressive fire while I move!", "Lay it down, I'm crossing!"],
+        "rifleman": ["Cover me, I'm moving!", "Covering fire!", "Light 'em up, I gotta move!"],
+        "automatic_rifleman": ["Keep their heads down, I gotta reposition!", "Cover while I move the SAW!", "Need cover, moving!"],
+        "grenadier": ["Covering fire, I need to get closer.", "Keep them busy, I'm flanking.", "Cover me, moving to firing position."],
+        "marksman": ["Cover while I reposition.", "Moving, keep them occupied.", "Need a distraction, shifting."]
+      },
+      "target_down": {
+        "team_leader": ["Tango down. Stay sharp, there's more.", "Good hit. Next target.", "One down, keep scanning."],
+        "rifleman": ["Got him!", "Tango down!", "He's down!"],
+        "automatic_rifleman": ["Nailed 'em!", "That's a kill!", "He ain't getting up!"],
+        "grenadier": ["Target neutralized.", "Direct hit.", "Splash, target down."],
+        "marksman": ["Target down. Confirmed kill, four hundred.", "Hit. He's done.", "Good effect on target."]
+      },
+      "enemy_grenade": {
+        "team_leader": ["Grenade! Everybody move!", "Incoming! Get to cover!", "Grenade, southwest! Move move move!"],
+        "rifleman": ["Grenade! Get down!", "Incoming! Run!", "Grenade!"],
+        "automatic_rifleman": ["Grenade! Move it!", "Get away from that!", "Incoming, scatter!"],
+        "grenadier": ["Grenade, get clear!", "Incoming frag!", "Move! Grenade!"],
+        "marksman": ["Grenade. Move.", "Incoming, relocate.", "Frag near your position."]
+      },
+      "friendly_fire": {
+        "team_leader": ["Check fire! Check fire! Friendlies ahead!", "Cease fire, you're hitting our own!", "Hold your fire, those are Marines!"],
+        "rifleman": ["Cease fire! Friendlies!", "Stop shooting, those are ours!", "Check your fire!"],
+        "automatic_rifleman": ["Whoa whoa whoa, check fire!", "Those are friendlies, stop!", "Cease fire, cease fire!"],
+        "grenadier": ["Hold fire, friendlies in the blast zone.", "Check fire, friendly position ahead.", "Abort shot, friendlies too close."],
+        "marksman": ["Abort. Friendlies in the line.", "Check fire. Non-hostile.", "Hold. Those are ours."]
+      }
+    },
+    "stress_modifiers": {
+      "calm": {"speed_factor": 0.95, "pitch_shift": -0.5, "description": "Controlled, measured, steady breathing"},
+      "normal": {"speed_factor": 1.0, "pitch_shift": 0.0, "description": "Standard combat cadence"},
+      "stressed": {"speed_factor": 1.08, "pitch_shift": 1.0, "description": "Urgent, breathless, higher pitch, slight voice crack"}
+    }
+  },
+  "enemy_pla": {
+    "speakers": {
+      "officer": {"voice_description": "Male, 40s, commanding Mandarin, sharp and authoritative", "language": "zh"},
+      "nco": {"voice_description": "Male, 30s, loud Mandarin, experienced sergeant tone", "language": "zh"},
+      "soldier_1": {"voice_description": "Male, early 20s, nervous young soldier, Mandarin", "language": "zh"},
+      "soldier_2": {"voice_description": "Male, mid 20s, standard infantry, Mandarin", "language": "zh"}
+    },
+    "contexts": {
+      "contact_front": {
+        "script_zh": "前方发现敌人！",
+        "pinyin": "Qianfang faxian diren!",
+        "translation": "Enemy spotted ahead!",
+        "variants": ["前方有敌人，开火！", "正前方，发现目标！", "敌人在前面！"]
+      },
+      "contact_left": {
+        "script_zh": "左侧有敌人！",
+        "pinyin": "Zuoce you diren!",
+        "translation": "Enemy on the left!",
+        "variants": ["左边！敌人在左边！", "注意左翼！", "左侧发现目标！"]
+      },
+      "contact_right": {
+        "script_zh": "右侧有敌人！",
+        "pinyin": "Youce you diren!",
+        "translation": "Enemy on the right!",
+        "variants": ["右边有人！", "注意右翼！", "右侧发现目标！"]
+      },
+      "contact_rear": {
+        "script_zh": "后方有敌人！",
+        "pinyin": "Houfang you diren!",
+        "translation": "Enemy behind us!",
+        "variants": ["背后有敌人！小心！", "后面！他们包抄了！", "我们被包围了！"]
+      },
+      "reloading": {
+        "script_zh": "换弹匣！掩护我！",
+        "pinyin": "Huan danxia! Yanhu wo!",
+        "translation": "Changing magazine! Cover me!",
+        "variants": ["我在换弹！", "弹匣空了，换弹！", "掩护，我要换弹！"]
+      },
+      "throwing_grenade": {
+        "script_zh": "扔手榴弹！小心！",
+        "pinyin": "Reng shouliu dan! Xiaoxin!",
+        "translation": "Throwing grenade! Watch out!",
+        "variants": ["手榴弹！", "注意爆炸！", "手雷出去了！"]
+      },
+      "suppressed": {
+        "script_zh": "被压制了！动不了！",
+        "pinyin": "Bei yazhi le! Dong bu liao!",
+        "translation": "Suppressed! Can't move!",
+        "variants": ["火力太猛了！", "抬不起头！", "压制火力太强！"]
+      },
+      "man_down": {
+        "script_zh": "有人倒了！卫生员！",
+        "pinyin": "You ren dao le! Weisheng yuan!",
+        "translation": "Man down! Medic!",
+        "variants": ["同志受伤了！", "需要救护！有伤亡！", "卫生员快来！"]
+      },
+      "retreating": {
+        "script_zh": "撤退！撤退！",
+        "pinyin": "Chetui! Chetui!",
+        "translation": "Retreat! Retreat!",
+        "variants": ["快撤！", "后退！掩护撤退！", "我们撑不住了，撤！"]
+      },
+      "advance_order": {
+        "script_zh": "全体前进！冲！",
+        "pinyin": "Quanti qianjin! Chong!",
+        "translation": "Everyone advance! Charge!",
+        "variants": ["前进！消灭他们！", "进攻！", "冲上去！不要停！"]
+      },
+      "hold_position": {
+        "script_zh": "坚守阵地！不许后退！",
+        "pinyin": "Jianshou zhendi! Buxu houtui!",
+        "translation": "Hold position! No retreat!",
+        "variants": ["守住！", "不准撤退！", "死守这个位置！"]
+      },
+      "surrendering": {
+        "script_zh": "别开枪！我投降！",
+        "pinyin": "Bie kaiqiang! Wo touxiang!",
+        "translation": "Don't shoot! I surrender!",
+        "variants": ["投降！别杀我！", "我放下武器了！", "不要开枪！"]
+      },
+      "enemy_down": {
+        "script_zh": "打倒一个！",
+        "pinyin": "Da dao yi ge!",
+        "translation": "Got one!",
+        "variants": ["击毙一个！", "目标消灭！", "干掉了！"]
+      },
+      "requesting_support": {
+        "script_zh": "请求支援！请求支援！",
+        "pinyin": "Qingqiu zhiyuan! Qingqiu zhiyuan!",
+        "translation": "Requesting support! Requesting support!",
+        "variants": ["需要增援！", "呼叫支援！火力不够！", "我们需要帮助！"]
+      },
+      "covering_fire": {
+        "script_zh": "掩护射击！",
+        "pinyin": "Yanhu sheji!",
+        "translation": "Covering fire!",
+        "variants": ["火力掩护！", "压制射击！", "开火掩护！"]
+      }
+    }
+  },
+  "output_format": {
+    "sample_rate": 48000,
+    "bit_depth": 16,
+    "format": "wav",
+    "channels": 1
+  }
+}
