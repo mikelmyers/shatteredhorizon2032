@@ -3,69 +3,72 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "Engine/World.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "SHWorldStreamingManager.generated.h"
 
-class ASHGameState;
-class ASHPlayerCharacter;
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_Streaming, Log, All);
 
-/** Priority tiers for streaming cells. */
+/** Streaming priority tier — determines load/unload order. */
 UENUM(BlueprintType)
 enum class ESHStreamingPriority : uint8
 {
-	Critical	UMETA(DisplayName = "Critical"),		// Player immediate vicinity
-	High		UMETA(DisplayName = "High"),			// Combat zones, objective areas
-	Medium		UMETA(DisplayName = "Medium"),			// Nearby explorable terrain
-	Low			UMETA(DisplayName = "Low"),				// Distant landscape / LOD only
+	Critical	UMETA(DisplayName = "Critical"),		// Player immediate area, always loaded
+	High		UMETA(DisplayName = "High"),			// Combat areas, squad positions
+	Medium		UMETA(DisplayName = "Medium"),			// Nearby terrain visible to player
+	Low			UMETA(DisplayName = "Low"),				// Distant LOD terrain
 	Background	UMETA(DisplayName = "Background")		// Far horizon, ocean
 };
 
-/** Out-of-bounds escalation stage. */
+/** Out-of-bounds severity — escalates with distance from AO. */
 UENUM(BlueprintType)
-enum class ESHBoundaryStage : uint8
+enum class ESHOutOfBoundsSeverity : uint8
 {
-	InBounds		UMETA(DisplayName = "In Bounds"),
-	Warning			UMETA(DisplayName = "Warning"),			// Radio warning
-	Final			UMETA(DisplayName = "Final Warning"),	// Mission abort countdown
-	MissionFailed	UMETA(DisplayName = "Mission Failed")	// Extreme range
+	None		UMETA(DisplayName = "None"),
+	Warning		UMETA(DisplayName = "Warning"),			// Radio reminder
+	Urgent		UMETA(DisplayName = "Urgent"),			// Repeated warnings, objective marker
+	Critical	UMETA(DisplayName = "Critical")			// Mission failure imminent
 };
 
-/** Runtime info about a single streaming cell. */
+/** Runtime info about a streaming cell in the operational area. */
 USTRUCT(BlueprintType)
 struct FSHStreamingCellInfo
 {
 	GENERATED_BODY()
 
-	/** World Partition cell GUID. */
+	/** Unique cell identifier from World Partition. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	FGuid CellGuid;
+	FName CellName;
 
 	/** Cell center in world space. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FVector CellCenter = FVector::ZeroVector;
 
-	/** Distance from player (updated every priority pass). */
+	/** Current streaming priority. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	ESHStreamingPriority Priority = ESHStreamingPriority::Medium;
+
+	/** Distance from cell center to the player in cm. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	float DistanceToPlayer = 0.f;
 
-	/** Current streaming priority. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	ESHStreamingPriority Priority = ESHStreamingPriority::Low;
-
-	/** True if this cell contains an active combat encounter. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	bool bIsCombatZone = false;
-
-	/** True if the cell is currently loaded. */
+	/** Whether the cell is currently loaded. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	bool bIsLoaded = false;
 
-	/** Time this cell has been loaded (seconds). */
-	float LoadedDuration = 0.f;
+	/** Whether active combat is occurring in this cell. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	bool bHasActiveCombat = false;
+
+	/** Whether any squad members are present in this cell. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	bool bHasSquadPresence = false;
+
+	/** LOD level currently applied (0 = full, higher = reduced). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int32 CurrentLOD = 0;
 };
 
-/** Performance snapshot for budget monitoring. */
+/** Performance budget snapshot. */
 USTRUCT(BlueprintType)
 struct FSHPerformanceBudget
 {
@@ -75,217 +78,239 @@ struct FSHPerformanceBudget
 	float CurrentFPS = 60.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	float FrameTimeMs = 16.67f;
+	float TargetFPS = 60.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	float FrameTimeMS = 16.67f;
+
+	/** Memory used by streaming actors in MB. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	float StreamingMemoryMB = 0.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	float StreamingMemoryBudgetMB = 2048.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int32 LoadedCellCount = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	int32 PendingLoadCount = 0;
+	int32 TotalCellCount = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	float StreamingMemoryMB = 0.f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	bool bBudgetExceeded = false;
+	/** True when we are under budget pressure and should shed load. */
+	bool IsOverBudget() const { return CurrentFPS < TargetFPS * 0.9f || StreamingMemoryMB > StreamingMemoryBudgetMB * 0.95f; }
 };
 
+/** Delegate fired when out-of-bounds severity changes. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOutOfBoundsChanged, ESHOutOfBoundsSeverity, NewSeverity, float, DistanceFromAO);
+
+/** Delegate fired when performance budget threshold is crossed. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPerformanceBudgetWarning, const FSHPerformanceBudget&, Budget);
+
 /**
- * ASHWorldStreamingManager
+ * USHWorldStreamingManager
  *
- * Manages open-world streaming for the Taoyuan Beach ~4km x 4km operational area.
- * Leverages UE5 World Partition with custom priority logic:
- *   - Player-proximate cells load first
- *   - Active combat zones remain loaded regardless of distance
- *   - Distant terrain uses aggressive LOD
- *   - NO invisible walls; out-of-bounds uses escalating radio warnings
- *   - Performance budget enforcement maintains 60fps target
+ * World subsystem that manages open-world streaming for the Taoyuan Beach
+ * operational area (~4km x 4km). Leverages UE5 World Partition and adds
+ * gameplay-aware prioritisation: combat zones stay loaded, the player's
+ * heading drives predictive loading, and a performance governor dynamically
+ * adjusts LOD and cell count to maintain the 60fps target.
+ *
+ * There are NO invisible walls. The map is bounded by ocean to the west and
+ * continuous terrain elsewhere. Out-of-bounds handling is purely narrative
+ * (radio warnings) escalating to mission failure only at extreme range.
  */
 UCLASS()
-class SHATTEREDHORIZON2032_API ASHWorldStreamingManager : public AActor
+class SHATTEREDHORIZON2032_API USHWorldStreamingManager : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	ASHWorldStreamingManager();
-
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaSeconds) override;
+	USHWorldStreamingManager();
 
 	// ------------------------------------------------------------------
-	//  Public API
+	//  USubsystem interface
 	// ------------------------------------------------------------------
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
 
-	/** Register a cell for managed streaming. Called during level initialization. */
-	UFUNCTION(BlueprintCallable, Category = "SH|World")
-	void RegisterStreamingCell(const FGuid& CellGuid, const FVector& CellCenter);
-
-	/** Mark a cell as containing active combat (keeps it loaded). */
-	UFUNCTION(BlueprintCallable, Category = "SH|World")
-	void MarkCombatZone(const FGuid& CellGuid, bool bActive);
-
-	/** Force-load a specific cell immediately. */
-	UFUNCTION(BlueprintCallable, Category = "SH|World")
-	void ForceLoadCell(const FGuid& CellGuid);
-
-	/** Force-unload a specific cell (use with caution). */
-	UFUNCTION(BlueprintCallable, Category = "SH|World")
-	void ForceUnloadCell(const FGuid& CellGuid);
-
-	/** Get the current out-of-bounds stage for the local player. */
-	UFUNCTION(BlueprintPure, Category = "SH|World")
-	ESHBoundaryStage GetBoundaryStage() const { return CurrentBoundaryStage; }
+	// ------------------------------------------------------------------
+	//  Query
+	// ------------------------------------------------------------------
 
 	/** Get current performance budget snapshot. */
-	UFUNCTION(BlueprintPure, Category = "SH|World")
-	const FSHPerformanceBudget& GetPerformanceBudget() const { return PerformanceBudget; }
+	UFUNCTION(BlueprintPure, Category = "SH|Streaming")
+	FSHPerformanceBudget GetPerformanceBudget() const { return PerformanceBudget; }
 
-	/** Query the LOD bias for a given world position (0 = full detail, higher = more aggressive LOD). */
-	UFUNCTION(BlueprintPure, Category = "SH|World")
-	int32 GetLODBiasForPosition(const FVector& WorldPosition) const;
+	/** Get the current out-of-bounds severity for the local player. */
+	UFUNCTION(BlueprintPure, Category = "SH|Streaming")
+	ESHOutOfBoundsSeverity GetOutOfBoundsSeverity() const { return CurrentOOBSeverity; }
 
-	/** Register an objective location that should maintain higher streaming priority. */
-	UFUNCTION(BlueprintCallable, Category = "SH|World")
-	void RegisterObjectiveLocation(const FGuid& ObjectiveId, const FVector& Location);
+	/** Distance from local player to the nearest AO boundary edge (cm). Returns 0 when inside. */
+	UFUNCTION(BlueprintPure, Category = "SH|Streaming")
+	float GetDistanceFromAO() const { return DistanceFromAO; }
 
-	/** Remove an objective location when completed or failed. */
-	UFUNCTION(BlueprintCallable, Category = "SH|World")
-	void UnregisterObjectiveLocation(const FGuid& ObjectiveId);
+	/** Get information about all tracked streaming cells. */
+	UFUNCTION(BlueprintPure, Category = "SH|Streaming")
+	const TArray<FSHStreamingCellInfo>& GetCellInfo() const { return CellInfos; }
 
-	/** Delegate broadcast when boundary stage changes. */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBoundaryStageChanged, ESHBoundaryStage, NewStage);
-	UPROPERTY(BlueprintAssignable, Category = "SH|World")
-	FOnBoundaryStageChanged OnBoundaryStageChanged;
+	// ------------------------------------------------------------------
+	//  Combat / squad integration
+	// ------------------------------------------------------------------
+
+	/** Mark a world location as having active combat — keeps cells loaded. */
+	UFUNCTION(BlueprintCallable, Category = "SH|Streaming")
+	void RegisterCombatZone(FVector WorldLocation, float RadiusCM);
+
+	/** Remove a previously registered combat zone. */
+	UFUNCTION(BlueprintCallable, Category = "SH|Streaming")
+	void UnregisterCombatZone(FVector WorldLocation);
+
+	/** Notify that a squad member is at this location — raises priority. */
+	UFUNCTION(BlueprintCallable, Category = "SH|Streaming")
+	void NotifySquadMemberPosition(int32 SquadMemberIndex, FVector WorldLocation);
+
+	// ------------------------------------------------------------------
+	//  LOD overrides
+	// ------------------------------------------------------------------
+
+	/** Force a LOD level for a cell by name (debug / cinematic use). */
+	UFUNCTION(BlueprintCallable, Category = "SH|Streaming")
+	void ForceCellLOD(FName CellName, int32 LODLevel);
+
+	/** Clear all forced LOD overrides. */
+	UFUNCTION(BlueprintCallable, Category = "SH|Streaming")
+	void ClearForcedLODs();
+
+	// ------------------------------------------------------------------
+	//  Delegates
+	// ------------------------------------------------------------------
+
+	UPROPERTY(BlueprintAssignable, Category = "SH|Streaming")
+	FOnOutOfBoundsChanged OnOutOfBoundsChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "SH|Streaming")
+	FOnPerformanceBudgetWarning OnPerformanceBudgetWarning;
 
 protected:
 	// ------------------------------------------------------------------
-	//  Internal tick helpers
+	//  Tick helpers
 	// ------------------------------------------------------------------
+	void UpdatePlayerPosition();
+	void UpdateCellPriorities();
+	void UpdateStreamingRequests();
+	void UpdateLODs();
+	void UpdatePerformanceBudget(float DeltaTime);
+	void UpdateOutOfBounds();
+	void PredictiveLoad();
 
-	/** Re-evaluate streaming priorities based on player position and combat zones. */
-	void UpdateStreamingPriorities(float DeltaSeconds);
+	/** Compute the streaming priority for a cell based on gameplay state. */
+	ESHStreamingPriority ComputeCellPriority(const FSHStreamingCellInfo& Cell) const;
 
-	/** Process the load/unload queue based on priorities and budget. */
-	void ProcessStreamingQueue(float DeltaSeconds);
-
-	/** Sample FPS and memory, adjust streaming aggressiveness if needed. */
-	void UpdatePerformanceBudget(float DeltaSeconds);
-
-	/** Evaluate player distance from AO boundaries, issue warnings. */
-	void UpdateBoundaryCheck(float DeltaSeconds);
-
-	/** Update LOD settings for distant terrain and structures. */
-	void UpdateDistanceLOD(float DeltaSeconds);
-
-	/** Get the local player character. */
-	ASHPlayerCharacter* GetLocalPlayer() const;
-
-	/** Compute boundary distance (negative = inside AO, positive = outside). */
-	float ComputeBoundaryDistance(const FVector& PlayerLocation) const;
-
-	/** Issue a radio warning for out-of-bounds. */
-	void BroadcastBoundaryWarning(ESHBoundaryStage Stage);
+	/** Compute the LOD level for a cell. */
+	int32 ComputeCellLOD(const FSHStreamingCellInfo& Cell) const;
 
 	// ------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------
 
-	/** Operational area center in world space. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	FVector AOCenter = FVector(0.f, 0.f, 0.f);
+	/** AO bounding box — min corner in world units. The area within which the player is "in bounds". */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|AO")
+	FVector AOBoundsMin = FVector(-200000.f, -200000.f, -50000.f);
 
-	/** Operational area half-extents (X/Y). ~4km x 4km = 200000 x 200000 UU. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	FVector2D AOHalfExtents = FVector2D(200000.f, 200000.f);
+	/** AO bounding box — max corner. ~4km x 4km x 1km vertical. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|AO")
+	FVector AOBoundsMax = FVector(200000.f, 200000.f, 50000.f);
 
-	/** Distance beyond the AO edge before the first radio warning (UU). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	float WarningDistance = 5000.f;
+	/** Distance outside AO before first radio warning (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|OOB")
+	float OOBWarningDistance = 5000.f;
 
-	/** Distance beyond the AO edge for the final warning (UU). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	float FinalWarningDistance = 15000.f;
+	/** Distance outside AO before urgent warnings (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|OOB")
+	float OOBUrgentDistance = 15000.f;
 
-	/** Distance beyond the AO edge for mission failure (UU). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	float MissionFailDistance = 30000.f;
+	/** Distance outside AO that triggers mission failure (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|OOB")
+	float OOBCriticalDistance = 30000.f;
 
-	/** Time in seconds at final warning before mission failure triggers. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	float MissionFailCountdown = 15.f;
+	/** Radius around the player that is always fully loaded (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Distances")
+	float CriticalLoadRadius = 15000.f;
 
-	/** Radio warning line for initial out-of-bounds. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	FText WarningRadioLine = NSLOCTEXT("SHWorld", "BoundaryWarn", "You're leaving the AO, Sergeant. Turn back.");
+	/** Radius for high-priority loading (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Distances")
+	float HighLoadRadius = 40000.f;
 
-	/** Radio warning line for final out-of-bounds. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Boundary")
-	FText FinalWarningRadioLine = NSLOCTEXT("SHWorld", "BoundaryFinal", "Sergeant! You are well outside the operational area. Return immediately or the mission is scrubbed.");
+	/** Maximum radius for any streaming (cm). Beyond this, cells unload. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Distances")
+	float MaxStreamingRadius = 120000.f;
 
-	/** Target frame rate for performance budget. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Performance")
+	/** Radius around a combat zone that keeps cells loaded (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Combat")
+	float CombatKeepLoadedRadius = 20000.f;
+
+	/** FPS target — the streaming governor adjusts load to meet this. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Performance")
 	float TargetFPS = 60.f;
 
 	/** Maximum streaming memory budget in MB. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Performance")
-	float MaxStreamingMemoryMB = 4096.f;
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Performance")
+	float MaxStreamingMemoryMB = 2048.f;
 
-	/** Maximum number of cells to load per tick. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Performance")
-	int32 MaxLoadsPerTick = 2;
+	/** How far ahead (cm) to predict loading based on player velocity. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|Prediction")
+	float PredictiveLoadAheadDistance = 10000.f;
 
-	/** Radius around the player where cells are Critical priority (UU). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Streaming")
-	float CriticalRadius = 15000.f;
-
-	/** Radius for High priority (UU). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Streaming")
-	float HighRadius = 40000.f;
-
-	/** Radius for Medium priority (UU). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Streaming")
-	float MediumRadius = 80000.f;
-
-	/** How often to recalculate streaming priorities (seconds). */
-	UPROPERTY(EditAnywhere, Category = "SH|World|Streaming")
-	float PriorityUpdateInterval = 0.5f;
-
-	/** LOD bias applied per distance tier. */
-	UPROPERTY(EditAnywhere, Category = "SH|World|LOD")
-	TArray<float> LODDistanceThresholds = { 15000.f, 40000.f, 80000.f, 150000.f };
+	/** LOD distance thresholds — index is LOD level, value is min distance (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Streaming|LOD")
+	TArray<float> LODDistanceThresholds = { 0.f, 20000.f, 50000.f, 80000.f };
 
 private:
-	/** All registered streaming cells. */
-	UPROPERTY()
-	TMap<FGuid, FSHStreamingCellInfo> StreamingCells;
+	// Runtime state -------------------------------------------------------
 
-	/** Cells queued for loading, sorted by priority. */
-	TArray<FGuid> LoadQueue;
+	/** Cached local player location. */
+	FVector PlayerLocation = FVector::ZeroVector;
 
-	/** Cells queued for unloading. */
-	TArray<FGuid> UnloadQueue;
+	/** Cached local player velocity for predictive loading. */
+	FVector PlayerVelocity = FVector::ZeroVector;
 
-	/** Objective locations that boost nearby cell priority. */
-	TMap<FGuid, FVector> ObjectiveLocations;
+	/** Current distance outside AO (0 if inside). */
+	float DistanceFromAO = 0.f;
 
-	/** Current boundary stage. */
-	ESHBoundaryStage CurrentBoundaryStage = ESHBoundaryStage::InBounds;
+	/** Current OOB severity. */
+	ESHOutOfBoundsSeverity CurrentOOBSeverity = ESHOutOfBoundsSeverity::None;
 
-	/** Time spent at final warning stage (for countdown). */
-	float FinalWarningTimer = 0.f;
-
-	/** Accumulated time since last priority update. */
-	float PriorityUpdateAccumulator = 0.f;
-
-	/** Performance budget snapshot. */
+	/** Performance metrics. */
 	FSHPerformanceBudget PerformanceBudget;
 
-	/** FPS sampling ring buffer. */
-	TArray<float> FPSSamples;
-	int32 FPSSampleIndex = 0;
-	static constexpr int32 FPS_SAMPLE_COUNT = 30;
+	/** FPS averaging buffer. */
+	TArray<float> FPSHistory;
+	static constexpr int32 FPSHistorySize = 30;
 
-	/** Cached game state reference. */
+	/** All tracked streaming cells. */
 	UPROPERTY()
-	TObjectPtr<ASHGameState> CachedGameState = nullptr;
+	TArray<FSHStreamingCellInfo> CellInfos;
+
+	/** Active combat zones: center -> radius. */
+	TMap<FVector, float> ActiveCombatZones;
+
+	/** Squad member positions indexed by member index. */
+	TMap<int32, FVector> SquadMemberPositions;
+
+	/** Forced LOD overrides: cell name -> LOD level. */
+	TMap<FName, int32> ForcedLODOverrides;
+
+	/** Timer handle for OOB radio warning cooldown. */
+	FTimerHandle OOBWarningTimerHandle;
+
+	/** Whether we've already fired an OOB warning recently. */
+	bool bOOBWarningOnCooldown = false;
+
+	/** Accumulator for staggering cell updates across frames. */
+	int32 CellUpdateCursor = 0;
+
+	/** How many cells to update per frame to spread the cost. */
+	static constexpr int32 CellsPerFrameUpdate = 16;
 };

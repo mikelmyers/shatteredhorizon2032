@@ -3,39 +3,56 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "SHTerrainManager.generated.h"
 
-class ASHGameState;
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_Terrain, Log, All);
 
-/** Surface material types for the Taoyuan Beach operational area. */
+class USoundBase;
+class UNiagaraSystem;
+class UMaterialInterface;
+
+/** Terrain surface types in the Taoyuan Beach operational area. */
 UENUM(BlueprintType)
-enum class ESHSurfaceType : uint8
+enum class ESHTerrainType : uint8
 {
-	Default			UMETA(DisplayName = "Default"),
-	SurfWater		UMETA(DisplayName = "Surf / Shallow Water"),
-	WetSand			UMETA(DisplayName = "Wet Sand"),
-	DrySand			UMETA(DisplayName = "Dry Sand"),
-	Dune			UMETA(DisplayName = "Dune"),
-	Grass			UMETA(DisplayName = "Grass / Vegetation"),
-	Mud				UMETA(DisplayName = "Mud"),
-	Dirt			UMETA(DisplayName = "Dirt"),
-	Gravel			UMETA(DisplayName = "Gravel"),
-	Concrete		UMETA(DisplayName = "Concrete"),
-	Asphalt			UMETA(DisplayName = "Asphalt"),
-	Metal			UMETA(DisplayName = "Metal"),
-	Wood			UMETA(DisplayName = "Wood"),
-	DeepWater		UMETA(DisplayName = "Deep Water"),
-	Rock			UMETA(DisplayName = "Rock")
+	DeepWater		UMETA(DisplayName = "Deep Water"),		// Ocean, swim required
+	ShallowWater	UMETA(DisplayName = "Shallow Water"),	// Surf zone, wadeable
+	WetSand			UMETA(DisplayName = "Wet Sand"),		// Tidal zone
+	DrySand			UMETA(DisplayName = "Dry Sand"),		// Beach
+	Dunes			UMETA(DisplayName = "Dunes"),			// Sand dunes, soft footing
+	VegetationLine	UMETA(DisplayName = "Vegetation Line"),	// Scrub, coastal plants
+	Grass			UMETA(DisplayName = "Grass"),			// Inland grass fields
+	Dirt			UMETA(DisplayName = "Dirt"),				// Packed earth
+	Mud				UMETA(DisplayName = "Mud"),				// Rain-softened ground
+	Gravel			UMETA(DisplayName = "Gravel"),			// Roads, paths
+	Concrete		UMETA(DisplayName = "Concrete"),		// Urban surfaces
+	Asphalt			UMETA(DisplayName = "Asphalt"),			// Roads
+	Metal			UMETA(DisplayName = "Metal"),			// Vehicle surfaces, grates
+	Wood			UMETA(DisplayName = "Wood"),			// Boardwalks, structures
+	Rock			UMETA(DisplayName = "Rock"),			// Exposed rock
+	Rubble			UMETA(DisplayName = "Rubble")			// Destroyed building debris
 };
 
-/** Beach zone classification (from sea to inland). */
+/** Water depth classification at a world position. */
+UENUM(BlueprintType)
+enum class ESHWaterDepth : uint8
+{
+	None			UMETA(DisplayName = "None"),
+	Ankle			UMETA(DisplayName = "Ankle"),			// < 30cm
+	Knee			UMETA(DisplayName = "Knee"),			// 30-60cm
+	Waist			UMETA(DisplayName = "Waist"),			// 60-120cm
+	Chest			UMETA(DisplayName = "Chest"),			// 120-160cm, weapon raised
+	Swimming		UMETA(DisplayName = "Swimming")			// > 160cm
+};
+
+/** Beach zone classification from sea to inland. */
 UENUM(BlueprintType)
 enum class ESHBeachZone : uint8
 {
 	Ocean			UMETA(DisplayName = "Ocean"),
-	Surf			UMETA(DisplayName = "Surf Zone"),
+	SurfZone		UMETA(DisplayName = "Surf Zone"),
 	WetSand			UMETA(DisplayName = "Wet Sand"),
 	DrySand			UMETA(DisplayName = "Dry Sand"),
 	Dunes			UMETA(DisplayName = "Dunes"),
@@ -43,370 +60,327 @@ enum class ESHBeachZone : uint8
 	Inland			UMETA(DisplayName = "Inland")
 };
 
-/** Properties of a surface type affecting gameplay. */
+/** Properties of a terrain surface type affecting gameplay. */
 USTRUCT(BlueprintType)
-struct FSHSurfaceProperties
+struct FSHTerrainProperties
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	ESHTerrainType TerrainType = ESHTerrainType::Dirt;
 
 	/** Movement speed multiplier (1.0 = normal). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain", meta = (ClampMin = "0.1", ClampMax = "1.5"))
 	float MovementSpeedMultiplier = 1.f;
 
-	/** Movement sound volume multiplier (1.0 = normal). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
+	/** Sound volume multiplier for footsteps (1.0 = normal). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain", meta = (ClampMin = "0.0", ClampMax = "3.0"))
 	float FootstepVolumeMultiplier = 1.f;
 
-	/** Movement sound detection radius multiplier for AI. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	float FootstepDetectionMultiplier = 1.f;
+	/** How quickly the player tires when moving on this surface (multiplier). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	float StaminaDrainMultiplier = 1.f;
 
-	/** Prone crawl speed multiplier. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	float CrawlSpeedMultiplier = 1.f;
+	/** Whether prone is effective on this surface for concealment. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	bool bProneConcealmentEffective = true;
 
-	/** Can the player go prone on this surface? */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	bool bAllowProne = true;
+	/** Whether vehicles can traverse this surface. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	bool bVehicleTraversable = true;
 
-	/** Does this surface leave visible tracks? */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	bool bLeavesFootprints = false;
+	/** Leaves visible tracks/footprints. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	bool bLeavesTraces = false;
 
-	/** Is this surface flammable? */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	bool bFlammable = false;
+	/** Dust/splash particle system played on footstep. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	TSoftObjectPtr<UNiagaraSystem> FootstepParticle;
 
-	/** Particle effect to spawn on footstep. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	TSoftObjectPtr<UParticleSystem> FootstepParticle;
+	/** Impact decal for bullet hits. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	TSoftObjectPtr<UMaterialInterface> ImpactDecal;
 
-	/** Sound cue for footsteps. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	TSoftObjectPtr<USoundBase> FootstepSound;
-
-	/** Sound cue for bullet impact. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface")
-	TSoftObjectPtr<USoundBase> BulletImpactSound;
+	/** Corresponding physical material for physics interactions. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+	TSoftObjectPtr<UPhysicalMaterial> PhysicalMaterial;
 };
 
-/** Water depth query result. */
+/** Footstep sound set for a terrain type. */
 USTRUCT(BlueprintType)
-struct FSHWaterDepthResult
+struct FSHFootstepSoundSet
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "Water")
-	bool bIsInWater = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	ESHTerrainType TerrainType = ESHTerrainType::Dirt;
 
-	/** Depth in centimeters from surface. */
-	UPROPERTY(BlueprintReadOnly, Category = "Water")
-	float DepthCm = 0.f;
+	/** Walk footstep sounds — randomly selected per step. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TArray<TSoftObjectPtr<USoundBase>> WalkSounds;
 
-	/** Can the character wade at this depth? */
-	UPROPERTY(BlueprintReadOnly, Category = "Water")
-	bool bCanWade = false;
+	/** Run/sprint footstep sounds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TArray<TSoftObjectPtr<USoundBase>> RunSounds;
 
-	/** Must the character swim at this depth? */
-	UPROPERTY(BlueprintReadOnly, Category = "Water")
-	bool bMustSwim = false;
+	/** Prone crawl sounds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TArray<TSoftObjectPtr<USoundBase>> CrawlSounds;
 
-	/** Water current direction and strength. */
-	UPROPERTY(BlueprintReadOnly, Category = "Water")
-	FVector CurrentVelocity = FVector::ZeroVector;
-};
-
-/** Elevation query result for tactical calculations. */
-USTRUCT(BlueprintType)
-struct FSHElevationData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly, Category = "Elevation")
-	float Elevation = 0.f;
-
-	/** Slope angle in degrees (0 = flat, 90 = vertical). */
-	UPROPERTY(BlueprintReadOnly, Category = "Elevation")
-	float SlopeDegrees = 0.f;
-
-	/** Surface normal at sampled point. */
-	UPROPERTY(BlueprintReadOnly, Category = "Elevation")
-	FVector SurfaceNormal = FVector::UpVector;
-
-	/** Relative height advantage compared to a reference point. */
-	UPROPERTY(BlueprintReadOnly, Category = "Elevation")
-	float HeightAdvantage = 0.f;
-
-	/** Is this position in defilade (protected from fire from below)? */
-	UPROPERTY(BlueprintReadOnly, Category = "Elevation")
-	bool bIsDefilade = false;
+	/** Landing sounds (from a fall/jump). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	TArray<TSoftObjectPtr<USoundBase>> LandSounds;
 };
 
 /** Vegetation interaction data. */
 USTRUCT(BlueprintType)
-struct FSHVegetationState
+struct FSHVegetationInstance
 {
 	GENERATED_BODY()
 
-	/** Is the vegetation at this location disturbed (parted by movement)? */
-	UPROPERTY(BlueprintReadOnly, Category = "Vegetation")
-	bool bIsDisturbed = false;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	FVector Location = FVector::ZeroVector;
 
-	/** Is the vegetation burning? */
-	UPROPERTY(BlueprintReadOnly, Category = "Vegetation")
-	bool bIsOnFire = false;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	float Health = 1.f;
 
-	/** Concealment value (0 = fully exposed, 1 = fully concealed). */
-	UPROPERTY(BlueprintReadOnly, Category = "Vegetation")
-	float ConcealmentValue = 0.f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	bool bOnFire = false;
 
-	/** Time until vegetation springs back to undisturbed (seconds). */
-	UPROPERTY(BlueprintReadOnly, Category = "Vegetation")
-	float RecoveryTimeRemaining = 0.f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	float FireSpreadTimer = 0.f;
 };
 
+/** Result of a terrain query at a world position. */
+USTRUCT(BlueprintType)
+struct FSHTerrainQueryResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bValid = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	ESHTerrainType TerrainType = ESHTerrainType::Dirt;
+
+	UPROPERTY(BlueprintReadOnly)
+	ESHBeachZone BeachZone = ESHBeachZone::Inland;
+
+	UPROPERTY(BlueprintReadOnly)
+	ESHWaterDepth WaterDepth = ESHWaterDepth::None;
+
+	UPROPERTY(BlueprintReadOnly)
+	float WaterDepthCM = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float Elevation = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	FVector SurfaceNormal = FVector::UpVector;
+
+	UPROPERTY(BlueprintReadOnly)
+	float SlopeAngleDegrees = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	FSHTerrainProperties Properties;
+
+	/** Tactical advantage from elevation (0 = no advantage, positive = high ground). */
+	UPROPERTY(BlueprintReadOnly)
+	float TacticalElevationAdvantage = 0.f;
+};
+
+/** Delegate for weather change affecting terrain. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTerrainWeatherChanged, ESHTerrainType, AffectedType, float, WetnessLevel);
+
 /**
- * ASHTerrainManager
+ * USHTerrainManager
  *
- * Central terrain and environment system for the Taoyuan Beach operational area.
- * Manages surface types, beach zones, water depth, vegetation interaction,
- * elevation data, and weather effects on terrain. All queries are designed for
- * high-frequency use by movement, AI, and audio systems.
+ * World subsystem managing terrain queries, surface properties, footstep sounds,
+ * water depth, vegetation interaction, and weather effects on the Taoyuan Beach
+ * operational area. All terrain types affect movement, sound propagation, and
+ * tactical options authentically.
  */
 UCLASS()
-class SHATTEREDHORIZON2032_API ASHTerrainManager : public AActor
+class SHATTEREDHORIZON2032_API USHTerrainManager : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	ASHTerrainManager();
-
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaSeconds) override;
+	USHTerrainManager();
 
 	// ------------------------------------------------------------------
-	//  Surface / Material Queries
+	//  USubsystem interface
+	// ------------------------------------------------------------------
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
+
+	// ------------------------------------------------------------------
+	//  Terrain queries
 	// ------------------------------------------------------------------
 
-	/** Get the surface type at a world position (traces downward). */
+	/** Full terrain query at a world position. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Terrain")
-	ESHSurfaceType GetSurfaceTypeAtLocation(const FVector& WorldLocation) const;
+	FSHTerrainQueryResult QueryTerrain(FVector WorldPosition) const;
 
-	/** Get full surface properties for a surface type. */
+	/** Quick terrain type lookup (cheaper than full query). */
 	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
-	const FSHSurfaceProperties& GetSurfaceProperties(ESHSurfaceType SurfaceType) const;
+	ESHTerrainType GetTerrainTypeAt(FVector WorldPosition) const;
 
-	/** Get the beach zone for a world position. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain")
-	ESHBeachZone GetBeachZoneAtLocation(const FVector& WorldLocation) const;
+	/** Get the beach zone for a given X position (distance from shoreline). */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	ESHBeachZone GetBeachZoneAt(FVector WorldPosition) const;
 
-	/** Get movement speed multiplier at a position (combines surface + weather + water). */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain")
-	float GetMovementMultiplierAtLocation(const FVector& WorldLocation) const;
+	/** Get water depth at a world position in centimeters. */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	float GetWaterDepthAt(FVector WorldPosition) const;
+
+	/** Classify water depth. */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	ESHWaterDepth ClassifyWaterDepth(float DepthCM) const;
+
+	/** Get terrain elevation at XY. */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	float GetElevationAt(FVector2D WorldXY) const;
+
+	/** Compute tactical elevation advantage between attacker and defender. */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	float ComputeElevationAdvantage(FVector AttackerPos, FVector DefenderPos) const;
+
+	/** Get movement speed multiplier at position, accounting for weather. */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	float GetMovementSpeedMultiplier(FVector WorldPosition) const;
+
+	/** Get terrain properties for a terrain type. */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain")
+	FSHTerrainProperties GetTerrainProperties(ESHTerrainType Type) const;
 
 	// ------------------------------------------------------------------
-	//  Footstep Sound System
+	//  Footstep sounds
 	// ------------------------------------------------------------------
 
-	/** Get the footstep sound for a given surface and stance. */
+	/** Get a random footstep sound for the given terrain type and movement mode. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Audio")
-	USoundBase* GetFootstepSound(ESHSurfaceType SurfaceType, bool bIsSprinting, bool bIsCrouched, bool bIsProne) const;
+	USoundBase* GetFootstepSound(ESHTerrainType TerrainType, bool bIsSprinting, bool bIsCrawling) const;
 
-	/** Get footstep particle effect for a surface type. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Audio")
-	UParticleSystem* GetFootstepParticle(ESHSurfaceType SurfaceType) const;
-
-	/** Get the AI-audible range of a footstep at this location. */
+	/** Get footstep volume multiplier at position (terrain + weather). */
 	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Audio")
-	float GetFootstepAudibleRange(const FVector& WorldLocation, bool bIsSprinting, bool bIsCrouched) const;
+	float GetFootstepVolumeMultiplier(FVector WorldPosition) const;
 
 	// ------------------------------------------------------------------
-	//  Water System
+	//  Weather effects on terrain
 	// ------------------------------------------------------------------
 
-	/** Query water depth and properties at a world position. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Water")
-	FSHWaterDepthResult GetWaterDepthAtLocation(const FVector& WorldLocation) const;
+	/** Notify the terrain system of a weather change. */
+	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Weather")
+	void OnWeatherChanged(ESHTerrainType PreviousWeather, float RainIntensity, float WindSpeed);
 
-	/** Get the current direction for water at this position. */
-	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Water")
-	FVector GetWaterCurrentAtLocation(const FVector& WorldLocation) const;
-
-	// ------------------------------------------------------------------
-	//  Elevation & Tactical
-	// ------------------------------------------------------------------
-
-	/** Get elevation data at a position with tactical context relative to a reference. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Tactical")
-	FSHElevationData GetElevationData(const FVector& WorldLocation, const FVector& ReferenceLocation) const;
-
-	/** Compute whether a position has a height advantage over another. */
-	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Tactical")
-	float ComputeHeightAdvantage(const FVector& FromLocation, const FVector& TargetLocation) const;
-
-	/** Check line of sight through terrain only (ignores actors). */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Tactical")
-	bool HasTerrainLineOfSight(const FVector& From, const FVector& To) const;
+	/** Get current ground wetness (0 = dry, 1 = saturated). */
+	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Weather")
+	float GetGroundWetness() const { return CurrentGroundWetness; }
 
 	// ------------------------------------------------------------------
-	//  Vegetation Interaction
+	//  Vegetation
 	// ------------------------------------------------------------------
 
-	/** Disturb vegetation at a location (called when characters move through). */
+	/** Interact with vegetation at location (player moving through). */
 	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Vegetation")
-	void DisturbVegetation(const FVector& WorldLocation, float Radius);
+	void InteractWithVegetation(FVector WorldPosition, float InteractionRadius);
 
 	/** Set vegetation on fire at a location. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Vegetation")
-	void IgniteVegetation(const FVector& WorldLocation, float Radius);
-
-	/** Query vegetation state at a location. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Vegetation")
-	FSHVegetationState GetVegetationState(const FVector& WorldLocation) const;
-
-	/** Get concealment value at a position (from vegetation, terrain features). */
-	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Vegetation")
-	float GetConcealmentAtLocation(const FVector& WorldLocation) const;
+	void IgniteVegetation(FVector WorldPosition, float Radius);
 
 	// ------------------------------------------------------------------
-	//  Weather Effects on Terrain
+	//  Delegates
 	// ------------------------------------------------------------------
 
-	/** Called by the game state when weather changes. Updates terrain properties. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Terrain|Weather")
-	void OnWeatherChanged(ESHWeatherCondition NewWeather);
-
-	/** Get the current mud level at a position (0..1, affected by rain). */
-	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Weather")
-	float GetMudLevelAtLocation(const FVector& WorldLocation) const;
-
-	/** Get visibility modifier from weather at a location. */
-	UFUNCTION(BlueprintPure, Category = "SH|Terrain|Weather")
-	float GetWeatherVisibilityModifier() const { return WeatherVisibilityModifier; }
+	UPROPERTY(BlueprintAssignable, Category = "SH|Terrain")
+	FOnTerrainWeatherChanged OnTerrainWeatherChanged;
 
 protected:
 	// ------------------------------------------------------------------
 	//  Internal
 	// ------------------------------------------------------------------
+	void InitializeTerrainProperties();
+	void InitializeBeachZoneThresholds();
+	void TickVegetationFire(float DeltaTime);
+	void TickWeatherEffects(float DeltaTime);
 
-	/** Perform a trace to find the physical material at a location. */
-	ESHSurfaceType TraceForSurface(const FVector& WorldLocation) const;
-
-	/** Map UE physical material to our surface type enum. */
-	ESHSurfaceType PhysMatToSurfaceType(const UPhysicalMaterial* PhysMat) const;
-
-	/** Update time-varying terrain state (vegetation recovery, fire spread, mud). */
-	void TickVegetation(float DeltaSeconds);
-	void TickFireSpread(float DeltaSeconds);
-	void TickMudAccumulation(float DeltaSeconds);
+	ESHTerrainType DetermineTerrainFromPhysMat(const UPhysicalMaterial* PhysMat) const;
+	ESHTerrainType DetermineTerrainFromTrace(FVector WorldPosition) const;
 
 	// ------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------
 
-	/** Surface properties lookup table (populated in constructor or via data table). */
-	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Surfaces")
-	TMap<ESHSurfaceType, FSHSurfaceProperties> SurfacePropertiesMap;
+	/** Terrain property definitions per type. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain")
+	TMap<ESHTerrainType, FSHTerrainProperties> TerrainPropertyMap;
 
-	/** Sea level elevation (Z coordinate in world space). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Water")
-	float SeaLevelZ = 0.f;
+	/** Footstep sound sets per terrain type. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Audio")
+	TArray<FSHFootstepSoundSet> FootstepSoundSets;
 
-	/** Maximum wadeable water depth in cm. */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Water")
-	float MaxWadeDepthCm = 120.f;
+	/** Beach zone distance thresholds from shoreline (cm, sorted seaward to inland). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Beach")
+	float ShorelineYPosition = -150000.f;
 
-	/** Depth at which swimming begins in cm. */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Water")
-	float SwimDepthCm = 150.f;
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Beach")
+	float SurfZoneWidth = 5000.f;
 
-	/** Base water current speed (cm/s). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Water")
-	float BaseCurrentSpeed = 50.f;
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Beach")
+	float WetSandWidth = 3000.f;
 
-	/** Water current direction (XY normalized). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Water")
-	FVector2D CurrentDirection = FVector2D(1.f, 0.f);
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Beach")
+	float DrySandWidth = 8000.f;
 
-	/** Beach zone Y-axis boundaries (distances from shoreline reference). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Beach")
-	float ShorelineY = 0.f;
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Beach")
+	float DuneWidth = 6000.f;
 
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Beach")
-	float SurfZoneWidth = 3000.f;
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Beach")
+	float VegetationLineWidth = 4000.f;
 
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Beach")
-	float WetSandWidth = 2000.f;
+	/** Water level in Z world units. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Water")
+	float WaterLevelZ = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Beach")
-	float DrySandWidth = 4000.f;
+	/** Maximum swim depth — water below this is inaccessible (drowning). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Water")
+	float MaxSwimDepthCM = 500.f;
 
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Beach")
-	float DuneWidth = 3000.f;
+	/** Rain intensity threshold to start generating mud. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Weather")
+	float MudGenerationRainThreshold = 0.3f;
 
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Beach")
-	float VegetationLineWidth = 2000.f;
+	/** Rate at which ground wetness increases per second at max rain. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Weather")
+	float WetnessIncreaseRate = 0.05f;
 
-	/** Time for disturbed vegetation to recover (seconds). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Vegetation")
-	float VegetationRecoveryTime = 8.f;
+	/** Rate at which ground dries per second with no rain. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Weather")
+	float WetnessDryRate = 0.01f;
 
-	/** Fire spread rate in cm/s. */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Vegetation")
-	float FireSpreadRate = 50.f;
+	/** Fire spread rate per second (radius expansion). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Vegetation")
+	float FireSpreadRateCMPerSec = 50.f;
 
-	/** Rain accumulation rate for mud (0..1 per second of rain). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Weather")
-	float MudAccumulationRate = 0.01f;
-
-	/** Mud drying rate (0..1 per second without rain). */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Weather")
-	float MudDryingRate = 0.002f;
-
-	/** Base footstep audible range (cm) for AI detection. */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Audio")
-	float BaseFootstepAudibleRange = 1500.f;
-
-	/** Sprint footstep range multiplier. */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Audio")
-	float SprintFootstepMultiplier = 2.5f;
-
-	/** Crouch footstep range multiplier. */
-	UPROPERTY(EditAnywhere, Category = "SH|Terrain|Audio")
-	float CrouchFootstepMultiplier = 0.4f;
+	/** Fire spread radius before fire exhausts. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Terrain|Vegetation")
+	float MaxFireSpreadRadius = 2000.f;
 
 private:
-	/** Active vegetation disturbances. */
-	struct FVegetationDisturbance
-	{
-		FVector Location;
-		float Radius;
-		float TimeRemaining;
-	};
-	TArray<FVegetationDisturbance> ActiveDisturbances;
+	// Runtime state -------------------------------------------------------
 
-	/** Active fire zones. */
-	struct FFireZone
-	{
-		FVector Location;
-		float Radius;
-		float Lifetime;
-	};
-	TArray<FFireZone> ActiveFires;
+	float CurrentGroundWetness = 0.f;
+	float CurrentRainIntensity = 0.f;
+	float CurrentWindSpeed = 0.f;
 
-	/** Current global mud level (0..1), affected by rain duration. */
-	float GlobalMudLevel = 0.f;
-
-	/** Current weather condition. */
-	ESHWeatherCondition CurrentWeather = ESHWeatherCondition::Clear;
-
-	/** Weather-based visibility modifier. */
-	float WeatherVisibilityModifier = 1.f;
-
-	/** Cached default surface properties. */
-	FSHSurfaceProperties DefaultSurfaceProperties;
-
-	/** Cached game state. */
+	/** Active vegetation fire instances. */
 	UPROPERTY()
-	TObjectPtr<ASHGameState> CachedGameState = nullptr;
+	TArray<FSHVegetationInstance> ActiveFires;
+
+	/** Cached terrain trace channel. */
+	static constexpr ECollisionChannel TerrainTraceChannel = ECC_Visibility;
 };

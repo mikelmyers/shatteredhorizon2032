@@ -6,9 +6,9 @@
 #include "Engine/DataAsset.h"
 #include "SHWeaponData.generated.h"
 
-// ---------------------------------------------------------------------------
-// Enums
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Enums
+ * --------------------------------------------------------------------- */
 
 UENUM(BlueprintType)
 enum class ESHWeaponCategory : uint8
@@ -30,7 +30,7 @@ enum class ESHFireMode : uint8
 };
 
 UENUM(BlueprintType)
-enum class ESHPenetrationMaterial : uint8
+enum class ESHPenetrableMaterial : uint8
 {
 	Wood      UMETA(DisplayName = "Wood"),
 	Drywall   UMETA(DisplayName = "Drywall"),
@@ -38,8 +38,8 @@ enum class ESHPenetrationMaterial : uint8
 	Concrete  UMETA(DisplayName = "Concrete"),
 	Steel     UMETA(DisplayName = "Steel"),
 	Glass     UMETA(DisplayName = "Glass"),
+	Dirt      UMETA(DisplayName = "Dirt / Earth"),
 	Flesh     UMETA(DisplayName = "Flesh"),
-	Dirt      UMETA(DisplayName = "Dirt"),
 	MAX       UMETA(Hidden),
 };
 
@@ -49,160 +49,198 @@ enum class ESHStance : uint8
 	Standing  UMETA(DisplayName = "Standing"),
 	Crouching UMETA(DisplayName = "Crouching"),
 	Prone     UMETA(DisplayName = "Prone"),
-	Moving    UMETA(DisplayName = "Moving"),
 };
 
-// ---------------------------------------------------------------------------
-// Structs
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Structs
+ * --------------------------------------------------------------------- */
 
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHRecoilPattern
+struct FSHRecoilPattern
 {
 	GENERATED_BODY()
 
-	/** Vertical recoil per shot in degrees. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0.0"))
+	/** Vertical recoil per shot (degrees). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0"))
 	float VerticalRecoil = 0.45f;
 
-	/** Horizontal recoil per shot in degrees (randomly +/-). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0.0"))
+	/** Horizontal recoil per shot (degrees). Randomly applied left or right. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0"))
 	float HorizontalRecoil = 0.15f;
 
-	/** Multiplier applied to the first shot after a pause. */
+	/** Multiplier applied to the very first shot of a burst / full-auto string. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "1.0"))
 	float FirstShotMultiplier = 1.5f;
 
-	/** How quickly the weapon recovers between shots (degrees/sec). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0.0"))
+	/** How fast the recoil recovers back to center (degrees / sec). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0"))
 	float RecoveryRate = 5.0f;
 
-	/** Maximum accumulated vertical recoil before clamping (degrees). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "0.0"))
-	float MaxVerticalRecoil = 8.0f;
-
-	/** Horizontal recoil bias (-1 = left, 0 = none, 1 = right). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = "-1.0", ClampMax = "1.0"))
-	float HorizontalBias = 0.0f;
+	/** Random horizontal deviation pattern. Each element is applied sequentially per shot. Wraps. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil")
+	TArray<float> HorizontalPattern;
 };
 
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHBallisticCoefficients
+struct FSHBallisticCoefficients
 {
 	GENERATED_BODY()
 
-	/** G1 Ballistic Coefficient for bullet drop calculation. */
+	/** G1 ballistic coefficient (higher = less drag). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0.01"))
-	float BallisticCoefficient = 0.304f;
+	float BallisticCoefficient = 0.310f;
 
-	/** Drag coefficient used in air resistance model. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0.0"))
+	/** Drag coefficient for air resistance model. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0"))
 	float DragCoefficient = 0.295f;
 
-	/** Bullet mass in grains. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "1.0"))
-	float BulletMassGrains = 62.0f;
+	/** Bullet mass in grams. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0.1"))
+	float BulletMassGrams = 4.0f;
 
-	/** Bullet cross-sectional area in cm^2. */
+	/** Cross-sectional area of bullet in cm^2. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics", meta = (ClampMin = "0.01"))
-	float CrossSectionArea = 0.257f;
+	float CrossSectionCm2 = 0.264f;
 };
 
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHPenetrationEntry
+struct FSHPenetrationEntry
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration")
-	ESHPenetrationMaterial Material = ESHPenetrationMaterial::Wood;
+	ESHPenetrableMaterial Material = ESHPenetrableMaterial::Wood;
 
-	/** Maximum thickness (cm) this round can penetrate through. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration", meta = (ClampMin = "0.0"))
+	/** Maximum thickness (cm) that can be penetrated at muzzle velocity. Scales with remaining velocity. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration", meta = (ClampMin = "0"))
 	float MaxPenetrationCm = 10.0f;
 
-	/** Damage retained after full penetration (0..1). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	/** Fraction of damage retained after penetration (0-1). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration", meta = (ClampMin = "0", ClampMax = "1"))
 	float DamageRetention = 0.6f;
 
-	/** Velocity retained after penetration (0..1). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	/** Velocity multiplier after penetration (0-1). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration", meta = (ClampMin = "0", ClampMax = "1"))
 	float VelocityRetention = 0.5f;
 };
 
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHAccuracyModifiers
+struct FSHAccuracyModifiers
 {
 	GENERATED_BODY()
 
-	/** MOA at each stance. Lower = more accurate. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy")
-	float StandingMOA = 4.0f;
+	/** MOA spread while standing still. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0"))
+	float StandingMOA = 3.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy")
-	float CrouchingMOA = 2.5f;
+	/** MOA spread while crouching. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0"))
+	float CrouchingMOA = 1.8f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy")
-	float ProneMOA = 1.2f;
+	/** MOA spread while prone. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0"))
+	float ProneMOA = 0.9f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy")
-	float MovingMOA = 7.0f;
+	/** Additive MOA penalty while moving. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0"))
+	float MovingPenaltyMOA = 4.0f;
 
-	/** ADS multiplier applied to the stance MOA (0..1). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	/** Multiplier while ADS (applied on top of stance). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0", ClampMax = "1"))
 	float ADSMultiplier = 0.35f;
 
-	/** Additional spread per point of suppression (0-100 scale). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0.0"))
-	float SuppressionSpreadPerPoint = 0.04f;
+	/** Additive MOA from suppression (scaled 0-1 externally). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0"))
+	float SuppressionMaxMOA = 6.0f;
 
-	/** Additional spread per unit of fatigue (0-100 scale). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0.0"))
-	float FatigueSpreadPerPoint = 0.02f;
+	/** Additive MOA from fatigue (scaled 0-1 externally). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy", meta = (ClampMin = "0"))
+	float FatigueMaxMOA = 3.5f;
 };
 
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHSoundProfile
+struct FSHSoundProfile
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	TObjectPtr<USoundBase> FireSound = nullptr;
+	/** Gunshot sound cue. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundBase> FireSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	TObjectPtr<USoundBase> FireSoundSuppressed = nullptr;
+	/** Suppressed fire sound. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundBase> FireSoundSuppressed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	TObjectPtr<USoundBase> DryFireSound = nullptr;
+	/** Sound attenuation asset for unsuppressed fire. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundAttenuation> FireAttenuation;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	TObjectPtr<USoundBase> ReloadSound = nullptr;
+	/** Dry-fire / empty chamber click. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundBase> DryFireSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	TObjectPtr<USoundBase> MalfunctionSound = nullptr;
+	/** Reload sound. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundBase> ReloadSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	TObjectPtr<USoundAttenuation> AttenuationSettings = nullptr;
+	/** Fire mode switch click. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundBase> FireModeSwitchSound;
 
-	/** Audible range in metres (for AI hearing). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (ClampMin = "0.0"))
-	float AudibleRangeMetres = 800.0f;
+	/** Malfunction / jam sound. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<USoundBase> MalfunctionSound;
 
-	/** Suppressed audible range in metres. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (ClampMin = "0.0"))
-	float SuppressedRangeMetres = 50.0f;
+	/** Audible range of unsuppressed fire (cm). Used for AI alerting. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio", meta = (ClampMin = "0"))
+	float AudibleRangeCm = 300000.0f; // ~3 km
+
+	/** Audible range when suppressed (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio", meta = (ClampMin = "0"))
+	float SuppressedAudibleRangeCm = 5000.0f; // ~50 m
 };
 
-// ---------------------------------------------------------------------------
-// UDataAsset — the main weapon definition
-// ---------------------------------------------------------------------------
+USTRUCT(BlueprintType)
+struct FSHWeaponHeatConfig
+{
+	GENERATED_BODY()
+
+	/** Heat added per shot (0-1 scale). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0", ClampMax = "1"))
+	float HeatPerShot = 0.015f;
+
+	/** Heat dissipation per second. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0"))
+	float CooldownPerSecond = 0.08f;
+
+	/** Heat threshold at which malfunction chance starts increasing. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0", ClampMax = "1"))
+	float MalfunctionHeatThreshold = 0.7f;
+
+	/** If true, weapon can overheat and lock out firing until cooled. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat")
+	bool bCanOverheat = false;
+
+	/** Heat level that causes a forced cooldown lockout. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0", ClampMax = "1", EditCondition = "bCanOverheat"))
+	float OverheatThreshold = 1.0f;
+
+	/** Heat level weapon must cool to before firing resumes after overheat. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0", ClampMax = "1", EditCondition = "bCanOverheat"))
+	float CooldownResumeThreshold = 0.5f;
+};
+
+/* -----------------------------------------------------------------------
+ *  USHWeaponDataAsset
+ * --------------------------------------------------------------------- */
 
 UCLASS(BlueprintType)
-class SHATTEREDHORIZON2032_API USHWeaponData : public UDataAsset
+class SHATTEREDHORIZON2032_API USHWeaponDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	// ---- Identity ----
+	/* --- Identity --- */
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FName WeaponID;
@@ -213,257 +251,249 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	ESHWeaponCategory Category = ESHWeaponCategory::AssaultRifle;
 
-	// ---- Firing ----
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+	TSoftObjectPtr<USkeletalMesh> WeaponMesh;
+
+	/* --- Fire --- */
 
 	/** Rounds per minute. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "1"))
-	float FireRateRPM = 700.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "1"))
+	float RoundsPerMinute = 700.0f;
 
-	/** Muzzle velocity in m/s (real-world scale, converted internally). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "1.0"))
+	/** Muzzle velocity in m/s (real-world). Converted to UE units internally. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "1"))
 	float MuzzleVelocityMPS = 940.0f;
 
-	/** Effective range in metres. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "1.0"))
-	float EffectiveRangeM = 500.0f;
+	/** Effective range in meters. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "1"))
+	float EffectiveRangeM = 550.0f;
 
-	/** Maximum range in metres before projectile is destroyed. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "1.0"))
+	/** Maximum range in meters before projectile is despawned. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "1"))
 	float MaxRangeM = 3600.0f;
 
-	/** Below this range (metres) fire is resolved as hitscan. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "0.0"))
-	float HitscanThresholdM = 50.0f;
+	/** Base damage at muzzle. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "0"))
+	float BaseDamage = 35.0f;
 
-	/** Available fire modes, ordered for mode-switch cycling. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing")
+	/** Distance (m) at which damage starts falling off. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "0"))
+	float DamageFalloffStartM = 100.0f;
+
+	/** Minimum damage multiplier at max range. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "0", ClampMax = "1"))
+	float MinDamageMultiplier = 0.25f;
+
+	/** Available fire modes. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire")
 	TArray<ESHFireMode> AvailableFireModes;
 
-	/** Rounds per burst (only used when Burst mode is selected). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Firing", meta = (ClampMin = "2", ClampMax = "5"))
+	/** Rounds per burst (only relevant if Burst is an available mode). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "2", ClampMax = "5"))
 	int32 BurstCount = 3;
 
-	// ---- Damage ----
+	/** Distance (cm) within which the weapon uses hitscan instead of projectile. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "0"))
+	float HitscanRangeCm = 2500.0f; // 25 m
 
-	/** Base damage at muzzle. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "0.0"))
-	float BaseDamage = 34.0f;
+	/** Number of pellets per shot (> 1 for shotguns). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fire", meta = (ClampMin = "1"))
+	int32 PelletsPerShot = 1;
 
-	/** Damage at max effective range as a fraction of base (0..1). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float DamageFalloffAtRange = 0.55f;
-
-	/** Pellet count — 1 for rifles, >1 for shotguns. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "1"))
-	int32 PelletCount = 1;
-
-	/** If true, this is an explosive round (GL, etc.). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
-	bool bIsExplosive = false;
-
-	/** Explosive inner radius (full damage). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bIsExplosive", ClampMin = "0.0"))
-	float ExplosiveInnerRadiusM = 3.0f;
-
-	/** Explosive outer radius (falloff to zero). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bIsExplosive", ClampMin = "0.0"))
-	float ExplosiveOuterRadiusM = 15.0f;
-
-	/** Number of shrapnel fragments spawned on detonation. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bIsExplosive", ClampMin = "0"))
-	int32 ShrapnelCount = 0;
-
-	/** Damage per shrapnel fragment. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bIsExplosive", ClampMin = "0.0"))
-	float ShrapnelDamage = 20.0f;
-
-	// ---- Ballistics ----
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics")
-	FSHBallisticCoefficients Ballistics;
-
-	// ---- Penetration ----
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration")
-	TArray<FSHPenetrationEntry> PenetrationTable;
-
-	// ---- Recoil ----
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil")
-	FSHRecoilPattern Recoil;
-
-	// ---- Accuracy ----
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy")
-	FSHAccuracyModifiers Accuracy;
-
-	// ---- Magazine ----
+	/* --- Magazine --- */
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "1"))
 	int32 MagazineCapacity = 30;
 
-	/** Max reserve ammo a soldier can carry for this weapon. */
+	/** Max reserve ammo the player can carry for this weapon. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "0"))
 	int32 MaxReserveAmmo = 210;
 
-	/** Tactical reload time in seconds (magazine not empty). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "0.1"))
+	/** Reload time (seconds) with round in chamber (tactical reload). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "0"))
 	float TacticalReloadTime = 2.1f;
 
-	/** Empty reload time in seconds (must chamber a round). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "0.1"))
+	/** Reload time (seconds) from empty (bolt catch / charging handle). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "0"))
 	float EmptyReloadTime = 2.8f;
 
-	// ---- Malfunction ----
+	/** If true, reload inserts individual rounds (shotgun pump-style). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine")
+	bool bSingleRoundReload = false;
 
-	/** Base probability of malfunction per shot (0..1). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Malfunction", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	/** Time per individual round insert (only if bSingleRoundReload). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Magazine", meta = (ClampMin = "0", EditCondition = "bSingleRoundReload"))
+	float SingleRoundInsertTime = 0.55f;
+
+	/* --- Recoil --- */
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil")
+	FSHRecoilPattern RecoilPattern;
+
+	/* --- Ballistics --- */
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ballistics")
+	FSHBallisticCoefficients Ballistics;
+
+	/* --- Penetration --- */
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Penetration")
+	TArray<FSHPenetrationEntry> PenetrationTable;
+
+	/* --- Accuracy --- */
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accuracy")
+	FSHAccuracyModifiers AccuracyModifiers;
+
+	/* --- ADS --- */
+
+	/** FOV while aiming down sights (degrees). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ADS", meta = (ClampMin = "10", ClampMax = "90"))
+	float ADSFOV = 55.0f;
+
+	/** Time to transition into / out of ADS (seconds). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ADS", meta = (ClampMin = "0"))
+	float ADSTransitionTime = 0.2f;
+
+	/* --- Heat --- */
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat")
+	FSHWeaponHeatConfig HeatConfig;
+
+	/* --- Malfunction --- */
+
+	/** Base probability of malfunction per shot (before heat modifier). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Malfunction", meta = (ClampMin = "0", ClampMax = "1"))
 	float BaseMalfunctionChance = 0.0002f;
 
-	/** Extra malfunction chance per consecutive shot of sustained fire. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Malfunction", meta = (ClampMin = "0.0"))
-	float SustainedFireMalfunctionRate = 0.00005f;
+	/** Time to clear a malfunction (seconds). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Malfunction", meta = (ClampMin = "0"))
+	float MalfunctionClearTime = 1.5f;
 
-	/** Extra malfunction chance per unit of dirt accumulation (0-100). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Malfunction", meta = (ClampMin = "0.0"))
-	float DirtMalfunctionRate = 0.0001f;
+	/* --- Audio --- */
 
-	/** Time to clear a malfunction in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Malfunction", meta = (ClampMin = "0.1"))
-	float MalfunctionClearTime = 3.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	FSHSoundProfile SoundProfile;
 
-	// ---- Heat ----
-
-	/** Heat generated per shot (0..1 units toward overheat). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0.0"))
-	float HeatPerShot = 0.012f;
-
-	/** Passive heat dissipation per second. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0.0"))
-	float HeatDissipationRate = 0.08f;
-
-	/** Heat threshold (0..1) at which weapon jams from overheating. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float OverheatThreshold = 1.0f;
-
-	// ---- ADS ----
-
-	/** Time to transition into ADS in seconds. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ADS", meta = (ClampMin = "0.01"))
-	float ADSTime = 0.25f;
-
-	/** FOV multiplier when fully ADS (1.0 = no change, 0.5 = 2x zoom). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ADS", meta = (ClampMin = "0.1", ClampMax = "1.0"))
-	float ADSFOVMultiplier = 0.75f;
-
-	// ---- Weapon Sway ----
-
-	/** Base sway amplitude in degrees. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sway", meta = (ClampMin = "0.0"))
-	float BaseSwayAmplitude = 0.6f;
-
-	/** Sway frequency in Hz. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sway", meta = (ClampMin = "0.1"))
-	float SwayFrequency = 1.2f;
-
-	/** Multiplier on sway when stamina is depleted. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sway", meta = (ClampMin = "1.0"))
-	float ExhaustedSwayMultiplier = 3.0f;
-
-	// ---- Tracers ----
+	/* --- Tracers --- */
 
 	/** Fire a visible tracer every N rounds (0 = no tracers). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tracers", meta = (ClampMin = "0"))
 	int32 TracerInterval = 0;
 
-	// ---- Sound ----
+	/* --- VFX --- */
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
-	FSHSoundProfile SoundProfile;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TSoftObjectPtr<UParticleSystem> MuzzleFlashVFX;
 
-	// ---- Visuals / Animation ----
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TSoftObjectPtr<UParticleSystem> ShellEjectVFX;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<USkeletalMesh> WeaponMesh = nullptr;
+	/* --- Animations --- */
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<UAnimMontage> FireMontage_1P = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TSoftObjectPtr<UAnimMontage> FireMontage_FP;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<UAnimMontage> ReloadMontage_1P = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TSoftObjectPtr<UAnimMontage> ReloadMontage_FP;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<UAnimMontage> MalfunctionClearMontage_1P = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TSoftObjectPtr<UAnimMontage> ReloadEmptyMontage_FP;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<UParticleSystem> MuzzleFlashVFX = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TSoftObjectPtr<UAnimMontage> ADSInMontage_FP;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<UNiagaraSystem> MuzzleFlashNiagara = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	TSoftObjectPtr<UAnimMontage> MalfunctionClearMontage_FP;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TObjectPtr<UNiagaraSystem> ShellEjectNiagara = nullptr;
+	/* --- Sway --- */
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TSubclassOf<AActor> ProjectileClass;
+	/** Max weapon sway amplitude in degrees at full fatigue. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sway", meta = (ClampMin = "0"))
+	float MaxSwayDegrees = 2.5f;
 
-	// ---- Helpers ----
+	/** Sway frequency (cycles per second). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sway", meta = (ClampMin = "0"))
+	float SwayFrequency = 0.7f;
 
-	/** Seconds between shots derived from RPM. */
-	float GetFireInterval() const { return 60.0f / FMath::Max(FireRateRPM, 1.0f); }
+	/* --- Weapon Weight --- */
 
-	/** Get stance MOA. */
-	float GetMOAForStance(ESHStance Stance) const;
+	/** Weapon weight in kilograms. Affects movement speed and sway. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weight", meta = (ClampMin = "0"))
+	float WeightKg = 3.6f;
 
-	/** Look up penetration data for a material. Returns nullptr if none defined. */
-	const FSHPenetrationEntry* FindPenetration(ESHPenetrationMaterial Material) const;
+public:
+	/** Helper: seconds between shots from RPM. */
+	FORCEINLINE float GetSecondsBetweenShots() const
+	{
+		return 60.0f / FMath::Max(RoundsPerMinute, 1.0f);
+	}
+
+	/** Helper: muzzle velocity in UE centimeters/sec (MPS * 100). */
+	FORCEINLINE float GetMuzzleVelocityCmPerSec() const
+	{
+		return MuzzleVelocityMPS * 100.0f;
+	}
+
+	/** Lookup penetration data for a material. Returns nullptr if not found. */
+	const FSHPenetrationEntry* FindPenetrationData(ESHPenetrableMaterial Material) const
+	{
+		for (const FSHPenetrationEntry& Entry : PenetrationTable)
+		{
+			if (Entry.Material == Material)
+			{
+				return &Entry;
+			}
+		}
+		return nullptr;
+	}
 };
 
-// ---------------------------------------------------------------------------
-// Default data factory — creates preset data assets at runtime/editor
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Default weapon data factory (code-driven defaults for prototyping)
+ * --------------------------------------------------------------------- */
 
 UCLASS()
-class SHATTEREDHORIZON2032_API USHWeaponDataLibrary : public UBlueprintFunctionLibrary
+class SHATTEREDHORIZON2032_API USHWeaponDataFactory : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	/** Populate a weapon data asset with real-world-inspired defaults. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_M27IAR(USHWeaponData* Data);
+	/** Populate a weapon data asset with M27 IAR defaults. */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M27_IAR(USHWeaponDataAsset* Data);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_M4A1(USHWeaponData* Data);
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M4A1(USHWeaponDataAsset* Data);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_M249SAW(USHWeaponData* Data);
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M249_SAW(USHWeaponDataAsset* Data);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_M110SASS(USHWeaponData* Data);
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M110_SASS(USHWeaponDataAsset* Data);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_M17SIG(USHWeaponData* Data);
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M17_SIG(USHWeaponDataAsset* Data);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_M320GL(USHWeaponData* Data);
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_M320_GL(USHWeaponDataAsset* Data);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapons")
-	static void ApplyPreset_Mossberg590(USHWeaponData* Data);
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Defaults")
+	static void ApplyDefaults_Mossberg590(USHWeaponDataAsset* Data);
 
 private:
-	/** Helper: builds a standard 5.56 NATO penetration table. */
-	static TArray<FSHPenetrationEntry> MakeStandard556PenTable();
+	/** Populate the standard 5.56 penetration table. */
+	static void ApplyStandardPenetration_556(USHWeaponDataAsset* Data);
 
-	/** Helper: builds a 7.62 NATO penetration table. */
-	static TArray<FSHPenetrationEntry> MakeStandard762PenTable();
+	/** Populate the 7.62 NATO penetration table. */
+	static void ApplyStandardPenetration_762(USHWeaponDataAsset* Data);
 
-	/** Helper: builds a 9mm penetration table. */
-	static TArray<FSHPenetrationEntry> MakeStandard9mmPenTable();
+	/** Populate pistol 9mm penetration table. */
+	static void ApplyStandardPenetration_9mm(USHWeaponDataAsset* Data);
 
-	/** Helper: builds a 12-gauge penetration table. */
-	static TArray<FSHPenetrationEntry> MakeStandard12GaugePenTable();
+	/** Populate 12-gauge penetration table. */
+	static void ApplyStandardPenetration_12ga(USHWeaponDataAsset* Data);
 
-	/** Helper: builds a 40mm HE penetration table. */
-	static TArray<FSHPenetrationEntry> MakeStandard40mmPenTable();
+	/** Populate 40mm grenade penetration table. */
+	static void ApplyStandardPenetration_40mm(USHWeaponDataAsset* Data);
 };
