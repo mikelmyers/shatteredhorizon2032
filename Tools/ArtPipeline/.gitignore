@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+output/
+reference_photos/*.jpg
+reference_photos/*.png
+reference_photos/*.tif
+!reference_photos/.gitkeep
