@@ -55,7 +55,18 @@ enum class ESHScriptedEventType : uint8
 	Explosion             UMETA(DisplayName = "Explosion"),
 	SupplyDrop            UMETA(DisplayName = "Supply Drop"),
 	CivilianEvacuation    UMETA(DisplayName = "Civilian Evacuation"),
-	CounterBattery        UMETA(DisplayName = "Counter Battery")
+	CounterBattery        UMETA(DisplayName = "Counter Battery"),
+
+	// --- Narrative techniques (from film/game research) ---
+	ShellShock            UMETA(DisplayName = "Shell Shock"),          // SPR: selective audio dropout, tinny hum, time distortion
+	SniperPin             UMETA(DisplayName = "Sniper Pin"),           // FMJ: single hidden threat paralyzes movement
+	CivilianPresence      UMETA(DisplayName = "Civilian Presence"),    // MW2019: civilians in the combat zone, ROE tension
+	DomesticSpace         UMETA(DisplayName = "Domestic Space"),       // MW2019: combat through someone's home
+	AbandonedByCommand    UMETA(DisplayName = "Abandoned By Command"), // 13H: support request denied/redirected
+	QuietStretch          UMETA(DisplayName = "Quiet Stretch"),        // 1917: deliberate silence between violence
+	NarrowAperture        UMETA(DisplayName = "Narrow Aperture"),      // Iwo Jima: see the assault through firing slits only
+	SquadCasualty         UMETA(DisplayName = "Squad Casualty"),       // BiA: named squad member wounded/killed
+	ConsequenceWalk       UMETA(DisplayName = "Consequence Walk")      // Spec Ops: advance through earlier destruction
 };
 
 /** Trigger type for dialogue lines during a phase. */
