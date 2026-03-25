@@ -133,13 +133,34 @@ FSHDamageResult USHDamageSystem::ProcessDamage(const FSHDamageInfo& DamageInfo)
 		Damage *= *ZoneMult;
 	}
 
-	// Headshots with ballistic damage are immediately lethal regardless of armor.
+	// Headshots with ballistic damage — graze vs direct hit.
+	// Grazing impacts (>60° from surface normal) cause stagger, not instant death.
 	if (DamageInfo.HitZone == ESHHitZone::Head && DamageInfo.DamageType == ESHDamageType::Ballistic)
 	{
-		Result.DamageDealt = CurrentHealth + 1.f; // Guaranteed kill.
-		Result.bIsLethal = true;
-		Result.WoundCreated = ESHWoundSeverity::Fatal;
-		return Result;
+		// Compute impact angle from damage direction vs vertical (head approximation).
+		// A direct hit has a small angle to the surface normal; a graze is >60°.
+		const FVector HeadUp = FVector::UpVector;
+		const FVector ImpactDir = DamageInfo.DamageDirection.GetSafeNormal();
+		const float CosAngle = FMath::Abs(FVector::DotProduct(HeadUp, ImpactDir));
+		const float AngleFromNormal = FMath::RadiansToDegrees(FMath::Acos(CosAngle));
+
+		if (AngleFromNormal > 60.f)
+		{
+			// Skull graze — stagger + 3-5 sec recovery, NOT lethal.
+			Result.DamageDealt = Damage * 0.3f; // Reduced damage
+			Result.bIsLethal = false;
+			Result.WoundCreated = ESHWoundSeverity::Serious;
+			Result.bIsHeadGraze = true;
+			return Result;
+		}
+		else
+		{
+			// Direct headshot — lethal.
+			Result.DamageDealt = CurrentHealth + 1.f;
+			Result.bIsLethal = true;
+			Result.WoundCreated = ESHWoundSeverity::Fatal;
+			return Result;
+		}
 	}
 
 	// Armor reduction.

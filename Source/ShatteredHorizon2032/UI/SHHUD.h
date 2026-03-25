@@ -169,6 +169,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SH|HUD")
 	void UpdateAmmoDisplay(int32 CurrentMagazine, int32 MagazineCapacity, int32 ReserveAmmo);
 
+	/** Get doctrinal reserve ammo estimate (not exact count). */
+	UFUNCTION(BlueprintPure, Category = "SH|HUD")
+	FText GetReserveAmmoEstimate() const;
+
 	// ------------------------------------------------------------------
 	//  Stance
 	// ------------------------------------------------------------------

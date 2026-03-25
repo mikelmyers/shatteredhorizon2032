@@ -186,6 +186,10 @@ struct FSHDamageResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Damage")
 	ESHHitZone HitZone = ESHHitZone::Torso;
+
+	/** True if this was a skull graze (glancing headshot). Triggers stagger, not death. */
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	bool bIsHeadGraze = false;
 };
 
 // ─────────────────────────────────────────────────────────────

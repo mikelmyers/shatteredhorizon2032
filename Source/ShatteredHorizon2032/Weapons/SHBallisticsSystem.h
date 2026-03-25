@@ -272,6 +272,30 @@ public:
 		const FVector& ListenerPosition,
 		float NearMissRadiusCm = 300.0f);
 
+	/**
+	 * Compute the time delay between the supersonic crack (heard at bullet pass)
+	 * and the muzzle report (thump) arriving at the listener position.
+	 * Doctrine: crack arrives first, thump arrives distance/343 seconds later.
+	 * This delay encodes shooter distance for the player.
+	 *
+	 * @param ShooterPosition      World position of the shooter (cm).
+	 * @param ListenerPosition     World position of the listener (cm).
+	 * @return Delay in seconds between crack and thump. 0 if subsonic.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Ballistics|Audio")
+	static float ComputeCrackThumpDelay(
+		const FVector& ShooterPosition,
+		const FVector& ListenerPosition);
+
+	/**
+	 * Compute the total time for the muzzle report to reach the listener.
+	 * @return Time in seconds for sound to travel from shooter to listener.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Ballistics|Audio")
+	static float ComputeMuzzleReportDelay(
+		const FVector& ShooterPosition,
+		const FVector& ListenerPosition);
+
 	/* --- Fragmentation --- */
 
 	/**

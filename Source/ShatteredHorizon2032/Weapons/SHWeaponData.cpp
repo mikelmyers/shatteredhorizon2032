@@ -303,7 +303,7 @@ void USHWeaponDataFactory::ApplyDefaults_M110_SASS(USHWeaponDataAsset* Data)
 	Data->Category            = ESHWeaponCategory::DMR;
 
 	Data->RoundsPerMinute     = 120.0f; // Semi-auto, practical rate
-	Data->MuzzleVelocityMPS   = 783.0f;
+	Data->MuzzleVelocityMPS   = 840.0f; // 7.62x51 NATO doctrine velocity
 	Data->EffectiveRangeM     = 800.0f;
 	Data->MaxRangeM           = 3800.0f;
 	Data->BaseDamage          = 55.0f;
@@ -563,4 +563,329 @@ void USHWeaponDataFactory::ApplyDefaults_Mossberg590(USHWeaponDataAsset* Data)
 	Data->WeightKg              = 3.2f;
 
 	ApplyStandardPenetration_12ga(Data);
+}
+
+/* -----------------------------------------------------------------------
+ *  Sniper Rifle (.338 Lapua Magnum)
+ * --------------------------------------------------------------------- */
+
+void USHWeaponDataFactory::ApplyDefaults_SniperLapua(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->WeaponID            = FName(TEXT("Sniper_338Lapua"));
+	Data->DisplayName         = FText::FromString(TEXT("L115A3 (.338 Lapua)"));
+	Data->Category            = ESHWeaponCategory::SniperRifle;
+
+	Data->RoundsPerMinute     = 20.0f; // Bolt-action, practical rate
+	Data->MuzzleVelocityMPS   = 915.0f; // Doctrine: 915 m/s
+	Data->EffectiveRangeM     = 1500.0f; // Doctrine: ~1,500m
+	Data->MaxRangeM           = 5000.0f;
+	Data->BaseDamage          = 95.0f;
+	Data->DamageFalloffStartM = 500.0f;
+	Data->MinDamageMultiplier = 0.35f;
+	Data->HitscanRangeCm      = 5000.0f;
+	Data->PelletsPerShot      = 1;
+
+	Data->AvailableFireModes  = { ESHFireMode::Semi };
+	Data->BurstCount          = 1;
+
+	Data->MagazineCapacity    = 5;
+	Data->MaxReserveAmmo      = 40;
+	Data->TacticalReloadTime  = 3.0f;
+	Data->EmptyReloadTime     = 3.8f;
+	Data->bSingleRoundReload  = false;
+
+	Data->RecoilPattern.VerticalRecoil      = 3.5f;
+	Data->RecoilPattern.HorizontalRecoil    = 0.25f;
+	Data->RecoilPattern.FirstShotMultiplier = 1.0f;
+	Data->RecoilPattern.RecoveryRate        = 2.0f;
+
+	Data->Ballistics.BallisticCoefficient = 0.768f;
+	Data->Ballistics.DragCoefficient      = 0.210f;
+	Data->Ballistics.BulletMassGrams      = 16.2f; // 250 gr
+	Data->Ballistics.CrossSectionCm2      = 0.572f;
+
+	Data->AccuracyModifiers.StandingMOA      = 3.0f;
+	Data->AccuracyModifiers.CrouchingMOA     = 1.2f;
+	Data->AccuracyModifiers.ProneMOA         = 0.4f; // Sub-MOA prone
+	Data->AccuracyModifiers.MovingPenaltyMOA = 8.0f;
+	Data->AccuracyModifiers.ADSMultiplier    = 0.15f;
+	Data->AccuracyModifiers.SuppressionMaxMOA= 5.0f;
+	Data->AccuracyModifiers.FatigueMaxMOA    = 5.0f;
+
+	Data->ADSFOV              = 15.0f; // High-power scope
+	Data->ADSTransitionTime   = 0.35f;
+
+	Data->HeatConfig.HeatPerShot               = 0.04f;
+	Data->HeatConfig.CooldownPerSecond         = 0.06f;
+	Data->HeatConfig.MalfunctionHeatThreshold  = 0.85f;
+	Data->HeatConfig.bCanOverheat              = false;
+
+	Data->BaseMalfunctionChance = 0.0001f;
+	Data->MalfunctionClearTime  = 2.0f;
+
+	Data->TracerInterval        = 0;
+	Data->MaxSwayDegrees        = 4.0f;
+	Data->SwayFrequency         = 0.4f;
+	Data->WeightKg              = 6.8f;
+
+	ApplyStandardPenetration_338Lapua(Data);
+}
+
+/* -----------------------------------------------------------------------
+ *  M2 Browning (.50 BMG / 12.7x99mm)
+ * --------------------------------------------------------------------- */
+
+void USHWeaponDataFactory::ApplyDefaults_M2_Browning(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->WeaponID            = FName(TEXT("M2_Browning"));
+	Data->DisplayName         = FText::FromString(TEXT("M2 Browning (.50 BMG)"));
+	Data->Category            = ESHWeaponCategory::HeavyMG;
+
+	Data->RoundsPerMinute     = 500.0f;
+	Data->MuzzleVelocityMPS   = 930.0f; // Doctrine: 930 m/s
+	Data->EffectiveRangeM     = 1800.0f; // Doctrine: ~1,800m
+	Data->MaxRangeM           = 6800.0f;
+	Data->BaseDamage          = 120.0f;
+	Data->DamageFalloffStartM = 600.0f;
+	Data->MinDamageMultiplier = 0.40f;
+	Data->HitscanRangeCm      = 8000.0f;
+	Data->PelletsPerShot      = 1;
+
+	Data->AvailableFireModes  = { ESHFireMode::Auto };
+	Data->BurstCount          = 1;
+
+	Data->MagazineCapacity    = 100; // Belt-fed
+	Data->MaxReserveAmmo      = 400;
+	Data->TacticalReloadTime  = 8.0f; // Belt change
+	Data->EmptyReloadTime     = 10.0f;
+	Data->bSingleRoundReload  = false;
+
+	Data->RecoilPattern.VerticalRecoil      = 1.8f; // Mounted weapon, less felt recoil
+	Data->RecoilPattern.HorizontalRecoil    = 0.6f;
+	Data->RecoilPattern.FirstShotMultiplier = 1.2f;
+	Data->RecoilPattern.RecoveryRate        = 2.5f;
+
+	Data->Ballistics.BallisticCoefficient = 0.670f;
+	Data->Ballistics.DragCoefficient      = 0.230f;
+	Data->Ballistics.BulletMassGrams      = 42.8f; // 660 gr
+	Data->Ballistics.CrossSectionCm2      = 1.267f;
+
+	Data->AccuracyModifiers.StandingMOA      = 6.0f; // Emplaced only
+	Data->AccuracyModifiers.CrouchingMOA     = 4.0f;
+	Data->AccuracyModifiers.ProneMOA         = 2.0f; // Bipod/tripod
+	Data->AccuracyModifiers.MovingPenaltyMOA = 12.0f;
+	Data->AccuracyModifiers.ADSMultiplier    = 0.30f;
+	Data->AccuracyModifiers.SuppressionMaxMOA= 3.0f;
+	Data->AccuracyModifiers.FatigueMaxMOA    = 2.0f;
+
+	Data->ADSFOV              = 50.0f;
+	Data->ADSTransitionTime   = 0.5f;
+
+	Data->HeatConfig.HeatPerShot               = 0.005f;
+	Data->HeatConfig.CooldownPerSecond         = 0.03f;
+	Data->HeatConfig.MalfunctionHeatThreshold  = 0.60f;
+	Data->HeatConfig.bCanOverheat              = true;
+	Data->HeatConfig.OverheatThreshold         = 1.0f;
+	Data->HeatConfig.CooldownResumeThreshold   = 0.4f;
+
+	Data->BaseMalfunctionChance = 0.0003f;
+	Data->MalfunctionClearTime  = 3.0f;
+
+	Data->TracerInterval        = 4; // Every 4th round is tracer
+	Data->MaxSwayDegrees        = 1.5f; // Mounted weapon
+	Data->SwayFrequency         = 0.3f;
+	Data->WeightKg              = 38.0f; // Emplaced
+
+	ApplyStandardPenetration_50BMG(Data);
+}
+
+/* -----------------------------------------------------------------------
+ *  QBZ-95 (PLA 5.8x42mm)
+ * --------------------------------------------------------------------- */
+
+void USHWeaponDataFactory::ApplyDefaults_QBZ95(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->WeaponID            = FName(TEXT("QBZ95"));
+	Data->DisplayName         = FText::FromString(TEXT("QBZ-95"));
+	Data->Category            = ESHWeaponCategory::AssaultRifle;
+
+	Data->RoundsPerMinute     = 650.0f;
+	Data->MuzzleVelocityMPS   = 930.0f; // 5.8x42mm DBP-10
+	Data->EffectiveRangeM     = 400.0f;
+	Data->MaxRangeM           = 3400.0f;
+	Data->BaseDamage          = 35.0f;
+	Data->DamageFalloffStartM = 100.0f;
+	Data->MinDamageMultiplier = 0.25f;
+	Data->HitscanRangeCm      = 2500.0f;
+	Data->PelletsPerShot      = 1;
+
+	Data->AvailableFireModes  = { ESHFireMode::Semi, ESHFireMode::Auto };
+	Data->BurstCount          = 3;
+
+	Data->MagazineCapacity    = 30;
+	Data->MaxReserveAmmo      = 180;
+	Data->TacticalReloadTime  = 2.3f;
+	Data->EmptyReloadTime     = 3.0f;
+	Data->bSingleRoundReload  = false;
+
+	Data->RecoilPattern.VerticalRecoil      = 0.38f;
+	Data->RecoilPattern.HorizontalRecoil    = 0.12f;
+	Data->RecoilPattern.FirstShotMultiplier = 1.4f;
+	Data->RecoilPattern.RecoveryRate        = 5.0f;
+	Data->RecoilPattern.HorizontalPattern   = { 0.05f, -0.07f, 0.04f, -0.06f };
+
+	Data->Ballistics.BallisticCoefficient = 0.330f;
+	Data->Ballistics.DragCoefficient      = 0.280f;
+	Data->Ballistics.BulletMassGrams      = 4.15f; // 64 gr
+	Data->Ballistics.CrossSectionCm2      = 0.264f;
+
+	Data->AccuracyModifiers.StandingMOA      = 3.2f;
+	Data->AccuracyModifiers.CrouchingMOA     = 2.0f;
+	Data->AccuracyModifiers.ProneMOA         = 1.0f;
+	Data->AccuracyModifiers.MovingPenaltyMOA = 4.5f;
+	Data->AccuracyModifiers.ADSMultiplier    = 0.35f;
+	Data->AccuracyModifiers.SuppressionMaxMOA= 6.0f;
+	Data->AccuracyModifiers.FatigueMaxMOA    = 3.5f;
+
+	Data->ADSFOV              = 55.0f;
+	Data->ADSTransitionTime   = 0.2f;
+
+	Data->HeatConfig.HeatPerShot               = 0.013f;
+	Data->HeatConfig.CooldownPerSecond         = 0.08f;
+	Data->HeatConfig.MalfunctionHeatThreshold  = 0.70f;
+	Data->HeatConfig.bCanOverheat              = false;
+
+	Data->BaseMalfunctionChance = 0.0002f;
+	Data->MalfunctionClearTime  = 1.5f;
+
+	Data->TracerInterval        = 0;
+	Data->MaxSwayDegrees        = 2.5f;
+	Data->SwayFrequency         = 0.7f;
+	Data->WeightKg              = 3.35f;
+
+	ApplyStandardPenetration_556(Data); // 5.8mm comparable to 5.56 penetration
+}
+
+/* -----------------------------------------------------------------------
+ *  Type 56 (7.62x39mm — PLA militia / reserve AK-variant)
+ * --------------------------------------------------------------------- */
+
+void USHWeaponDataFactory::ApplyDefaults_Type56(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->WeaponID            = FName(TEXT("Type56"));
+	Data->DisplayName         = FText::FromString(TEXT("Type 56 (7.62x39)"));
+	Data->Category            = ESHWeaponCategory::AssaultRifle;
+
+	Data->RoundsPerMinute     = 600.0f;
+	Data->MuzzleVelocityMPS   = 715.0f; // Doctrine: 715 m/s
+	Data->EffectiveRangeM     = 400.0f; // Doctrine: ~400m
+	Data->MaxRangeM           = 2500.0f;
+	Data->BaseDamage          = 42.0f; // Heavier bullet, more energy at close range
+	Data->DamageFalloffStartM = 100.0f;
+	Data->MinDamageMultiplier = 0.25f;
+	Data->HitscanRangeCm      = 2500.0f;
+	Data->PelletsPerShot      = 1;
+
+	Data->AvailableFireModes  = { ESHFireMode::Semi, ESHFireMode::Auto };
+	Data->BurstCount          = 3;
+
+	Data->MagazineCapacity    = 30;
+	Data->MaxReserveAmmo      = 180;
+	Data->TacticalReloadTime  = 2.4f;
+	Data->EmptyReloadTime     = 3.2f;
+	Data->bSingleRoundReload  = false;
+
+	Data->RecoilPattern.VerticalRecoil      = 0.55f;
+	Data->RecoilPattern.HorizontalRecoil    = 0.22f;
+	Data->RecoilPattern.FirstShotMultiplier = 1.5f;
+	Data->RecoilPattern.RecoveryRate        = 4.0f;
+	Data->RecoilPattern.HorizontalPattern   = { 0.10f, -0.08f, 0.12f, -0.10f };
+
+	Data->Ballistics.BallisticCoefficient = 0.275f;
+	Data->Ballistics.DragCoefficient      = 0.340f;
+	Data->Ballistics.BulletMassGrams      = 7.97f; // 123 gr
+	Data->Ballistics.CrossSectionCm2      = 0.456f;
+
+	Data->AccuracyModifiers.StandingMOA      = 4.0f;
+	Data->AccuracyModifiers.CrouchingMOA     = 2.5f;
+	Data->AccuracyModifiers.ProneMOA         = 1.5f;
+	Data->AccuracyModifiers.MovingPenaltyMOA = 5.0f;
+	Data->AccuracyModifiers.ADSMultiplier    = 0.40f;
+	Data->AccuracyModifiers.SuppressionMaxMOA= 6.0f;
+	Data->AccuracyModifiers.FatigueMaxMOA    = 4.0f;
+
+	Data->ADSFOV              = 60.0f;
+	Data->ADSTransitionTime   = 0.2f;
+
+	Data->HeatConfig.HeatPerShot               = 0.015f;
+	Data->HeatConfig.CooldownPerSecond         = 0.07f;
+	Data->HeatConfig.MalfunctionHeatThreshold  = 0.65f;
+	Data->HeatConfig.bCanOverheat              = false;
+
+	Data->BaseMalfunctionChance = 0.0004f; // Older platform, slightly higher
+	Data->MalfunctionClearTime  = 1.5f;
+
+	Data->TracerInterval        = 0;
+	Data->MaxSwayDegrees        = 2.8f;
+	Data->SwayFrequency         = 0.7f;
+	Data->WeightKg              = 3.86f;
+
+	ApplyStandardPenetration_762x39(Data);
+}
+
+/* -----------------------------------------------------------------------
+ *  Penetration tables — new calibers
+ * --------------------------------------------------------------------- */
+
+void USHWeaponDataFactory::ApplyStandardPenetration_338Lapua(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->PenetrationTable.Empty();
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Drywall,   50.0f, 0.92f, 0.90f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Glass,     8.0f,  0.95f, 0.96f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Wood,      35.0f, 0.78f, 0.70f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Sandbag,   18.0f, 0.55f, 0.45f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Dirt,      25.0f, 0.60f, 0.50f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Concrete,  8.0f,  0.35f, 0.30f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Steel,     2.0f,  0.25f, 0.20f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Flesh,     55.0f, 1.00f, 0.60f });
+}
+
+void USHWeaponDataFactory::ApplyStandardPenetration_50BMG(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->PenetrationTable.Empty();
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Drywall,   80.0f, 0.95f, 0.95f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Glass,     12.0f, 0.98f, 0.98f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Wood,      60.0f, 0.85f, 0.80f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Sandbag,   30.0f, 0.65f, 0.55f }); // Can penetrate sandbags
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Dirt,      40.0f, 0.70f, 0.60f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Concrete,  15.0f, 0.45f, 0.40f }); // Punches through cinder block
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Steel,     4.0f,  0.35f, 0.30f }); // Penetrates vehicle armor
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Flesh,     70.0f, 1.00f, 0.50f });
+}
+
+void USHWeaponDataFactory::ApplyStandardPenetration_762x39(USHWeaponDataAsset* Data)
+{
+	if (!Data) return;
+
+	Data->PenetrationTable.Empty();
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Drywall,   35.0f, 0.86f, 0.82f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Glass,     5.0f,  0.90f, 0.92f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Wood,      18.0f, 0.68f, 0.58f }); // 7.62x39 penetrates soft wood
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Sandbag,   10.0f, 0.42f, 0.32f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Dirt,      15.0f, 0.52f, 0.42f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Concrete,  4.0f,  0.28f, 0.22f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Steel,     0.8f,  0.18f, 0.12f });
+	Data->PenetrationTable.Add({ ESHPenetrableMaterial::Flesh,     40.0f, 1.00f, 0.68f });
 }

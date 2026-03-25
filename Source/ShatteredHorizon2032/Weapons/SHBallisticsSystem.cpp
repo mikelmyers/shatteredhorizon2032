@@ -456,6 +456,32 @@ bool USHBallisticsSystem::ShouldTriggerSupersonicCrack(
 }
 
 /* -----------------------------------------------------------------------
+ *  Crack-Thump Delay (Doctrine: time-delayed muzzle report encodes distance)
+ * --------------------------------------------------------------------- */
+
+float USHBallisticsSystem::ComputeCrackThumpDelay(
+	const FVector& ShooterPosition,
+	const FVector& ListenerPosition)
+{
+	// The supersonic crack is heard essentially at bullet-pass time.
+	// The muzzle report (thump) travels at the speed of sound from the shooter.
+	// Delay = distance(shooter, listener) / SpeedOfSound
+	// This gives the player an instinctive range estimate.
+	const float DistanceCm = FVector::Dist(ShooterPosition, ListenerPosition);
+	const float DelaySec = DistanceCm / SpeedOfSoundCmS;
+
+	return DelaySec;
+}
+
+float USHBallisticsSystem::ComputeMuzzleReportDelay(
+	const FVector& ShooterPosition,
+	const FVector& ListenerPosition)
+{
+	const float DistanceCm = FVector::Dist(ShooterPosition, ListenerPosition);
+	return DistanceCm / SpeedOfSoundCmS;
+}
+
+/* -----------------------------------------------------------------------
  *  Fragmentation
  * --------------------------------------------------------------------- */
 
