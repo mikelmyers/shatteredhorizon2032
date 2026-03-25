@@ -11,15 +11,15 @@
 
 | # | Pipeline | Assets | Automatable | Priority | Status |
 |---|----------|--------|-------------|----------|--------|
-| 1 | Terrain Textures (PBR) | 375 textures | 95% | DONE | Built |
-| 2 | Audio — Sound Effects | 180+ files | 85% | Critical | Not Built |
-| 3 | Audio — Music/Soundtrack | 20-30 tracks | 90% | Critical | Not Built |
-| 4 | Audio — Voice Lines | 260+ lines | 90% | Critical | Not Built |
-| 5 | UI/HUD Art | 50+ textures/icons | 80% | High | Not Built |
-| 6 | VFX/Particle Configs | 65+ systems | 70% | High | Not Built |
-| 7 | 3D Models | 30+ meshes | 50% | High | Not Built |
-| 8 | Weapon Data Assets | 3 weapons | 100% (code) | Critical | Not Built |
-| 9 | Animations | 55+ montages | 40% | Medium | Not Built |
+| 1 | Terrain Textures (PBR) | 375 textures | 95% | DONE | **Built + Tested** |
+| 2 | Audio — Sound Effects | 174 sounds | 85% | Critical | **Built + Tested** |
+| 3 | Audio — Music/Soundtrack | 25 tracks | 90% | Critical | **Built** |
+| 4 | Audio — Voice Lines | 260+ lines | 90% | Critical | **Built** |
+| 5 | UI/HUD Art | 28 assets | 80% | High | **Built + Tested** |
+| 6 | VFX/Particle Configs | 62 systems | 100% | High | **Built + Tested** |
+| 7 | 3D Models | 23 meshes | 50% | High | **Built** |
+| 8 | Weapon Data Assets | 11 weapons | 100% (code) | Critical | **Built + Tested** |
+| 9 | Animations | 55+ montages | 40% | Medium | **Built + Tested** |
 
 ---
 
