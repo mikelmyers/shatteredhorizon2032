@@ -18,6 +18,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSH_Vehicle, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSH_Audio, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSH_Drone, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSH_EW, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_Streaming, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_Terrain, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_Destruction, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_HUD, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_Compass, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSH_SquadCommand, Log, All);
 
 // Convenience macros for logging
 #define SH_LOG(CategoryName, Verbosity, Format, ...) \

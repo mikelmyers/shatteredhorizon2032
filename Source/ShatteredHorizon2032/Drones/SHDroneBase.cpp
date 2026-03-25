@@ -483,7 +483,6 @@ void ASHDroneBase::TickDroneBehavior(float DeltaSeconds)
 
 void ASHDroneBase::OnBatteryDepleted()
 {
-	OnBatteryDepleted_Broadcast:
 	OnBatteryDepleted.Broadcast(this);
 
 	// Force return if possible, otherwise crash

@@ -1,22 +1,19 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
-#include "Weapons/SHBallisticsSystem.h"
-#include "Weapons/SHProjectile.h"
-#include "Weapons/SHWeaponData.h"
+#include "SHBallisticsSystem.h"
 #include "Engine/World.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/DamageType.h"
-#include "CollisionQueryParams.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
-// ---------------------------------------------------------------------------
-// Subsystem lifecycle
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Lifecycle
+ * --------------------------------------------------------------------- */
 
 void USHBallisticsSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	CurrentWind = FSHWindParams();
+	InitializeMaterialTable();
 }
 
 void USHBallisticsSystem::Deinitialize()
@@ -24,556 +21,544 @@ void USHBallisticsSystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-// ---------------------------------------------------------------------------
-// Wind
-// ---------------------------------------------------------------------------
-
-void USHBallisticsSystem::SetWindParams(const FSHWindParams& InWind)
+void USHBallisticsSystem::InitializeMaterialTable()
 {
-	CurrentWind = InWind;
+	MaterialTable.Empty();
+
+	//                                         Material                        Density   RicochetAngle  RicochetProb  SpeedRetain
+	MaterialTable.Add({ ESHPenetrableMaterial::Drywall,   0.08f,  5.0f,   0.05f,  0.10f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Glass,     0.10f,  8.0f,   0.10f,  0.15f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Wood,      0.25f,  12.0f,  0.15f,  0.25f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Dirt,      0.35f,  10.0f,  0.10f,  0.20f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Sandbag,   0.50f,  8.0f,   0.05f,  0.15f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Concrete,  0.75f,  20.0f,  0.40f,  0.35f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Steel,     1.00f,  30.0f,  0.60f,  0.40f });
+	MaterialTable.Add({ ESHPenetrableMaterial::Flesh,     0.05f,  0.0f,   0.00f,  0.00f });
 }
 
-// ---------------------------------------------------------------------------
-// Drag model
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Simulation Step
+ * --------------------------------------------------------------------- */
 
-FVector USHBallisticsSystem::ComputeDragDeceleration(
-	const FVector& Velocity,
-	float DragCoefficient,
-	float CrossSectionCm2,
-	float MassGrains) const
+void USHBallisticsSystem::StepSimulation(
+	FVector& Position,
+	FVector& Velocity,
+	const FSHBallisticCoefficients& BC,
+	float DeltaTime) const
 {
-	// Convert units:
-	//   CrossSection: cm^2 -> m^2
-	//   Mass: grains -> kg (1 grain = 0.00006479891 kg)
-	//   Velocity is in cm/s
-	const float CrossSectionM2 = CrossSectionCm2 * 1e-4f;
-	const float MassKg = MassGrains * 0.00006479891f;
-
-	const float SpeedCmS = Velocity.Size();
-	if (SpeedCmS < KINDA_SMALL_NUMBER || MassKg < KINDA_SMALL_NUMBER)
+	if (DeltaTime <= 0.0f)
 	{
-		return FVector::ZeroVector;
-	}
-
-	// Account for wind — effective velocity is bullet velocity minus wind velocity
-	const FVector WindVelocityCmS = CurrentWind.WindDirection.GetSafeNormal() * CurrentWind.WindSpeedMPS * 100.0f;
-	const FVector EffectiveVelocity = Velocity - WindVelocityCmS;
-	const float EffectiveSpeed = EffectiveVelocity.Size();
-
-	if (EffectiveSpeed < KINDA_SMALL_NUMBER)
-	{
-		return FVector::ZeroVector;
-	}
-
-	// F_drag = 0.5 * rho * v^2 * Cd * A
-	// But v is in cm/s, we want force in Newtons:
-	//   Convert effective speed to m/s for the drag formula, then convert
-	//   resulting deceleration back to cm/s^2.
-	const float EffectiveSpeedMS = EffectiveSpeed / 100.0f;
-	const float DragForceN = 0.5f * AirDensityKgM3 * FMath::Square(EffectiveSpeedMS) * DragCoefficient * CrossSectionM2;
-
-	// a = F/m  (m/s^2), convert to cm/s^2
-	const float DecelMS2 = DragForceN / MassKg;
-	const float DecelCmS2 = DecelMS2 * 100.0f;
-
-	// Deceleration opposes effective velocity
-	const FVector DragDir = -EffectiveVelocity.GetSafeNormal();
-	return DragDir * DecelCmS2;
-}
-
-// ---------------------------------------------------------------------------
-// Core projectile step
-// ---------------------------------------------------------------------------
-
-void USHBallisticsSystem::StepProjectile(
-	const FVector& InPosition,
-	const FVector& InVelocity,
-	float DeltaTime,
-	const USHWeaponData* WeaponData,
-	FVector& OutPosition,
-	FVector& OutVelocity) const
-{
-	if (!WeaponData || DeltaTime <= 0.0f)
-	{
-		OutPosition = InPosition;
-		OutVelocity = InVelocity;
 		return;
 	}
 
-	const FSHBallisticCoefficients& BC = WeaponData->Ballistics;
+	// Sub-stepping for accuracy at high velocities
+	// Use a fixed sub-step of ~2ms for stable integration at supersonic speeds
+	constexpr float MaxSubStep = 0.002f;
+	const int32 NumSubSteps = FMath::CeilToInt(DeltaTime / MaxSubStep);
+	const float SubDelta = DeltaTime / static_cast<float>(NumSubSteps);
 
-	// Gravity (downward in UE Z-up)
-	const FVector GravityAccel = FVector(0.0f, 0.0f, -GravityCmS2);
+	for (int32 i = 0; i < NumSubSteps; ++i)
+	{
+		// --- Forces ---
 
-	// Drag
-	const FVector DragAccel = ComputeDragDeceleration(
-		InVelocity,
-		BC.DragCoefficient,
-		BC.CrossSectionArea,
-		BC.BulletMassGrains);
+		// 1. Gravity (downward in UE Z-up)
+		const FVector GravityForce(0.0f, 0.0f, -GravityCmS2);
 
-	// Wind lateral push — simplified cross-wind force
-	const FVector WindVelocityCmS = CurrentWind.WindDirection.GetSafeNormal() * CurrentWind.WindSpeedMPS * 100.0f;
-	const FVector BulletDir = InVelocity.GetSafeNormal();
-	// Only the component of wind perpendicular to bullet path affects drift
-	const FVector WindCrossComponent = WindVelocityCmS - (FVector::DotProduct(WindVelocityCmS, BulletDir) * BulletDir);
-	// Simplified wind drift acceleration scaled by inverse BC (lower BC = more wind effect)
-	const float WindFactor = (BC.BallisticCoefficient > KINDA_SMALL_NUMBER) ? (0.1f / BC.BallisticCoefficient) : 0.0f;
-	const FVector WindAccel = WindCrossComponent * WindFactor;
+		// 2. Aerodynamic drag
+		const FVector DragAccel = CalculateDragForce(Velocity, BC);
 
-	// Total acceleration
-	const FVector TotalAccel = GravityAccel + DragAccel + WindAccel;
+		// 3. Wind
+		const FVector WindAccel = CalculateWindForce(Velocity, BC);
 
-	// Verlet integration for better accuracy
-	OutVelocity = InVelocity + TotalAccel * DeltaTime;
-	OutPosition = InPosition + (InVelocity + OutVelocity) * 0.5f * DeltaTime;
+		// --- Integration (Velocity Verlet) ---
+		const FVector TotalAccel = GravityForce + DragAccel + WindAccel;
+
+		// Update position: x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
+		Position += Velocity * SubDelta + 0.5f * TotalAccel * SubDelta * SubDelta;
+
+		// Update velocity: v(t+dt) = v(t) + a(t)*dt
+		Velocity += TotalAccel * SubDelta;
+	}
 }
 
-// ---------------------------------------------------------------------------
-// Damage falloff
-// ---------------------------------------------------------------------------
-
-float USHBallisticsSystem::CalcDamageAtDistance(const USHWeaponData* WeaponData, float DistanceCm) const
+FVector USHBallisticsSystem::CalculateDragForce(const FVector& Velocity, const FSHBallisticCoefficients& BC) const
 {
-	if (!WeaponData)
+	const float Speed = Velocity.Size();
+	if (Speed < KINDA_SMALL_NUMBER)
 	{
-		return 0.0f;
+		return FVector::ZeroVector;
 	}
 
-	const float EffectiveRangeCm = WeaponData->EffectiveRangeM * 100.0f;
-	const float MaxRangeCm = WeaponData->MaxRangeM * 100.0f;
+	// Drag equation: F_drag = 0.5 * rho * v^2 * Cd * A
+	// Acceleration = F_drag / mass
+	// All units: mass in kg, area in m^2, velocity in cm/s -> convert
 
-	if (DistanceCm <= 0.0f)
+	const float SpeedMS = Speed / 100.0f;         // cm/s -> m/s
+	const float AreaM2 = BC.CrossSectionCm2 / 10000.0f; // cm^2 -> m^2
+	const float MassKg = BC.BulletMassGrams / 1000.0f;  // g -> kg
+
+	if (MassKg < KINDA_SMALL_NUMBER)
 	{
-		return WeaponData->BaseDamage;
+		return FVector::ZeroVector;
 	}
 
-	if (DistanceCm >= MaxRangeCm)
+	// Use ballistic coefficient to modify drag:
+	// BC = mass / (Cd * diameter^2) in standard form
+	// Higher BC = less drag. We use the explicit Cd from the data.
+	float Cd = BC.DragCoefficient;
+
+	// Transonic drag rise (Mach 0.8 - 1.2) — increase drag coefficient
+	const float Mach = SpeedMS / (SpeedOfSoundCmS / 100.0f); // Speed of sound in m/s
+	if (Mach > 0.8f && Mach < 1.2f)
 	{
-		return 0.0f;
+		// Empirical drag rise in transonic regime
+		const float TransonicFactor = 1.0f + 0.5f * FMath::Sin((Mach - 0.8f) / 0.4f * PI);
+		Cd *= TransonicFactor;
+	}
+	else if (Mach >= 1.2f)
+	{
+		// Supersonic wave drag (simplified)
+		Cd *= (1.0f + 0.15f / FMath::Max(Mach - 1.0f, 0.01f));
 	}
 
-	// Linear falloff from base damage to (base * falloff) at effective range,
-	// then from that to 0 at max range.
-	if (DistanceCm <= EffectiveRangeCm)
-	{
-		const float Alpha = DistanceCm / EffectiveRangeCm;
-		const float DamageAtRange = WeaponData->BaseDamage * WeaponData->DamageFalloffAtRange;
-		return FMath::Lerp(WeaponData->BaseDamage, DamageAtRange, Alpha);
-	}
-	else
-	{
-		const float DamageAtEffective = WeaponData->BaseDamage * WeaponData->DamageFalloffAtRange;
-		const float Alpha = (DistanceCm - EffectiveRangeCm) / (MaxRangeCm - EffectiveRangeCm);
-		return FMath::Lerp(DamageAtEffective, 0.0f, Alpha);
-	}
+	const float DragForceMag = 0.5f * AirDensityKgM3 * SpeedMS * SpeedMS * Cd * AreaM2;
+	const float DragAccelMS2 = DragForceMag / MassKg;
+
+	// Convert back to cm/s^2 and oppose velocity direction
+	const FVector DragDir = -Velocity.GetSafeNormal();
+	return DragDir * (DragAccelMS2 * 100.0f);
 }
 
-// ---------------------------------------------------------------------------
-// Surface thickness estimation
-// ---------------------------------------------------------------------------
+FVector USHBallisticsSystem::CalculateWindForce(const FVector& Velocity, const FSHBallisticCoefficients& BC) const
+{
+	if (CurrentWind.SpeedMPS < KINDA_SMALL_NUMBER)
+	{
+		return FVector::ZeroVector;
+	}
 
-float USHBallisticsSystem::EstimateSurfaceThickness(
+	const float MassKg = BC.BulletMassGrams / 1000.0f;
+	const float AreaM2 = BC.CrossSectionCm2 / 10000.0f;
+
+	if (MassKg < KINDA_SMALL_NUMBER)
+	{
+		return FVector::ZeroVector;
+	}
+
+	// Wind as a crosswind component relative to bullet flight path
+	const FVector BulletDir = Velocity.GetSafeNormal();
+
+	// Effective wind with gust variation
+	float EffectiveWindSpeed = CurrentWind.SpeedMPS;
+	if (CurrentWind.GustVariation > 0.0f)
+	{
+		// Perlin-like variation using time. Use a simple sin approximation.
+		const float GustFactor = 1.0f + CurrentWind.GustVariation *
+			FMath::Sin(GetWorld() ? GetWorld()->GetTimeSeconds() * 0.7f : 0.0f);
+		EffectiveWindSpeed *= GustFactor;
+	}
+
+	const FVector WindVelocityCmS = CurrentWind.Direction.GetSafeNormal() * (EffectiveWindSpeed * 100.0f);
+
+	// Relative wind velocity to the bullet
+	const FVector RelativeWind = WindVelocityCmS - Velocity;
+
+	// Cross-wind component (perpendicular to bullet flight path)
+	const FVector CrossWind = RelativeWind - (FVector::DotProduct(RelativeWind, BulletDir) * BulletDir);
+
+	const float CrossWindSpeedMS = CrossWind.Size() / 100.0f;
+
+	// Wind force: simplified aerodynamic force from crosswind
+	// Use a reduced drag coefficient for lateral force (roughly Cd * 0.5)
+	const float Cd = BC.DragCoefficient * 0.5f;
+	const float WindForceMag = 0.5f * AirDensityKgM3 * CrossWindSpeedMS * CrossWindSpeedMS * Cd * AreaM2;
+	const float WindAccelMS2 = WindForceMag / MassKg;
+
+	if (CrossWind.IsNearlyZero())
+	{
+		return FVector::ZeroVector;
+	}
+
+	return CrossWind.GetSafeNormal() * (WindAccelMS2 * 100.0f);
+}
+
+/* -----------------------------------------------------------------------
+ *  Damage Falloff
+ * --------------------------------------------------------------------- */
+
+float USHBallisticsSystem::CalculateDamageAtDistance(
+	float BaseDamage,
+	float FalloffStartCm,
+	float MaxRangeCm,
+	float MinDamageMultiplier,
+	float DistanceTraveledCm)
+{
+	if (DistanceTraveledCm <= FalloffStartCm)
+	{
+		return BaseDamage;
+	}
+
+	const float FalloffRange = MaxRangeCm - FalloffStartCm;
+	if (FalloffRange <= 0.0f)
+	{
+		return BaseDamage * MinDamageMultiplier;
+	}
+
+	const float Alpha = FMath::Clamp(
+		(DistanceTraveledCm - FalloffStartCm) / FalloffRange, 0.0f, 1.0f);
+
+	// Use a slight curve for more realistic falloff (not purely linear)
+	const float CurvedAlpha = FMath::InterpEaseIn(0.0f, 1.0f, Alpha, 1.5f);
+
+	return BaseDamage * FMath::Lerp(1.0f, MinDamageMultiplier, CurvedAlpha);
+}
+
+/* -----------------------------------------------------------------------
+ *  Impact Evaluation (Penetration + Ricochet)
+ * --------------------------------------------------------------------- */
+
+bool USHBallisticsSystem::EvaluateImpact(
 	const FHitResult& HitResult,
-	const FVector& InDirection,
-	float MaxDepthCm) const
+	const FVector& IncomingVelocity,
+	float CurrentDamage,
+	const FSHPenetrationEntry& PenetrationData,
+	float MuzzleVelocityCmS,
+	FSHBallisticHitResult& OutResult) const
 {
-	UWorld* World = GetWorld();
-	if (!World)
+	OutResult = FSHBallisticHitResult();
+	OutResult.HitResult = HitResult;
+	OutResult.ImpactVelocity = IncomingVelocity.Size();
+	OutResult.DamageAtImpact = CurrentDamage;
+
+	// Get material properties for ricochet evaluation
+	const ESHPenetrableMaterial MatType = ClassifyMaterial(HitResult);
+	const FSHMaterialBallisticProps MatProps = GetMaterialProperties(MatType);
+
+	// --- Ricochet check first (shallow angle hits ricochet before penetrating) ---
+	FVector RicochetDir;
+	float RicochetSpeedRetain;
+
+	if (EvaluateRicochet(HitResult, IncomingVelocity, MatProps, RicochetDir, RicochetSpeedRetain))
 	{
-		return MaxDepthCm;
+		OutResult.bRicocheted = true;
+		OutResult.RicochetDirection = RicochetDir;
+		OutResult.RicochetSpeed = IncomingVelocity.Size() * RicochetSpeedRetain;
+		OutResult.RicochetDamage = CurrentDamage * RicochetSpeedRetain * 0.5f; // Damage reduction on ricochet
+		return true;
 	}
 
-	// Trace backwards from a point beyond the entry, looking for the exit face
-	const FVector TraceStart = HitResult.ImpactPoint + InDirection * MaxDepthCm;
-	const FVector TraceEnd = HitResult.ImpactPoint;
+	// --- Penetration check ---
+	if (PenetrationData.MaxPenetrationCm <= 0.0f)
+	{
+		// Cannot penetrate this material at all
+		return false;
+	}
+
+	// Scale penetration capability with remaining velocity relative to muzzle
+	const float VelocityRatio = (MuzzleVelocityCmS > 0.0f)
+		? (IncomingVelocity.Size() / MuzzleVelocityCmS)
+		: 0.0f;
+
+	// Effective penetration depth scales with velocity^2 (kinetic energy)
+	const float EffectivePenCm = PenetrationData.MaxPenetrationCm * VelocityRatio * VelocityRatio;
+
+	// We need to know the thickness of what we hit.
+	// Perform a reverse trace from behind the surface to estimate thickness.
+	const FVector TraceDir = IncomingVelocity.GetSafeNormal();
+	const float MaxProbeDistance = EffectivePenCm; // Only probe up to our penetration capability
 
 	FHitResult ExitHit;
-	FCollisionQueryParams Params;
-	Params.bReturnPhysicalMaterial = true;
-	Params.AddIgnoredActor(HitResult.GetActor()); // We want the same actor — remove from ignore
-	// Actually, we need to hit the same actor's back face. UE doesn't trace back-faces
-	// by default on complex collision. Use a simple sphere sweep as approximation.
-	Params = FCollisionQueryParams(SCENE_QUERY_STAT(SHPenThickness), true);
+	FCollisionQueryParams QueryParams;
+	QueryParams.bReturnPhysicalMaterial = true;
 
-	if (World->LineTraceSingleByChannel(ExitHit, TraceStart, TraceEnd, ECC_Visibility, Params))
+	const FVector ProbeStart = HitResult.ImpactPoint + TraceDir * (MaxProbeDistance + 1.0f);
+	const FVector ProbeEnd = HitResult.ImpactPoint - TraceDir * 1.0f;
+
+	bool bFoundExit = false;
+	float ThicknessCm = MaxProbeDistance; // Assume worst case
+
+	if (UWorld* World = GetWorld())
 	{
-		// Distance between entry and exit
-		return FVector::Dist(HitResult.ImpactPoint, ExitHit.ImpactPoint);
+		if (World->LineTraceSingleByChannel(ExitHit, ProbeStart, ProbeEnd,
+			ECC_GameTraceChannel1, QueryParams))
+		{
+			ThicknessCm = FVector::Dist(HitResult.ImpactPoint, ExitHit.ImpactPoint);
+			bFoundExit = true;
+		}
 	}
 
-	// Could not find exit — assume max depth
-	return MaxDepthCm;
+	// Can we penetrate?
+	if (ThicknessCm > EffectivePenCm)
+	{
+		// Too thick — round stops inside
+		return false;
+	}
+
+	// Calculate exit parameters
+	const float PenetrationFraction = ThicknessCm / FMath::Max(EffectivePenCm, 0.01f);
+	const float VelocityRetain = PenetrationData.VelocityRetention * (1.0f - PenetrationFraction * 0.5f);
+	const float DamageRetain = PenetrationData.DamageRetention * (1.0f - PenetrationFraction * 0.5f);
+
+	// Slight deflection through material
+	const float DeflectionAngle = PenetrationFraction * 3.0f; // Up to 3 degrees deflection
+	const FVector RandomPerp = FVector::CrossProduct(TraceDir,
+		FMath::Abs(TraceDir.Z) < 0.9f ? FVector::UpVector : FVector::ForwardVector).GetSafeNormal();
+	const FVector DeflectedDir = TraceDir.RotateAngleAxis(
+		FMath::FRandRange(-DeflectionAngle, DeflectionAngle), RandomPerp);
+
+	OutResult.bPenetrated = true;
+	OutResult.PostPenetrationVelocity = DeflectedDir * IncomingVelocity.Size() * VelocityRetain;
+	OutResult.PostPenetrationDamage = CurrentDamage * DamageRetain;
+
+	return true;
 }
 
-// ---------------------------------------------------------------------------
-// Penetration
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Ricochet
+ * --------------------------------------------------------------------- */
 
-FSHPenetrationResult USHBallisticsSystem::TryPenetrate(
+bool USHBallisticsSystem::EvaluateRicochet(
 	const FHitResult& HitResult,
-	const FVector& InDirection,
-	float InSpeed,
-	float InDamage,
-	const USHWeaponData* WeaponData,
-	ESHPenetrationMaterial Material) const
+	const FVector& IncomingVelocity,
+	const FSHMaterialBallisticProps& MaterialProps,
+	FVector& OutRicochetDir,
+	float& OutSpeedRetention) const
 {
-	FSHPenetrationResult Result;
-
-	if (!WeaponData)
-	{
-		return Result;
-	}
-
-	const FSHPenetrationEntry* PenEntry = WeaponData->FindPenetration(Material);
-	if (!PenEntry || PenEntry->MaxPenetrationCm <= 0.0f)
-	{
-		return Result; // Cannot penetrate this material
-	}
-
-	// Estimate actual surface thickness
-	const float Thickness = EstimateSurfaceThickness(HitResult, InDirection, PenEntry->MaxPenetrationCm * 2.0f);
-
-	if (Thickness > PenEntry->MaxPenetrationCm)
-	{
-		return Result; // Too thick
-	}
-
-	// Scale retention by how much of the max penetration was used
-	const float PenetrationRatio = Thickness / PenEntry->MaxPenetrationCm;
-	const float RetainedDamageFraction = FMath::Lerp(PenEntry->DamageRetention, PenEntry->DamageRetention * 0.5f, PenetrationRatio);
-	const float RetainedVelocityFraction = FMath::Lerp(PenEntry->VelocityRetention, PenEntry->VelocityRetention * 0.5f, PenetrationRatio);
-
-	Result.bPenetrated = true;
-	Result.ExitPoint = HitResult.ImpactPoint + InDirection * Thickness;
-	Result.ExitDirection = InDirection; // Slight random deflection could be added
-	Result.DamageAfterPenetration = InDamage * RetainedDamageFraction;
-	Result.VelocityAfterPenetration = InSpeed * RetainedVelocityFraction;
-
-	// Add slight random deflection after penetration
-	const float DeflectionAngle = FMath::RandRange(0.0f, 2.0f); // degrees
-	const FVector RandomPerp = FMath::VRand();
-	const FVector Perp = FVector::CrossProduct(InDirection, RandomPerp).GetSafeNormal();
-	Result.ExitDirection = InDirection.RotateAngleAxis(DeflectionAngle, Perp).GetSafeNormal();
-
-	return Result;
-}
-
-// ---------------------------------------------------------------------------
-// Ricochet
-// ---------------------------------------------------------------------------
-
-FSHRicochetResult USHBallisticsSystem::TryRicochet(
-	const FHitResult& HitResult,
-	const FVector& InDirection,
-	float InSpeed,
-	float InDamage,
-	ESHPenetrationMaterial Material) const
-{
-	FSHRicochetResult Result;
-
-	// Calculate incidence angle (angle between bullet and surface)
-	const float CosAngle = FMath::Abs(FVector::DotProduct(InDirection, HitResult.ImpactNormal));
-	const float IncidenceAngleDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(CosAngle, 0.0f, 1.0f)));
-	// IncidenceAngleDeg is angle from surface normal — we want angle from surface (grazing)
-	const float GrazingAngleDeg = 90.0f - IncidenceAngleDeg;
-
-	if (GrazingAngleDeg < MinRicochetAngleDeg || GrazingAngleDeg > MaxRicochetAngleDeg)
-	{
-		return Result; // Too steep or too shallow
-	}
-
-	// Ricochet probability: higher at shallow angles, higher off hard surfaces
-	float BaseProbability = 0.0f;
-	float SpeedRetention = 0.0f;
-
-	switch (Material)
-	{
-	case ESHPenetrationMaterial::Steel:
-		BaseProbability = 0.70f;
-		SpeedRetention = 0.50f;
-		break;
-	case ESHPenetrationMaterial::Concrete:
-		BaseProbability = 0.50f;
-		SpeedRetention = 0.35f;
-		break;
-	case ESHPenetrationMaterial::Dirt:
-	case ESHPenetrationMaterial::Sandbag:
-		BaseProbability = 0.05f;
-		SpeedRetention = 0.15f;
-		break;
-	case ESHPenetrationMaterial::Wood:
-		BaseProbability = 0.15f;
-		SpeedRetention = 0.20f;
-		break;
-	case ESHPenetrationMaterial::Glass:
-		BaseProbability = 0.10f;
-		SpeedRetention = 0.25f;
-		break;
-	default:
-		BaseProbability = 0.02f;
-		SpeedRetention = 0.10f;
-		break;
-	}
-
-	// Scale probability by angle — more likely at shallower angles
-	const float AngleFactor = 1.0f - ((GrazingAngleDeg - MinRicochetAngleDeg) / (MaxRicochetAngleDeg - MinRicochetAngleDeg));
-	const float FinalProbability = BaseProbability * AngleFactor;
-
-	if (FMath::FRand() > FinalProbability)
-	{
-		return Result; // No ricochet
-	}
-
-	// Reflect direction off surface normal
-	const FVector Reflected = FMath::GetReflectionVector(InDirection, HitResult.ImpactNormal);
-
-	// Add random spread to reflected direction
-	const float RicochetSpreadDeg = FMath::RandRange(1.0f, 8.0f);
-	const FVector SpreadAxis = FMath::VRand();
-	const FVector SpreadReflected = Reflected.RotateAngleAxis(RicochetSpreadDeg, SpreadAxis).GetSafeNormal();
-
-	Result.bRicocheted = true;
-	Result.RicochetOrigin = HitResult.ImpactPoint + HitResult.ImpactNormal * 1.0f; // offset slightly off surface
-	Result.RicochetDirection = SpreadReflected;
-	Result.RicochetSpeed = InSpeed * SpeedRetention;
-	Result.RicochetDamage = InDamage * SpeedRetention * 0.5f; // damage drops significantly
-
-	return Result;
-}
-
-// ---------------------------------------------------------------------------
-// Hitscan (close-range instant trace)
-// ---------------------------------------------------------------------------
-
-void USHBallisticsSystem::PerformHitscan(
-	const FVector& Origin,
-	const FVector& Direction,
-	const USHWeaponData* WeaponData,
-	AActor* Instigator,
-	TArray<FSHBallisticHitResult>& OutHits) const
-{
-	UWorld* World = GetWorld();
-	if (!World || !WeaponData)
-	{
-		return;
-	}
-
-	const float MaxTraceDist = WeaponData->HitscanThresholdM * 100.0f;
-	const FVector TraceEnd = Origin + Direction * MaxTraceDist;
-
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(SHHitscan), true);
-	Params.bReturnPhysicalMaterial = true;
-	if (Instigator)
-	{
-		Params.AddIgnoredActor(Instigator);
-	}
-
-	TArray<FHitResult> Hits;
-	// Multi-trace to support penetration through multiple surfaces
-	World->LineTraceMultiByChannel(Hits, Origin, TraceEnd, ECC_GameTraceChannel1, Params);
-
-	float CurrentDamage = WeaponData->BaseDamage;
-	float CurrentSpeed = WeaponData->MuzzleVelocityMPS * 100.0f;
-
-	for (const FHitResult& Hit : Hits)
-	{
-		if (CurrentDamage <= 0.0f || CurrentSpeed <= 0.0f)
-		{
-			break;
-		}
-
-		const float Distance = Hit.Distance;
-		const float DamageAtDist = CalcDamageAtDistance(WeaponData, Distance);
-		const float DamageRatio = (WeaponData->BaseDamage > 0.0f) ? (DamageAtDist / WeaponData->BaseDamage) : 1.0f;
-		const float AdjustedDamage = CurrentDamage * DamageRatio;
-
-		FSHBallisticHitResult BHit;
-		BHit.bHit = true;
-		BHit.HitLocation = Hit.ImpactPoint;
-		BHit.HitNormal = Hit.ImpactNormal;
-		BHit.DistanceTravelled = Distance;
-		BHit.RemainingDamage = AdjustedDamage;
-		BHit.RemainingVelocity = CurrentSpeed;
-		BHit.HitActor = Hit.GetActor();
-		BHit.HitBoneName = Hit.BoneName;
-		BHit.PhysMaterial = Hit.PhysMaterial.Get();
-
-		ESHPenetrationMaterial SHMat = PhysMaterialToSHMaterial(Hit.PhysMaterial.Get());
-		BHit.SurfaceMaterial = SHMat;
-
-		OutHits.Add(BHit);
-
-		// Try penetration for next surface
-		FSHPenetrationResult PenResult = TryPenetrate(Hit, Direction, CurrentSpeed, AdjustedDamage, WeaponData, SHMat);
-		if (PenResult.bPenetrated)
-		{
-			CurrentDamage = PenResult.DamageAfterPenetration;
-			CurrentSpeed = PenResult.VelocityAfterPenetration;
-		}
-		else
-		{
-			// Bullet stopped
-			break;
-		}
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Supersonic crack
-// ---------------------------------------------------------------------------
-
-bool USHBallisticsSystem::ShouldTriggerSupersonicCrack(
-	const FVector& BulletPosition,
-	const FVector& BulletVelocity,
-	const FVector& ListenerPosition,
-	FVector& OutCrackLocation) const
-{
-	const float BulletSpeed = BulletVelocity.Size();
-	if (BulletSpeed < SpeedOfSoundCmS)
-	{
-		return false; // Subsonic — no crack
-	}
-
-	// Find closest point on the bullet trajectory to the listener
-	const FVector BulletDir = BulletVelocity.GetSafeNormal();
-	const FVector ToListener = ListenerPosition - BulletPosition;
-	const float Projection = FVector::DotProduct(ToListener, BulletDir);
-
-	// Only trigger for bullets that have passed the listener (or are passing)
-	if (Projection < 0.0f)
+	if (MaterialProps.BaseRicochetProbability <= 0.0f)
 	{
 		return false;
 	}
 
-	const FVector ClosestPoint = BulletPosition + BulletDir * Projection;
-	const float DistToListener = FVector::Dist(ClosestPoint, ListenerPosition);
+	const FVector InDir = IncomingVelocity.GetSafeNormal();
+	const FVector Normal = HitResult.ImpactNormal;
 
-	if (DistToListener <= SupersonicCrackRadiusCm)
+	// Calculate angle of incidence (angle between incoming direction and surface)
+	// Dot of -InDir and Normal gives cos(angle from normal)
+	// We want the grazing angle (angle from surface, not from normal)
+	const float CosAngleFromNormal = FVector::DotProduct(-InDir, Normal);
+	const float AngleFromNormal = FMath::Acos(FMath::Clamp(CosAngleFromNormal, 0.0f, 1.0f));
+	const float GrazingAngleDeg = 90.0f - FMath::RadiansToDegrees(AngleFromNormal);
+
+	// Only ricochet at shallow (grazing) angles
+	if (GrazingAngleDeg > MaterialProps.RicochetAngleThreshold)
 	{
-		OutCrackLocation = ClosestPoint;
-		return true;
+		return false;
 	}
 
-	return false;
+	// Probability increases as angle gets shallower
+	const float AngleAlpha = 1.0f - (GrazingAngleDeg / FMath::Max(MaterialProps.RicochetAngleThreshold, 1.0f));
+	const float RicochetProb = MaterialProps.BaseRicochetProbability * AngleAlpha;
+
+	if (FMath::FRand() >= RicochetProb)
+	{
+		return false;
+	}
+
+	// Reflect the velocity off the surface
+	OutRicochetDir = FMath::GetReflectionVector(InDir, Normal);
+
+	// Add some random scatter (more scatter at steeper angles)
+	const float ScatterDeg = FMath::FRandRange(1.0f, 5.0f) * (1.0f - AngleAlpha);
+	const FVector RandomPerp = FVector::CrossProduct(OutRicochetDir,
+		FMath::Abs(OutRicochetDir.Z) < 0.9f ? FVector::UpVector : FVector::ForwardVector).GetSafeNormal();
+	OutRicochetDir = OutRicochetDir.RotateAngleAxis(
+		FMath::FRandRange(-ScatterDeg, ScatterDeg), RandomPerp);
+	OutRicochetDir.Normalize();
+
+	OutSpeedRetention = MaterialProps.RicochetSpeedRetention;
+
+	return true;
 }
 
-// ---------------------------------------------------------------------------
-// Explosive / fragmentation
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Material Lookup
+ * --------------------------------------------------------------------- */
 
-void USHBallisticsSystem::ProcessExplosion(
-	const FVector& DetonationPoint,
-	const USHWeaponData* WeaponData,
-	APawn* Instigator,
+FSHMaterialBallisticProps USHBallisticsSystem::GetMaterialProperties(ESHPenetrableMaterial Material) const
+{
+	for (const FSHMaterialBallisticProps& Props : MaterialTable)
+	{
+		if (Props.MaterialType == Material)
+		{
+			return Props;
+		}
+	}
+
+	// Default — treat as wood
+	FSHMaterialBallisticProps Default;
+	Default.MaterialType = Material;
+	Default.DensityFactor = 0.25f;
+	Default.RicochetAngleThreshold = 12.0f;
+	Default.BaseRicochetProbability = 0.15f;
+	Default.RicochetSpeedRetention = 0.25f;
+	return Default;
+}
+
+ESHPenetrableMaterial USHBallisticsSystem::ClassifyMaterial(const FHitResult& HitResult) const
+{
+	// Map UE physical material surface types to our penetration materials.
+	// In a production setup, you'd use a data table or custom physical material subclass.
+	if (const UPhysicalMaterial* PhysMat = HitResult.PhysMaterial.Get())
+	{
+		switch (PhysMat->SurfaceType)
+		{
+		case EPhysicalSurface::SurfaceType1:  return ESHPenetrableMaterial::Concrete;
+		case EPhysicalSurface::SurfaceType2:  return ESHPenetrableMaterial::Steel;
+		case EPhysicalSurface::SurfaceType3:  return ESHPenetrableMaterial::Wood;
+		case EPhysicalSurface::SurfaceType4:  return ESHPenetrableMaterial::Drywall;
+		case EPhysicalSurface::SurfaceType5:  return ESHPenetrableMaterial::Dirt;
+		case EPhysicalSurface::SurfaceType6:  return ESHPenetrableMaterial::Sandbag;
+		case EPhysicalSurface::SurfaceType7:  return ESHPenetrableMaterial::Glass;
+		case EPhysicalSurface::SurfaceType8:  return ESHPenetrableMaterial::Flesh;
+		default: break;
+		}
+	}
+
+	// Default fallback based on hit component properties
+	return ESHPenetrableMaterial::Concrete;
+}
+
+/* -----------------------------------------------------------------------
+ *  Supersonic Crack
+ * --------------------------------------------------------------------- */
+
+bool USHBallisticsSystem::ShouldTriggerSupersonicCrack(
+	const FVector& ProjectilePosition,
+	const FVector& ProjectileVelocity,
+	const FVector& ListenerPosition,
+	float NearMissRadiusCm)
+{
+	const float Speed = ProjectileVelocity.Size();
+
+	// Must be supersonic (speed of sound ~343 m/s = 34300 cm/s)
+	if (Speed < SpeedOfSoundCmS)
+	{
+		return false;
+	}
+
+	// Calculate closest approach distance using point-to-line distance
+	const FVector BulletDir = ProjectileVelocity.GetSafeNormal();
+	const FVector ToListener = ListenerPosition - ProjectilePosition;
+
+	// Project listener position onto bullet flight path
+	const float ProjectionLength = FVector::DotProduct(ToListener, BulletDir);
+
+	// Only trigger for bullets that have passed or are passing the listener (not approaching from far away)
+	if (ProjectionLength < -NearMissRadiusCm)
+	{
+		return false;
+	}
+
+	// Perpendicular distance from bullet path to listener
+	const FVector ClosestPoint = ProjectilePosition + BulletDir * ProjectionLength;
+	const float Distance = FVector::Dist(ClosestPoint, ListenerPosition);
+
+	return Distance <= NearMissRadiusCm;
+}
+
+/* -----------------------------------------------------------------------
+ *  Fragmentation
+ * --------------------------------------------------------------------- */
+
+void USHBallisticsSystem::SpawnFragmentation(
+	const FVector& Origin,
+	const FSHFragmentationParams& Params,
+	AController* Instigator,
 	AActor* DamageCauser) const
 {
 	UWorld* World = GetWorld();
-	if (!World || !WeaponData || !WeaponData->bIsExplosive)
+	if (!World || Params.FragmentCount <= 0)
 	{
 		return;
 	}
 
-	const float InnerRadiusCm = WeaponData->ExplosiveInnerRadiusM * 100.0f;
-	const float OuterRadiusCm = WeaponData->ExplosiveOuterRadiusM * 100.0f;
-
-	// Apply radial damage
-	AController* InstigatorController = Instigator ? Instigator->GetController() : nullptr;
-
-	UGameplayStatics::ApplyRadialDamageWithFalloff(
-		World,
-		WeaponData->BaseDamage,
-		WeaponData->BaseDamage * 0.1f, // MinDamage
-		DetonationPoint,
-		InnerRadiusCm,
-		OuterRadiusCm,
-		1.0f, // DamageFalloff exponent
-		UDamageType::StaticClass(),
-		TArray<AActor*>(), // IgnoreActors
-		DamageCauser,
-		InstigatorController,
-		ECC_Visibility);
-
-	// Spawn shrapnel fragments
-	if (WeaponData->ShrapnelCount > 0)
+	FCollisionQueryParams QueryParams;
+	QueryParams.bReturnPhysicalMaterial = true;
+	if (DamageCauser)
 	{
-		for (int32 i = 0; i < WeaponData->ShrapnelCount; ++i)
+		QueryParams.AddIgnoredActor(DamageCauser);
+	}
+
+	// Track actors already damaged to avoid double-hitting from multiple fragments
+	TMap<AActor*, float> DamagedActors;
+
+	for (int32 i = 0; i < Params.FragmentCount; ++i)
+	{
+		// Random direction in a sphere (biased slightly upward for ground detonation)
+		FVector FragDir = FMath::VRandCone(FVector::UpVector, FMath::DegreesToRadians(85.0f));
+		if (FMath::FRand() < 0.3f)
 		{
-			const FVector FragDir = FMath::VRand();
-			const float FragSpeed = FMath::RandRange(20000.0f, 50000.0f); // cm/s
+			// Some fragments go downward too
+			FragDir.Z = -FMath::Abs(FragDir.Z) * 0.5f;
+		}
+		FragDir.Normalize();
 
-			// Trace for shrapnel hit
-			const float FragRange = OuterRadiusCm * 1.5f;
-			const FVector FragEnd = DetonationPoint + FragDir * FragRange;
+		FHitResult FragHit;
+		const FVector TraceEnd = Origin + FragDir * Params.OuterRadiusCm;
 
-			FHitResult FragHit;
-			FCollisionQueryParams FragParams(SCENE_QUERY_STAT(SHShrapnel), true);
-			FragParams.bReturnPhysicalMaterial = true;
-			if (Instigator)
+		if (World->LineTraceSingleByChannel(FragHit, Origin, TraceEnd,
+			ECC_GameTraceChannel1, QueryParams))
+		{
+			AActor* HitActor = FragHit.GetActor();
+			if (!HitActor)
 			{
-				FragParams.AddIgnoredActor(Instigator);
-			}
-			if (DamageCauser)
-			{
-				FragParams.AddIgnoredActor(DamageCauser);
+				continue;
 			}
 
-			if (World->LineTraceSingleByChannel(FragHit, DetonationPoint, FragEnd, ECC_Visibility, FragParams))
-			{
-				// Apply shrapnel damage with distance falloff
-				const float FragDist = FragHit.Distance;
-				const float DistRatio = FMath::Clamp(FragDist / FragRange, 0.0f, 1.0f);
-				const float FragDamage = WeaponData->ShrapnelDamage * (1.0f - DistRatio);
+			const float Distance = FragHit.Distance;
 
-				if (FragDamage > 0.0f && FragHit.GetActor())
+			// Damage falloff: full damage within inner radius, linear falloff to outer
+			float DamageMult = 1.0f;
+			if (Distance > Params.InnerRadiusCm)
+			{
+				const float FalloffRange = Params.OuterRadiusCm - Params.InnerRadiusCm;
+				if (FalloffRange > 0.0f)
 				{
-					FPointDamageEvent DamageEvent;
-					DamageEvent.Damage = FragDamage;
-					DamageEvent.HitInfo = FragHit;
-					DamageEvent.ShotDirection = FragDir;
-
-					FragHit.GetActor()->TakeDamage(
-						FragDamage,
-						DamageEvent,
-						InstigatorController,
-						DamageCauser);
+					DamageMult = 1.0f - FMath::Clamp(
+						(Distance - Params.InnerRadiusCm) / FalloffRange, 0.0f, 1.0f);
 				}
 			}
+
+			const float FragDamage = Params.FragmentDamage * DamageMult;
+
+			// Accumulate damage per actor (take highest fragment damage)
+			if (float* ExistingDamage = DamagedActors.Find(HitActor))
+			{
+				*ExistingDamage = FMath::Max(*ExistingDamage, FragDamage);
+			}
+			else
+			{
+				DamagedActors.Add(HitActor, FragDamage);
+			}
+		}
+	}
+
+	// Apply accumulated damage
+	for (const auto& Pair : DamagedActors)
+	{
+		if (Pair.Key && Pair.Value > 0.0f)
+		{
+			FPointDamageEvent DamageEvent;
+			DamageEvent.Damage = Pair.Value;
+
+			Pair.Key->TakeDamage(
+				Pair.Value,
+				FDamageEvent(DamageEvent.GetTypeID()),
+				Instigator,
+				DamageCauser);
 		}
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Physical material mapping
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Tracer Utility
+ * --------------------------------------------------------------------- */
 
-ESHPenetrationMaterial USHBallisticsSystem::PhysMaterialToSHMaterial(const UPhysicalMaterial* PhysMat)
+bool USHBallisticsSystem::IsTracerRound(int32 RoundNumber, int32 TracerInterval)
 {
-	if (!PhysMat)
+	if (TracerInterval <= 0)
 	{
-		return ESHPenetrationMaterial::Dirt;
+		return false;
 	}
 
-	// Map based on surface type or physical material name
-	// In production, this would use a data table or the SurfaceType enum
-	const FString MatName = PhysMat->GetName().ToLower();
-
-	if (MatName.Contains(TEXT("wood")))     return ESHPenetrationMaterial::Wood;
-	if (MatName.Contains(TEXT("drywall")))  return ESHPenetrationMaterial::Drywall;
-	if (MatName.Contains(TEXT("plaster")))  return ESHPenetrationMaterial::Drywall;
-	if (MatName.Contains(TEXT("sand")))     return ESHPenetrationMaterial::Sandbag;
-	if (MatName.Contains(TEXT("concrete"))) return ESHPenetrationMaterial::Concrete;
-	if (MatName.Contains(TEXT("brick")))    return ESHPenetrationMaterial::Concrete;
-	if (MatName.Contains(TEXT("steel")))    return ESHPenetrationMaterial::Steel;
-	if (MatName.Contains(TEXT("metal")))    return ESHPenetrationMaterial::Steel;
-	if (MatName.Contains(TEXT("iron")))     return ESHPenetrationMaterial::Steel;
-	if (MatName.Contains(TEXT("glass")))    return ESHPenetrationMaterial::Glass;
-	if (MatName.Contains(TEXT("flesh")))    return ESHPenetrationMaterial::Flesh;
-	if (MatName.Contains(TEXT("body")))     return ESHPenetrationMaterial::Flesh;
-	if (MatName.Contains(TEXT("dirt")))     return ESHPenetrationMaterial::Dirt;
-	if (MatName.Contains(TEXT("earth")))    return ESHPenetrationMaterial::Dirt;
-	if (MatName.Contains(TEXT("mud")))      return ESHPenetrationMaterial::Dirt;
-
-	return ESHPenetrationMaterial::Dirt;
+	return (RoundNumber % TracerInterval) == 0;
 }

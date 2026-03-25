@@ -9,6 +9,13 @@
 #include "Components/AudioComponent.h"
 #include "GameFramework/DamageType.h"
 
+void ASHFPVStrikeDrone::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ASHFPVStrikeDrone, CurrentStrikePhase);
+}
+
 ASHFPVStrikeDrone::ASHFPVStrikeDrone()
 {
 	// FPV strike drones: small, fast, fragile, short battery

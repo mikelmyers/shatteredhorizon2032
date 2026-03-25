@@ -7,55 +7,52 @@
 #include "SHWeaponData.h"
 #include "SHWeaponBase.generated.h"
 
-class USHBallisticsSystem;
+class USHWeaponDataAsset;
 class ASHProjectile;
-class USkeletalMeshComponent;
-class UNiagaraComponent;
+class USHBallisticsSystem;
 
-// ---------------------------------------------------------------------------
-// Weapon state enums
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  Reload state machine
+ * --------------------------------------------------------------------- */
+
+UENUM(BlueprintType)
+enum class ESHReloadState : uint8
+{
+	Idle        UMETA(DisplayName = "Idle"),
+	Starting    UMETA(DisplayName = "Starting"),
+	Inserting   UMETA(DisplayName = "Inserting Magazine / Shell"),
+	Chambering  UMETA(DisplayName = "Chambering"),
+	Finishing   UMETA(DisplayName = "Finishing"),
+};
 
 UENUM(BlueprintType)
 enum class ESHWeaponState : uint8
 {
-	Idle       UMETA(DisplayName = "Idle"),
-	Firing     UMETA(DisplayName = "Firing"),
-	Reloading  UMETA(DisplayName = "Reloading"),
-	Switching  UMETA(DisplayName = "Switching Fire Mode"),
-	Malfunction UMETA(DisplayName = "Malfunction"),
-	ClearingJam UMETA(DisplayName = "Clearing Jam"),
-	Equipping  UMETA(DisplayName = "Equipping"),
-	Unequipping UMETA(DisplayName = "Unequipping"),
+	Idle            UMETA(DisplayName = "Idle"),
+	Firing          UMETA(DisplayName = "Firing"),
+	Reloading       UMETA(DisplayName = "Reloading"),
+	Switching       UMETA(DisplayName = "Switching"),
+	Malfunctioned   UMETA(DisplayName = "Malfunctioned"),
+	Overheated      UMETA(DisplayName = "Overheated"),
+	Equipping       UMETA(DisplayName = "Equipping"),
 };
 
-UENUM(BlueprintType)
-enum class ESHReloadPhase : uint8
-{
-	None       UMETA(DisplayName = "None"),
-	Start      UMETA(DisplayName = "Start"),
-	RemoveMag  UMETA(DisplayName = "Remove Magazine"),
-	InsertMag  UMETA(DisplayName = "Insert Magazine"),
-	Chamber    UMETA(DisplayName = "Chamber Round"),
-	Ready      UMETA(DisplayName = "Ready"),
-};
+/* -----------------------------------------------------------------------
+ *  Delegates
+ * --------------------------------------------------------------------- */
 
-// ---------------------------------------------------------------------------
-// Delegates
-// ---------------------------------------------------------------------------
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnWeaponFired, int32, RemainingAmmo);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponReloadStarted);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponReloadFinished);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponMalfunction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnAmmoChanged, int32, CurrentMag, int32, Reserve);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnFireModeChanged, ESHFireMode, NewMode);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponOverheated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnWeaponStateChanged, ESHWeaponState, NewState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponFired);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnMalfunction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnHeatChanged, float, NormalizedHeat);
 
-// ---------------------------------------------------------------------------
-// ASHWeaponBase
-// ---------------------------------------------------------------------------
+/* -----------------------------------------------------------------------
+ *  ASHWeaponBase
+ * --------------------------------------------------------------------- */
 
-UCLASS(Abstract)
+UCLASS(Abstract, Blueprintable)
 class SHATTEREDHORIZON2032_API ASHWeaponBase : public AActor
 {
 	GENERATED_BODY()
@@ -66,257 +63,277 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 
-	// -------------------------------------------------------------------
-	// Weapon data
-	// -------------------------------------------------------------------
+	/* --- Configuration --- */
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<USHWeaponData> WeaponData;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Data")
+	TObjectPtr<USHWeaponDataAsset> WeaponData;
 
-	// -------------------------------------------------------------------
-	// Input actions (called by owning character)
-	// -------------------------------------------------------------------
+	/* --- Components --- */
 
-	/** Begin firing (trigger pull). */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
+	TObjectPtr<USkeletalMeshComponent> WeaponMeshComp;
+
+	/* --- Input Actions --- */
+
+	/** Call to begin firing (press). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void StartFire();
 
-	/** Stop firing (trigger release). */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	/** Call to stop firing (release). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void StopFire();
 
-	/** Initiate reload. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	/** Begin reload. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void StartReload();
 
-	/** Cancel reload (e.g., sprint interrupt). */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	/** Cancel an in-progress reload (e.g., single-round reload interrupted by fire). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void CancelReload();
 
 	/** Cycle to the next available fire mode. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void CycleFireMode();
 
-	/** Begin clearing a weapon malfunction. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void StartClearMalfunction();
-
-	/** Enter ADS. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	/** Begin aiming down sights. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void StartADS();
 
-	/** Exit ADS. */
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	/** Release ADS. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
 	void StopADS();
 
-	// -------------------------------------------------------------------
-	// Queries
-	// -------------------------------------------------------------------
+	/** Attempt to clear a malfunction. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Actions")
+	void ClearMalfunction();
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	int32 GetCurrentAmmo() const { return CurrentMagAmmo; }
+	/* --- Queries --- */
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
+	int32 GetCurrentMagAmmo() const { return CurrentMagAmmo; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
 	int32 GetReserveAmmo() const { return ReserveAmmo; }
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	ESHWeaponState GetWeaponState() const { return WeaponState; }
-
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
 	ESHFireMode GetCurrentFireMode() const { return CurrentFireMode; }
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	bool IsAiming() const { return bIsADS; }
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
+	ESHWeaponState GetWeaponState() const { return WeaponState; }
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	float GetHeatLevel() const { return CurrentHeat; }
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
+	bool IsADS() const { return bIsADS; }
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	float GetADSAlpha() const { return ADSAlpha; }
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
+	float GetNormalizedHeat() const { return CurrentHeat; }
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	bool CanFire() const;
+	UFUNCTION(BlueprintPure, Category = "Weapon|State")
+	bool IsMalfunctioned() const { return WeaponState == ESHWeaponState::Malfunctioned; }
 
-	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
-	bool CanReload() const;
+	/* --- External state setters (driven by character / player controller) --- */
 
-	// -------------------------------------------------------------------
-	// External state inputs (set by owning character each frame)
-	// -------------------------------------------------------------------
+	/** Set current stance for accuracy calculations. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetStance(ESHStance InStance) { CurrentStance = InStance; }
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void SetOwnerStance(ESHStance InStance) { CurrentStance = InStance; }
+	/** Set whether the character is moving. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetIsMoving(bool bMoving) { bIsMoving = bMoving; }
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void SetOwnerMovementSpeed(float SpeedCmS) { OwnerSpeed = SpeedCmS; }
+	/** Set suppression level 0-1. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetSuppressionLevel(float Level) { SuppressionLevel = FMath::Clamp(Level, 0.0f, 1.0f); }
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void SetSuppressionLevel(float Level) { SuppressionLevel = FMath::Clamp(Level, 0.0f, 100.0f); }
+	/** Set fatigue level 0-1 (from stamina system). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetFatigueLevel(float Level) { FatigueLevel = FMath::Clamp(Level, 0.0f, 1.0f); }
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void SetFatigueLevel(float Level) { FatigueLevel = FMath::Clamp(Level, 0.0f, 100.0f); }
+	/** Set dirt/fouling level 0-1 (increases malfunction chance). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetDirtLevel(float Level) { DirtLevel = FMath::Clamp(Level, 0.0f, 1.0f); }
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void SetDirtLevel(float Level) { DirtLevel = FMath::Clamp(Level, 0.0f, 100.0f); }
+	/** Set ammo directly (e.g., on pickup). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetAmmo(int32 MagAmmo, int32 InReserve);
 
-	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
-	void SetStamina(float Stamina01) { StaminaNormalized = FMath::Clamp(Stamina01, 0.0f, 1.0f); }
+	/* --- Delegates --- */
 
-	// -------------------------------------------------------------------
-	// Delegates
-	// -------------------------------------------------------------------
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
+	FSHOnAmmoChanged OnAmmoChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon|Events")
-	FSHOnWeaponFired OnWeaponFired;
-
-	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon|Events")
-	FSHOnWeaponReloadStarted OnReloadStarted;
-
-	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon|Events")
-	FSHOnWeaponReloadFinished OnReloadFinished;
-
-	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon|Events")
-	FSHOnWeaponMalfunction OnMalfunction;
-
-	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon|Events")
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
 	FSHOnFireModeChanged OnFireModeChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon|Events")
-	FSHOnWeaponOverheated OnOverheated;
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
+	FSHOnWeaponStateChanged OnWeaponStateChanged;
 
-	// -------------------------------------------------------------------
-	// Components
-	// -------------------------------------------------------------------
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
+	FSHOnWeaponFired OnWeaponFired;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<USkeletalMeshComponent> WeaponMeshComp;
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
+	FSHOnMalfunction OnMalfunction;
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
+	FSHOnHeatChanged OnHeatChanged;
 
 protected:
-	// -------------------------------------------------------------------
-	// State
-	// -------------------------------------------------------------------
+	/* --- Internal Fire Logic --- */
 
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	/** Execute a single shot (hitscan or projectile). */
+	virtual void FireShot();
+
+	/** Perform a hitscan trace for close-range fire. */
+	void ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection);
+
+	/** Spawn a projectile actor for distance fire. */
+	void SpawnProjectile(const FVector& MuzzleLocation, const FVector& ShotDirection);
+
+	/** Calculate spread-affected direction from base direction. */
+	FVector ApplySpread(const FVector& BaseDirection) const;
+
+	/** Get the current MOA spread value accounting for all modifiers. */
+	float CalculateCurrentMOA() const;
+
+	/** Get the muzzle world transform from weapon mesh socket. */
+	FTransform GetMuzzleTransform() const;
+
+	/* --- Recoil --- */
+
+	void ApplyRecoil();
+	void TickRecoilRecovery(float DeltaTime);
+
+	/* --- Weapon Sway --- */
+
+	void TickWeaponSway(float DeltaTime);
+
+	/* --- Heat --- */
+
+	void AddHeat();
+	void TickHeatCooldown(float DeltaTime);
+
+	/* --- Reload State Machine --- */
+
+	void TickReload(float DeltaTime);
+	void BeginReloadSequence();
+	void AdvanceReloadState();
+	void CompleteReload();
+
+	/* --- Malfunction --- */
+
+	bool RollForMalfunction();
+	void TriggerMalfunction();
+
+	/* --- ADS --- */
+
+	void TickADSTransition(float DeltaTime);
+
+	/* --- State Management --- */
+
+	void SetWeaponState(ESHWeaponState NewState);
+	bool CanFire() const;
+	bool CanReload() const;
+
+	/* --- VFX / Audio Helpers --- */
+
+	void PlayMuzzleFlash();
+	void SpawnShellCasing();
+	void PlayFireSound();
+	void PlayFireModeSwitch();
+
+	/* --- Animation --- */
+
+	void PlayAnimMontage(const TSoftObjectPtr<UAnimMontage>& Montage);
+
+	/* --- Internal State --- */
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon|State")
+	int32 CurrentMagAmmo = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon|State")
+	int32 ReserveAmmo = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon|State")
+	ESHFireMode CurrentFireMode = ESHFireMode::Semi;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon|State")
 	ESHWeaponState WeaponState = ESHWeaponState::Idle;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
-	ESHFireMode CurrentFireMode = ESHFireMode::Semi;
+	ESHReloadState ReloadState = ESHReloadState::Idle;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
-	ESHReloadPhase ReloadPhase = ESHReloadPhase::None;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
-	int32 CurrentMagAmmo = 0;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
-	int32 ReserveAmmo = 0;
+	ESHStance CurrentStance = ESHStance::Standing;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
 	float CurrentHeat = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
-	bool bIsADS = false;
+	float SuppressionLevel = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
-	float ADSAlpha = 0.0f;
-
-	// --- Owner state ---
-	ESHStance CurrentStance = ESHStance::Standing;
-	float OwnerSpeed = 0.0f;
-	float SuppressionLevel = 0.0f;
 	float FatigueLevel = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
 	float DirtLevel = 0.0f;
-	float StaminaNormalized = 1.0f;
 
-	// --- Fire timing ---
+	/* --- Fire control --- */
+
 	bool bWantsToFire = false;
-	float TimeSinceLastShot = 0.0f;
-	int32 ConsecutiveShotCount = 0;
-	int32 BurstShotsRemaining = 0;
-	float ShotCooldownTimer = 0.0f;
-	int32 TotalShotsFired = 0; // for tracer interval
+	bool bIsADS = false;
+	float ADSAlpha = 0.0f; // 0 = hip, 1 = fully ADS
 
-	// --- Recoil state ---
+	/** Time accumulator for fire rate control. */
+	float TimeSinceLastShot = 0.0f;
+
+	/** Consecutive shots in current burst/string (for recoil pattern indexing). */
+	int32 ShotsFiredInString = 0;
+
+	/** Remaining rounds in the current burst. */
+	int32 BurstShotsRemaining = 0;
+
+	/** Total rounds fired since last full cooldown (for tracer interval). */
+	int32 TotalRoundsFired = 0;
+
+	/* --- Recoil state --- */
+
 	float AccumulatedVerticalRecoil = 0.0f;
 	float AccumulatedHorizontalRecoil = 0.0f;
-	float RecoilRecoveryTimer = 0.0f;
 
-	// --- Weapon sway ---
+	/* --- Sway state --- */
+
 	float SwayTime = 0.0f;
+	FVector2D CurrentSwayOffset = FVector2D::ZeroVector;
 
-	// --- Reload timer ---
+	/* --- Reload timer --- */
+
 	float ReloadTimer = 0.0f;
-	float ReloadDuration = 0.0f;
-	bool bWasEmptyReload = false;
+	float ReloadStageDuration = 0.0f;
+	int32 RoundsToInsert = 0; // For single-round reload tracking
 
-	// --- Malfunction ---
+	/* --- Malfunction --- */
+
 	float MalfunctionClearTimer = 0.0f;
 
-	// --- Cached subsystem ---
-	UPROPERTY(Transient)
-	TObjectPtr<USHBallisticsSystem> BallisticsSystem;
+	/* --- Overheat lockout --- */
 
-	// -------------------------------------------------------------------
-	// Internal methods
-	// -------------------------------------------------------------------
+	bool bIsOverheated = false;
 
-	/** Attempt to fire a single round. */
-	void FireShot();
+	/* --- Replication --- */
 
-	/** Determine spread cone half-angle in degrees. */
-	float CalculateSpreadDegrees() const;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/** Apply recoil to the owning controller. */
-	void ApplyRecoil();
+	/* --- Projectile class --- */
 
-	/** Tick recoil recovery. */
-	void TickRecoilRecovery(float DeltaTime);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
+	TSubclassOf<ASHProjectile> ProjectileClass;
 
-	/** Get the muzzle world transform. */
-	FTransform GetMuzzleTransform() const;
+	/* --- Socket names --- */
 
-	/** Spawn a projectile. */
-	void SpawnProjectile(const FVector& Origin, const FVector& Direction);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Sockets")
+	FName MuzzleSocketName = FName(TEXT("Muzzle"));
 
-	/** Perform hitscan fire. */
-	void PerformHitscanFire(const FVector& Origin, const FVector& Direction);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Sockets")
+	FName ShellEjectSocketName = FName(TEXT("ShellEject"));
 
-	/** Calculate final fire direction with spread applied. */
-	FVector ApplySpreadToDirection(const FVector& BaseDirection) const;
-
-	/** Roll for weapon malfunction. Returns true if weapon jammed. */
-	bool RollForMalfunction();
-
-	/** Tick the reload state machine. */
-	void TickReload(float DeltaTime);
-
-	/** Tick heat dissipation. */
-	void TickHeat(float DeltaTime);
-
-	/** Tick ADS interpolation. */
-	void TickADS(float DeltaTime);
-
-	/** Tick weapon sway. */
-	FRotator CalculateWeaponSway(float DeltaTime);
-
-	/** Tick fire cooldown and burst logic. */
-	void TickFiring(float DeltaTime);
-
-	/** Play fire VFX (muzzle flash, shell eject). */
-	void PlayFireEffects();
-
-	/** Play fire sound. */
-	void PlayFireSound();
-
-	/** Play dry fire sound. */
-	void PlayDryFireSound();
-
-	/** Play first-person animation montage. */
-	void PlayWeaponMontage(UAnimMontage* Montage);
-
-	/** Get socket name for muzzle. */
-	static FName GetMuzzleSocketName() { return FName(TEXT("Muzzle")); }
-
-	/** Get socket name for shell ejection. */
-	static FName GetShellEjectSocketName() { return FName(TEXT("ShellEject")); }
+	bool bIsMoving = false;
 };

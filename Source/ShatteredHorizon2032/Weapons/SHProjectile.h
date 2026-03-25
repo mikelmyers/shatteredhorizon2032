@@ -5,14 +5,19 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "SHWeaponData.h"
+#include "SHBallisticsSystem.h"
 #include "SHProjectile.generated.h"
 
-class USphereComponent;
 class UProjectileMovementComponent;
+class USphereComponent;
+class UParticleSystemComponent;
 class UNiagaraComponent;
-class USHBallisticsSystem;
 
-UCLASS()
+/* -----------------------------------------------------------------------
+ *  ASHProjectile — Physical projectile with ballistic simulation
+ * --------------------------------------------------------------------- */
+
+UCLASS(Blueprintable)
 class SHATTEREDHORIZON2032_API ASHProjectile : public AActor
 {
 	GENERATED_BODY()
@@ -20,161 +25,174 @@ class SHATTEREDHORIZON2032_API ASHProjectile : public AActor
 public:
 	ASHProjectile();
 
-	// -------------------------------------------------------------------
-	// Initialization
-	// -------------------------------------------------------------------
-
-	/**
-	 * Configure the projectile after spawn.
-	 * @param InWeaponData   The weapon definition that fired this round.
-	 * @param InMuzzleVelocity  Direction * speed (cm/s) at the muzzle.
-	 * @param InDamage       Initial damage value.
-	 * @param bInIsTracer    Whether this round should display a tracer.
-	 * @param InInstigator   The pawn that fired.
-	 */
-	void InitProjectile(
-		const USHWeaponData* InWeaponData,
-		const FVector& InMuzzleVelocity,
-		float InDamage,
-		bool bInIsTracer,
-		APawn* InInstigator);
-
-protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 
-	// -------------------------------------------------------------------
-	// Components
-	// -------------------------------------------------------------------
+	/* --- Initialization --- */
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<USphereComponent> CollisionSphere;
+	/**
+	 * Initialize projectile parameters after spawn.
+	 * Called by ASHWeaponBase::SpawnProjectile().
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Projectile")
+	void InitializeProjectile(
+		const FVector& InitialVelocity,
+		float InBaseDamage,
+		const FSHBallisticCoefficients& InBC,
+		float InMaxRangeCm,
+		float InDamageFalloffStartCm,
+		float InMinDamageMultiplier,
+		bool bInIsTracer,
+		AActor* InWeaponOwner);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	/* --- Components --- */
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Components")
+	TObjectPtr<USphereComponent> CollisionComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Components")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UNiagaraComponent> TracerVFX;
+	/** Tracer visual — only active for tracer rounds. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile|Components")
+	TObjectPtr<UParticleSystemComponent> TracerVFXComp;
 
-	// -------------------------------------------------------------------
-	// State
-	// -------------------------------------------------------------------
+	/* --- Configuration (set via defaults or BP) --- */
 
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	TObjectPtr<const USHWeaponData> WeaponData;
+	/** Default tracer particle system. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|VFX")
+	TObjectPtr<UParticleSystem> TracerParticle;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	FVector CurrentVelocity;
+	/** Impact effects per surface type. Map physical surface type index to particle. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|VFX")
+	TMap<TEnumAsByte<EPhysicalSurface>, TObjectPtr<UParticleSystem>> ImpactEffects;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	float CurrentDamage;
+	/** Default impact effect if no surface-specific one is found. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|VFX")
+	TObjectPtr<UParticleSystem> DefaultImpactEffect;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	float DistanceTravelled;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	bool bIsTracer;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	int32 PenetrationCount;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
-	int32 RicochetCount;
-
-	/** Cached world subsystem pointer. */
-	UPROPERTY(Transient)
-	TObjectPtr<USHBallisticsSystem> BallisticsSystem;
-
-	/** Previous frame position for sweep traces. */
-	FVector PreviousPosition;
-
-	/** Instigating pawn. */
-	TWeakObjectPtr<APawn> InstigatorPawn;
-
-	/** Elapsed lifetime in seconds. */
-	float LifetimeElapsed;
-
-	// -------------------------------------------------------------------
-	// Configuration
-	// -------------------------------------------------------------------
-
-	/** Maximum number of surfaces the projectile can penetrate. */
-	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-	int32 MaxPenetrations = 3;
-
-	/** Maximum number of ricochets before destroying. */
-	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-	int32 MaxRicochets = 2;
-
-	/** Maximum lifetime in seconds before auto-destroy. */
-	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-	float MaxLifetime = 6.0f;
-
-	// -------------------------------------------------------------------
-	// Tracer VFX
-	// -------------------------------------------------------------------
-
-	UPROPERTY(EditDefaultsOnly, Category = "VFX")
-	TObjectPtr<UNiagaraSystem> TracerNiagaraAsset;
-
-	UPROPERTY(EditDefaultsOnly, Category = "VFX")
-	float TracerWidth = 0.3f;
-
-	UPROPERTY(EditDefaultsOnly, Category = "VFX")
-	FLinearColor TracerColor = FLinearColor(1.0f, 0.6f, 0.2f, 1.0f);
-
-	// -------------------------------------------------------------------
-	// Impact VFX
-	// -------------------------------------------------------------------
-
-	UPROPERTY(EditDefaultsOnly, Category = "VFX")
-	TMap<ESHPenetrationMaterial, TObjectPtr<UNiagaraSystem>> ImpactEffects;
-
-	UPROPERTY(EditDefaultsOnly, Category = "VFX")
-	TObjectPtr<UNiagaraSystem> DefaultImpactEffect;
-
-	// -------------------------------------------------------------------
-	// Supersonic crack
-	// -------------------------------------------------------------------
-
-	UPROPERTY(EditDefaultsOnly, Category = "Audio")
+	/** Supersonic crack sound cue. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Audio")
 	TObjectPtr<USoundBase> SupersonicCrackSound;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Audio")
-	TObjectPtr<USoundAttenuation> CrackAttenuation;
+	/** Ricochet sound. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Audio")
+	TObjectPtr<USoundBase> RicochetSound;
 
-	/** Set of player controllers that already heard the crack from this round. */
-	TSet<TWeakObjectPtr<APlayerController>> CrackTriggeredForControllers;
+	/** Impact sound. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Audio")
+	TObjectPtr<USoundBase> ImpactSound;
 
-	// -------------------------------------------------------------------
-	// Internal methods
-	// -------------------------------------------------------------------
+	/** Maximum number of surfaces this projectile can penetrate. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Penetration", meta = (ClampMin = "0"))
+	int32 MaxPenetrations = 3;
 
-private:
-	/** Custom ballistic tick — overrides UProjectileMovementComponent physics. */
-	void TickBallistics(float DeltaTime);
+	/** Maximum number of ricochets allowed. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Ricochet", meta = (ClampMin = "0"))
+	int32 MaxRicochets = 2;
 
-	/** Perform a sweep trace between previous and current position. */
-	bool PerformSweepTrace(const FVector& Start, const FVector& End, FHitResult& OutHit) const;
+	/** If true, this is an explosive projectile (grenade launcher). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Explosive")
+	bool bIsExplosive = false;
 
-	/** Process a hit — damage, penetration, ricochet, or stop. */
-	void ProcessHit(const FHitResult& HitResult);
+	/** Explosion radius (cm). Only relevant if bIsExplosive. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Explosive", meta = (ClampMin = "0", EditCondition = "bIsExplosive"))
+	float ExplosionRadiusCm = 750.0f;
+
+	/** Explosion damage at center. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Explosive", meta = (ClampMin = "0", EditCondition = "bIsExplosive"))
+	float ExplosionDamage = 200.0f;
+
+	/** Fragmentation parameters for explosive rounds. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Explosive", meta = (EditCondition = "bIsExplosive"))
+	FSHFragmentationParams FragmentationParams;
+
+	/** Explosion VFX. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Explosive", meta = (EditCondition = "bIsExplosive"))
+	TObjectPtr<UParticleSystem> ExplosionVFX;
+
+	/** Explosion sound. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Explosive", meta = (EditCondition = "bIsExplosive"))
+	TObjectPtr<USoundBase> ExplosionSound;
+
+	/** Projectile lifetime in seconds. Safety net for cleanup. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0.1"))
+	float MaxLifetime = 10.0f;
+
+protected:
+	/* --- Collision Handling --- */
+
+	UFUNCTION()
+	void OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	/** Process a hit — damage, penetration, ricochet. */
+	void HandleImpact(const FHitResult& HitResult);
 
 	/** Apply damage to the hit actor. */
-	void ApplyDamageToActor(const FHitResult& HitResult, float Damage);
+	void ApplyDamage(AActor* HitActor, float Damage, const FHitResult& HitResult);
 
-	/** Spawn impact VFX at hit location. */
-	void SpawnImpactEffect(const FHitResult& HitResult, ESHPenetrationMaterial Material);
+	/** Spawn impact VFX and sound at the hit point. */
+	void SpawnImpactEffects(const FHitResult& HitResult);
 
-	/** Spawn a ricochet child projectile. */
-	void SpawnRicochetProjectile(const struct FSHRicochetResult& RicochetResult);
+	/** Handle explosive detonation. */
+	void Detonate(const FVector& Location);
 
-	/** Check and trigger supersonic crack for nearby players. */
-	void CheckSupersonicCracks();
+	/** Continue projectile after penetration. */
+	void ContinueAfterPenetration(const FSHBallisticHitResult& BallisticResult, const FHitResult& OriginalHit);
 
-	/** Activate or deactivate tracer visual. */
-	void SetTracerVisible(bool bVisible);
+	/** Spawn a ricochet (new trajectory for existing projectile). */
+	void ApplyRicochet(const FSHBallisticHitResult& BallisticResult, const FHitResult& OriginalHit);
 
-	/** Check if projectile has exceeded max range. */
-	bool HasExceededMaxRange() const;
+	/** Check for supersonic crack near players. */
+	void CheckSupersonicCrack();
+
+	/** Disable the projectile and schedule destroy. */
+	void DeactivateAndDestroy();
+
+	/* --- Custom Ballistic Simulation --- */
+
+	/**
+	 * We override projectile movement with our own ballistic step.
+	 * UProjectileMovementComponent is used primarily for its sweep/collision detection.
+	 * Our StepSimulation from USHBallisticsSystem drives the actual physics.
+	 */
+	void CustomBallisticTick(float DeltaTime);
+
+	/* --- State --- */
+
+	UPROPERTY()
+	FVector SimulatedVelocity = FVector::ZeroVector;
+
+	float BaseDamage = 0.0f;
+	float DamageFalloffStartCm = 0.0f;
+	float MinDamageMultiplier = 0.25f;
+	float MaxRangeCm = 0.0f;
+	float MuzzleVelocityCmS = 0.0f;
+	float DistanceTraveled = 0.0f;
+
+	FSHBallisticCoefficients BallisticCoeffs;
+
+	int32 PenetrationCount = 0;
+	int32 RicochetCount = 0;
+
+	bool bIsTracer = false;
+	bool bIsActive = true;
+
+	/** Spawn location — used to compute total distance traveled. */
+	FVector SpawnLocation = FVector::ZeroVector;
+
+	UPROPERTY()
+	TWeakObjectPtr<AActor> WeaponOwner;
+
+	/** Tracks which players have already heard the supersonic crack from this round. */
+	UPROPERTY()
+	TSet<TObjectPtr<AActor>> SupersonicCrackNotifiedActors;
+
+	/** Reference to the world ballistics subsystem. Cached on BeginPlay. */
+	UPROPERTY()
+	TObjectPtr<USHBallisticsSystem> BallisticsSystem;
+
+	/** Penetration table from the firing weapon (cached on init). */
+	TArray<FSHPenetrationEntry> PenetrationTable;
 };
