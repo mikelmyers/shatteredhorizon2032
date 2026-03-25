@@ -1,0 +1,53 @@
+{
+  "image_sourcing": {
+    "unsplash": {
+      "enabled": true,
+      "base_url": "https://api.unsplash.com",
+      "env_key": "UNSPLASH_ACCESS_KEY",
+      "results_per_query": 5,
+      "preferred_orientation": "squarish",
+      "min_resolution": [2048, 2048]
+    },
+    "pexels": {
+      "enabled": true,
+      "base_url": "https://api.pexels.com/v1",
+      "env_key": "PEXELS_API_KEY",
+      "results_per_query": 5,
+      "preferred_orientation": "square",
+      "min_resolution": [2048, 2048]
+    },
+    "earth_engine": {
+      "enabled": false,
+      "env_key": "GOOGLE_EARTH_ENGINE_KEY",
+      "note": "For satellite imagery of Taoyuan, Taiwan coordinates",
+      "coordinates": {
+        "taoyuan_beach": {"lat": 25.0, "lon": 121.2},
+        "taoyuan_city": {"lat": 24.99, "lon": 121.31}
+      }
+    }
+  },
+  "ai_generation": {
+    "stability_ai": {
+      "enabled": true,
+      "base_url": "https://api.stability.ai/v2beta",
+      "env_key": "STABILITY_API_KEY",
+      "model": "sd3.5-large",
+      "mode": "text-to-image",
+      "img2img_strength": 0.65,
+      "cfg_scale": 7.0,
+      "steps": 40,
+      "style_preset": "photographic"
+    },
+    "replicate": {
+      "enabled": false,
+      "env_key": "REPLICATE_API_TOKEN",
+      "model": "stability-ai/sdxl",
+      "img2img_strength": 0.6
+    },
+    "comfyui_local": {
+      "enabled": false,
+      "base_url": "http://127.0.0.1:8188",
+      "note": "Enable for local GPU inference — no API key needed"
+    }
+  }
+}

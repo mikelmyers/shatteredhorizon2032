@@ -1,0 +1,62 @@
+{
+  "project": "ShatteredHorizon2032",
+  "engine": "UE5.4",
+  "output_format": "PNG",
+  "texture_sizes": {
+    "terrain": [2048, 2048],
+    "props": [1024, 1024],
+    "decals": [512, 512],
+    "skybox": [4096, 2048]
+  },
+  "pbr_maps": ["albedo", "normal", "roughness", "ao", "height"],
+  "color_profile": {
+    "description": "Desaturated milsim palette — muted earth tones, low saturation, slight blue-grey cast",
+    "saturation_scale": 0.65,
+    "brightness_scale": 0.85,
+    "color_temperature_shift": -500,
+    "contrast": 1.15,
+    "tint_rgb": [0.92, 0.94, 0.97]
+  },
+  "terrain_types": [
+    {"id": "wet_sand", "search_terms": ["wet beach sand texture", "shoreline sand close up"], "ai_prompt": "wet beach sand, dark golden, footprint impressions, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "dry_sand", "search_terms": ["dry sand texture", "desert sand surface"], "ai_prompt": "dry loose sand, light tan, wind ripples, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "mud", "search_terms": ["wet mud texture", "muddy ground"], "ai_prompt": "wet churned mud, dark brown, boot prints, puddles, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "grass", "search_terms": ["tropical grass ground texture", "subtropical lawn"], "ai_prompt": "tropical grass ground cover, green with brown patches, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "dirt", "search_terms": ["packed dirt path texture", "compacted earth"], "ai_prompt": "packed brown dirt, small pebbles, dry cracks, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "concrete", "search_terms": ["concrete surface texture", "gray concrete ground"], "ai_prompt": "weathered gray concrete, hairline cracks, surface stains, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "asphalt", "search_terms": ["asphalt road texture", "tarmac surface"], "ai_prompt": "worn asphalt road surface, tar patches, small cracks, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "gravel", "search_terms": ["gravel ground texture", "loose stone path"], "ai_prompt": "loose gravel, mixed gray and brown stones, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "rock", "search_terms": ["rock surface texture", "stone cliff face"], "ai_prompt": "natural rock face, gray with lichen, layered sedimentary texture, photorealistic PBR texture, front-facing, even lighting"},
+    {"id": "shallow_water", "search_terms": ["shallow water surface", "clear water sandy bottom"], "ai_prompt": "shallow clear water over sand, light caustics, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "deep_water", "search_terms": ["ocean water surface texture", "deep water"], "ai_prompt": "deep ocean water surface, dark blue-green, wave pattern, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "rubble", "search_terms": ["concrete rubble debris texture", "building demolition rubble"], "ai_prompt": "concrete rubble and debris, broken rebar, dust, photorealistic PBR texture, top-down, even lighting"},
+    {"id": "metal", "search_terms": ["rusted metal plate texture", "corroded steel surface"], "ai_prompt": "weathered military steel plate, rust spots, scratches, photorealistic PBR texture, front-facing, even lighting"},
+    {"id": "wood", "search_terms": ["weathered wood plank texture", "old wooden surface"], "ai_prompt": "weathered wood planks, gray-brown, splinters, nail holes, photorealistic PBR texture, front-facing, even lighting"},
+    {"id": "vegetation", "search_terms": ["tropical undergrowth texture", "jungle floor plants"], "ai_prompt": "dense tropical undergrowth, ferns and fallen leaves, photorealistic PBR texture, top-down, even lighting"}
+  ],
+  "destruction_stages": [
+    {"stage": 0, "name": "Pristine", "ai_modifier": "clean, undamaged, new condition"},
+    {"stage": 1, "name": "Light", "ai_modifier": "minor surface scratches, small chips, light dust"},
+    {"stage": 2, "name": "Moderate", "ai_modifier": "visible cracks, chipped edges, moderate wear and staining"},
+    {"stage": 3, "name": "Heavy", "ai_modifier": "large cracks, broken chunks missing, heavy damage, exposed internals"},
+    {"stage": 4, "name": "Destroyed", "ai_modifier": "completely shattered, rubble, twisted remains, heavy debris and dust"}
+  ],
+  "environment_assets": [
+    {"category": "fortifications", "items": ["sandbag_wall", "concrete_barrier", "razor_wire", "foxhole", "bunker_entrance"]},
+    {"category": "urban", "items": ["apartment_wall", "shop_front", "road_divider", "traffic_light", "power_pole"]},
+    {"category": "military", "items": ["ammo_crate", "radio_equipment", "camouflage_net", "vehicle_wreckage", "fuel_drum"]},
+    {"category": "natural", "items": ["palm_tree_bark", "bamboo_stalks", "coastal_rock", "tidal_pool", "mangrove_root"]}
+  ],
+  "ue5_naming_convention": {
+    "texture_prefix": "T_",
+    "material_prefix": "M_",
+    "material_instance_prefix": "MI_",
+    "suffixes": {
+      "albedo": "_D",
+      "normal": "_N",
+      "roughness": "_R",
+      "ao": "_AO",
+      "height": "_H"
+    }
+  }
+}
