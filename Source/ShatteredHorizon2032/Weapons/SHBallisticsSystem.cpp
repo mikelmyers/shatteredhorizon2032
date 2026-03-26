@@ -64,14 +64,17 @@ void USHBallisticsSystem::StepSimulation(
 		// 1. Gravity (downward in UE Z-up)
 		const FVector GravityForce(0.0f, 0.0f, -GravityCmS2);
 
-		// 2. Aerodynamic drag
+		// 2. Aerodynamic drag (uses atmospheric density)
 		const FVector DragAccel = CalculateDragForce(Velocity, BC);
 
 		// 3. Wind
 		const FVector WindAccel = CalculateWindForce(Velocity, BC);
 
+		// 4. Coriolis effect (Earth's rotation deflects long-range shots)
+		const FVector CoriolisAccel = CalculateCoriolisAcceleration(Velocity);
+
 		// --- Integration (Velocity Verlet) ---
-		const FVector TotalAccel = GravityForce + DragAccel + WindAccel;
+		const FVector TotalAccel = GravityForce + DragAccel + WindAccel + CoriolisAccel;
 
 		// Update position: x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
 		Position += Velocity * SubDelta + 0.5f * TotalAccel * SubDelta * SubDelta;
@@ -107,8 +110,12 @@ FVector USHBallisticsSystem::CalculateDragForce(const FVector& Velocity, const F
 	// Higher BC = less drag. We use the explicit Cd from the data.
 	float Cd = BC.DragCoefficient;
 
+	// Use atmospheric-corrected air density and speed of sound.
+	const float EffectiveAirDensity = CalculateAirDensity();
+	const float EffectiveSpeedOfSound = CalculateSpeedOfSound() / 100.0f; // Convert to m/s
+
 	// Transonic drag rise (Mach 0.8 - 1.2) — increase drag coefficient
-	const float Mach = SpeedMS / (SpeedOfSoundCmS / 100.0f); // Speed of sound in m/s
+	const float Mach = SpeedMS / EffectiveSpeedOfSound;
 	if (Mach > 0.8f && Mach < 1.2f)
 	{
 		// Empirical drag rise in transonic regime
@@ -121,7 +128,7 @@ FVector USHBallisticsSystem::CalculateDragForce(const FVector& Velocity, const F
 		Cd *= (1.0f + 0.15f / FMath::Max(Mach - 1.0f, 0.01f));
 	}
 
-	const float DragForceMag = 0.5f * AirDensityKgM3 * SpeedMS * SpeedMS * Cd * AreaM2;
+	const float DragForceMag = 0.5f * EffectiveAirDensity * SpeedMS * SpeedMS * Cd * AreaM2;
 	const float DragAccelMS2 = DragForceMag / MassKg;
 
 	// Convert back to cm/s^2 and oppose velocity direction
@@ -587,4 +594,233 @@ bool USHBallisticsSystem::IsTracerRound(int32 RoundNumber, int32 TracerInterval)
 	}
 
 	return (RoundNumber % TracerInterval) == 0;
+}
+
+/* -----------------------------------------------------------------------
+ *  Multi-Surface Penetration
+ * --------------------------------------------------------------------- */
+
+bool USHBallisticsSystem::TraceWithPenetration(
+	const FVector& StartPosition,
+	const FVector& Direction,
+	float InitialVelocity,
+	float InitialDamage,
+	float MuzzleVelocityCmS,
+	const TArray<FSHPenetrationEntry>& PenetrationTable,
+	int32 MaxSurfaces,
+	float MaxTotalThicknessCm,
+	TArray<FSHBallisticHitResult>& OutHits) const
+{
+	OutHits.Empty();
+
+	UWorld* World = GetWorld();
+	if (!World || MaxSurfaces <= 0)
+	{
+		return false;
+	}
+
+	FVector CurrentPos = StartPosition;
+	FVector CurrentDir = Direction.GetSafeNormal();
+	float CurrentVelocity = InitialVelocity;
+	float CurrentDamage = InitialDamage;
+	float TotalThickness = 0.0f;
+
+	for (int32 SurfaceIdx = 0; SurfaceIdx < MaxSurfaces; ++SurfaceIdx)
+	{
+		// Minimum velocity to continue penetrating.
+		if (CurrentVelocity < 5000.0f) // ~50 m/s — round is spent
+		{
+			break;
+		}
+
+		if (CurrentDamage < 1.0f)
+		{
+			break;
+		}
+
+		// Trace forward from current position.
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(MultiPen), true);
+		Params.bReturnPhysicalMaterial = true;
+
+		const float TraceRange = 50000.0f; // 500m max per segment
+		const FVector TraceEnd = CurrentPos + CurrentDir * TraceRange;
+
+		if (!World->LineTraceSingleByChannel(Hit, CurrentPos, TraceEnd, ECC_Visibility, Params))
+		{
+			break; // Nothing hit — round continues into space.
+		}
+
+		// Classify the material hit.
+		const ESHPenetrableMaterial MatType = ClassifyMaterial(Hit);
+
+		// Find the matching penetration entry from the weapon's table.
+		const FSHPenetrationEntry* PenEntry = nullptr;
+		for (const FSHPenetrationEntry& Entry : PenetrationTable)
+		{
+			if (Entry.Material == MatType)
+			{
+				PenEntry = &Entry;
+				break;
+			}
+		}
+
+		// No penetration data for this material — round stops.
+		if (!PenEntry || PenEntry->MaxPenetrationCm <= 0.0f)
+		{
+			FSHBallisticHitResult StopResult;
+			StopResult.HitResult = Hit;
+			StopResult.ImpactVelocity = CurrentVelocity;
+			StopResult.DamageAtImpact = CurrentDamage;
+			StopResult.bPenetrated = false;
+			OutHits.Add(StopResult);
+			break;
+		}
+
+		// Evaluate penetration through this surface.
+		FSHBallisticHitResult HitResult;
+		const FVector IncomingVel = CurrentDir * CurrentVelocity;
+		const bool bContinues = EvaluateImpact(
+			Hit, IncomingVel, CurrentDamage, *PenEntry, MuzzleVelocityCmS, HitResult);
+
+		OutHits.Add(HitResult);
+
+		if (!bContinues)
+		{
+			break; // Round stopped or ricocheted (ricochet is handled separately).
+		}
+
+		if (HitResult.bRicocheted)
+		{
+			// Ricochet changes direction — continue from ricochet point.
+			CurrentPos = Hit.ImpactPoint + HitResult.RicochetDirection * 2.0f;
+			CurrentDir = HitResult.RicochetDirection;
+			CurrentVelocity = HitResult.RicochetSpeed;
+			CurrentDamage = HitResult.RicochetDamage;
+			continue;
+		}
+
+		if (HitResult.bPenetrated)
+		{
+			// Estimate thickness for total tracking.
+			// Use the exit point from the penetration evaluation.
+			const float SurfaceThickness = FMath::Max(
+				(HitResult.PostPenetrationVelocity.GetSafeNormal() != FVector::ZeroVector) ? 5.0f : 1.0f,
+				1.0f);
+			TotalThickness += SurfaceThickness;
+
+			if (TotalThickness > MaxTotalThicknessCm)
+			{
+				break; // Cumulative material exceeds penetration budget.
+			}
+
+			// Continue from the exit point with degraded velocity and damage.
+			// Move slightly past the exit to avoid re-hitting the same surface.
+			const FVector ExitDir = HitResult.PostPenetrationVelocity.GetSafeNormal();
+			CurrentPos = Hit.ImpactPoint + ExitDir * (SurfaceThickness + 5.0f);
+			CurrentDir = ExitDir;
+			CurrentVelocity = HitResult.PostPenetrationVelocity.Size();
+			CurrentDamage = HitResult.PostPenetrationDamage;
+		}
+	}
+
+	return OutHits.Num() > 0;
+}
+
+/* -----------------------------------------------------------------------
+ *  Atmospheric Conditions
+ * --------------------------------------------------------------------- */
+
+void USHBallisticsSystem::SetAtmosphericConditions(
+	float TemperatureC, float AltitudeM,
+	float PressureHPa, float Humidity, float LatitudeDeg)
+{
+	Atmosphere.TemperatureCelsius = TemperatureC;
+	Atmosphere.AltitudeMeters = AltitudeM;
+	Atmosphere.PressureHPa = PressureHPa;
+	Atmosphere.Humidity = FMath::Clamp(Humidity, 0.0f, 1.0f);
+	Atmosphere.LatitudeDeg = LatitudeDeg;
+}
+
+float USHBallisticsSystem::CalculateAirDensity() const
+{
+	// Barometric formula: ρ = (P × M) / (R × T)
+	// where P = pressure (Pa), M = molar mass of air (0.029 kg/mol),
+	// R = gas constant (8.314 J/(mol·K)), T = temperature (K)
+	//
+	// Simplified with altitude correction:
+	// ρ = ρ_0 × (1 - 0.0000226 × altitude)^5.256
+	// where ρ_0 is density at sea level adjusted for temperature
+
+	const float TempK = Atmosphere.TemperatureCelsius + 273.15f;
+	const float StandardTempK = 293.15f; // 20°C
+
+	// Temperature correction: density inversely proportional to temperature
+	float Density = AirDensityKgM3 * (StandardTempK / TempK);
+
+	// Pressure correction: density proportional to pressure
+	Density *= (Atmosphere.PressureHPa / 1013.25f);
+
+	// Altitude correction using barometric formula
+	const float AltFactor = FMath::Pow(1.0f - 0.0000226f * Atmosphere.AltitudeMeters, 5.256f);
+	Density *= AltFactor;
+
+	// Humidity correction (humid air is slightly less dense — water vapor is lighter than N2/O2)
+	// Max ~1.5% reduction at 100% humidity, 30°C
+	const float HumidityReduction = 1.0f - (Atmosphere.Humidity * 0.015f *
+		FMath::Clamp(Atmosphere.TemperatureCelsius / 30.0f, 0.0f, 1.0f));
+	Density *= HumidityReduction;
+
+	return FMath::Max(Density, 0.1f);
+}
+
+float USHBallisticsSystem::CalculateSpeedOfSound() const
+{
+	// Speed of sound in air: c = 331.3 × sqrt(1 + T/273.15) m/s
+	// where T is temperature in Celsius
+	const float SpeedMS = 331.3f * FMath::Sqrt(1.0f + Atmosphere.TemperatureCelsius / 273.15f);
+	return SpeedMS * 100.0f; // Convert to cm/s
+}
+
+/* -----------------------------------------------------------------------
+ *  Coriolis Effect
+ * --------------------------------------------------------------------- */
+
+FVector USHBallisticsSystem::CalculateCoriolisAcceleration(const FVector& Velocity) const
+{
+	// Coriolis acceleration: a_c = -2 × (Ω × v)
+	// where Ω is Earth's angular velocity vector and v is projectile velocity.
+	//
+	// Earth's angular velocity: 7.2921e-5 rad/s
+	// At latitude φ, the vertical component = Ω × sin(φ)
+	// The horizontal component = Ω × cos(φ)
+	//
+	// For a projectile traveling generally horizontally:
+	// - Vertical Coriolis (Eötvös effect) is small
+	// - Horizontal Coriolis deflects the bullet RIGHT in the Northern Hemisphere
+	//
+	// At 25°N latitude (Taiwan), firing north at 900 m/s over 1500m (~1.7s flight):
+	// Deflection ≈ 2 × Ω × sin(φ) × v × t² / 2 ≈ 10-15cm
+	// Small but real — snipers account for this.
+
+	constexpr float EarthAngularVelocity = 7.2921e-5f; // rad/s
+	const float LatRad = FMath::DegreesToRadians(Atmosphere.LatitudeDeg);
+
+	// Earth's rotation vector in local coordinates.
+	// Assuming UE world: X=North, Y=East, Z=Up (common but configurable)
+	// Ω in local frame:
+	//   Ω_z = Ω × sin(latitude)  — vertical component
+	//   Ω_x = Ω × cos(latitude)  — horizontal (northward) component
+	const FVector OmegaLocal(
+		EarthAngularVelocity * FMath::Cos(LatRad),  // North
+		0.0f,                                         // East
+		EarthAngularVelocity * FMath::Sin(LatRad)    // Up
+	);
+
+	// Coriolis acceleration: a = -2(Ω × v)
+	// Convert velocity from cm/s to m/s for the calculation, then back.
+	const FVector VelMS = Velocity / 100.0f;
+	const FVector CoriolisMS = -2.0f * FVector::CrossProduct(OmegaLocal, VelMS);
+
+	return CoriolisMS * 100.0f; // Back to cm/s²
 }

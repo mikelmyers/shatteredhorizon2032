@@ -33,15 +33,24 @@ enum class ESHDestructibleType : uint8
 	Generic			UMETA(DisplayName = "Generic")
 };
 
-/** Destruction level — how damaged an object is. */
+/**
+ * Destruction level — 10 progressive states from pristine to rubble.
+ * Each state has distinct visual representation, gameplay impact, and AI implications.
+ * This granularity ensures destruction feels continuous, not binary.
+ */
 UENUM(BlueprintType)
 enum class ESHDestructionLevel : uint8
 {
-	Pristine		UMETA(DisplayName = "Pristine"),
-	LightDamage		UMETA(DisplayName = "Light Damage"),		// Cosmetic — bullet holes, chips
-	ModerateDamage	UMETA(DisplayName = "Moderate Damage"),		// Structural but holding
-	HeavyDamage		UMETA(DisplayName = "Heavy Damage"),		// Partially collapsed
-	Destroyed		UMETA(DisplayName = "Destroyed")			// Fully fractured / gone
+	Pristine		UMETA(DisplayName = "Pristine"),                // 100% — untouched
+	Scratched		UMETA(DisplayName = "Scratched"),               // 95% — cosmetic marks, paint chipped
+	BulletHoles		UMETA(DisplayName = "Bullet Holes"),            // 85% — visible penetration marks, small holes
+	Chipped			UMETA(DisplayName = "Chipped / Cracked"),       // 75% — surface cracks, chunks missing
+	Fractured		UMETA(DisplayName = "Fractured"),               // 65% — visible fracture lines, structural stress
+	Breached		UMETA(DisplayName = "Breached"),                // 50% — hole large enough to see through (new sightline)
+	PartialCollapse	UMETA(DisplayName = "Partial Collapse"),        // 35% — section fallen, traversable debris pile
+	HeavyDamage		UMETA(DisplayName = "Heavy Damage"),            // 20% — most structure gone, some walls standing
+	Skeleton		UMETA(DisplayName = "Skeleton"),                // 10% — only structural frame remains
+	Destroyed		UMETA(DisplayName = "Destroyed / Rubble")       // 0% — fully collapsed, rubble pile only
 };
 
 /** Registered destructible actor with tracked state. */
@@ -87,6 +96,36 @@ struct FSHDestructibleState
 
 	/** World time when this was last damaged. */
 	float LastDamageTime = 0.f;
+
+	/** Number of bullet hits received (drives decal/hole placement). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int32 BulletHitCount = 0;
+
+	/** Number of explosive hits received. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int32 ExplosiveHitCount = 0;
+
+	/** Localized damage map — tracks damage concentration per surface region.
+	 *  Key: region index (octant), Value: accumulated damage in that region.
+	 *  When a region exceeds threshold, it creates a breach (new sightline). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TMap<int32, float> RegionalDamage;
+
+	/** Whether this object has a breach (hole large enough for sightlines/traversal). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	bool bHasBreach = false;
+
+	/** Breach location in local space (for AI pathfinding and sightline checks). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	FVector BreachLocationLocal = FVector::ZeroVector;
+
+	/** Lean/sag angle in degrees. Structures under stress lean before collapsing. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	float LeanAngleDeg = 0.0f;
+
+	/** Maximum lean before collapse. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxLeanBeforeCollapse = 8.0f;
 
 	float GetHealthFraction() const { return (MaxHealth > 0.f) ? CurrentHealth / MaxHealth : 0.f; }
 };
