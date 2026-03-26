@@ -15,6 +15,11 @@
 				"MassEntity",
 				"Niagara"
 			]
+		},
+		{
+			"Name": "ShatteredHorizon2032Tests",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
