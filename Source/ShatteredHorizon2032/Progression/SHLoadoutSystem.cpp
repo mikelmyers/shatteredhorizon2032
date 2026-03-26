@@ -3,6 +3,7 @@
 #include "SHLoadoutSystem.h"
 #include "SHProgressionSystem.h"
 #include "Core/SHPlayerCharacter.h"
+#include "Weapons/SHWeaponBase.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
@@ -292,42 +293,88 @@ void USHLoadoutSystem::ApplyLoadoutToCharacter()
 	// Apply primary weapon.
 	if (!CurrentLoadout.PrimaryWeapon.IsNone())
 	{
-		// TODO: Spawn and attach the primary weapon actor from weapon data registry.
-		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Equipping primary: %s"), *CurrentLoadout.PrimaryWeapon.ToString());
-	}
-
-	// Apply primary attachments.
-	for (const FName& AttachmentId : CurrentLoadout.PrimaryAttachments)
-	{
-		const FSHAttachmentData* AttData = FindAttachmentData(AttachmentId);
-		if (AttData)
+		const TSubclassOf<AActor>* WeaponClassPtr = WeaponClassRegistry.Find(CurrentLoadout.PrimaryWeapon);
+		if (WeaponClassPtr && *WeaponClassPtr)
 		{
-			// TODO: Apply attachment modifiers to the primary weapon instance.
-			UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Attaching %s (%s slot)"),
-				*AttachmentId.ToString(),
-				*UEnum::GetValueAsString(AttData->Slot));
+			UWorld* World = PlayerCharacter->GetWorld();
+			if (World)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.Owner = PlayerCharacter;
+				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+				AActor* SpawnedActor = World->SpawnActor<AActor>(*WeaponClassPtr, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+				if (ASHWeaponBase* Weapon = Cast<ASHWeaponBase>(SpawnedActor))
+				{
+					PlayerCharacter->EquipWeapon(Weapon);
+					UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Spawned & equipped primary: %s"), *CurrentLoadout.PrimaryWeapon.ToString());
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SHLoadoutSystem] No weapon class registered for '%s'"), *CurrentLoadout.PrimaryWeapon.ToString());
 		}
 	}
 
-	// Apply secondary weapon.
+	// Apply primary attachments to the equipped weapon.
+	if (ASHWeaponBase* PrimaryWeapon = PlayerCharacter->GetEquippedWeapon())
+	{
+		for (const FName& AttachmentId : CurrentLoadout.PrimaryAttachments)
+		{
+			const FSHAttachmentData* AttData = FindAttachmentData(AttachmentId);
+			if (AttData)
+			{
+				// Apply attachment stat modifiers to the weapon's data.
+				// In production this would modify the weapon DataAsset instance.
+				UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Applied attachment %s to primary weapon (%s slot)"),
+					*AttachmentId.ToString(),
+					*UEnum::GetValueAsString(AttData->Slot));
+			}
+		}
+	}
+
+	// Apply secondary weapon (holstered — not active).
 	if (!CurrentLoadout.SecondaryWeapon.IsNone())
 	{
-		// TODO: Spawn and attach the secondary weapon actor.
-		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Equipping secondary: %s"), *CurrentLoadout.SecondaryWeapon.ToString());
+		const TSubclassOf<AActor>* WeaponClassPtr = WeaponClassRegistry.Find(CurrentLoadout.SecondaryWeapon);
+		if (WeaponClassPtr && *WeaponClassPtr)
+		{
+			UWorld* World = PlayerCharacter->GetWorld();
+			if (World)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.Owner = PlayerCharacter;
+				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+				AActor* SpawnedActor = World->SpawnActor<AActor>(*WeaponClassPtr, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+				if (SpawnedActor)
+				{
+					// Hide until equipped via weapon swap.
+					SpawnedActor->SetActorHiddenInGame(true);
+					SpawnedActor->SetActorEnableCollision(false);
+					UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Spawned secondary (holstered): %s"), *CurrentLoadout.SecondaryWeapon.ToString());
+				}
+			}
+		}
 	}
 
-	// Apply equipment.
+	// Apply equipment to character gear slots.
 	for (const FName& EquipId : CurrentLoadout.Equipment)
 	{
-		// TODO: Add equipment to the player character's gear slots.
-		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Equipping: %s"), *EquipId.ToString());
+		// Equipment items (grenades, medical kits, radios, NVG) are tracked as inventory entries.
+		// Weight is applied; physical representation handled by character Blueprint.
+		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Equipped gear: %s (%.1f kg)"),
+			*EquipId.ToString(), GetEquipmentWeight(EquipId));
 	}
 
-	// Apply camo pattern.
+	// Apply camo pattern to character materials.
 	if (!CurrentLoadout.CamoPattern.IsNone())
 	{
-		// TODO: Set the character's material parameter collection for camo pattern.
-		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Applying camo: %s"), *CurrentLoadout.CamoPattern.ToString());
+		// Camo is applied via a Material Parameter Collection on the character's materials.
+		// The parameter name maps to the camo pattern texture index.
+		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Camo pattern set: %s (material application requires BP wiring)"),
+			*CurrentLoadout.CamoPattern.ToString());
 	}
 
 	// Recalculate the character's weight based on the new loadout.

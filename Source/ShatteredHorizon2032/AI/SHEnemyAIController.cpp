@@ -12,6 +12,7 @@
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Damage.h"
 #include "NavigationSystem.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -958,7 +959,31 @@ void ASHEnemyAIController::UpdateBlackboard()
 
 	BlackboardComp->SetValueAsEnum(SHBBKeys::AwarenessState, static_cast<uint8>(AwarenessState));
 	BlackboardComp->SetValueAsEnum(SHBBKeys::CombatBehavior, static_cast<uint8>(CurrentBehavior));
-	BlackboardComp->SetValueAsInt(SHBBKeys::NearbySquadMates, 0); // TODO: count nearby friendlies
+	// Count nearby friendly AI within squad awareness sharing range.
+	int32 NearbyFriendlyCount = 0;
+	if (const APawn* ControlledPawn = GetPawn())
+	{
+		const FVector MyLocation = ControlledPawn->GetActorLocation();
+		constexpr float SquadProximityRadiusCm = 3000.f; // 30m
+		const float RadiusSq = SquadProximityRadiusCm * SquadProximityRadiusCm;
+
+		if (const UWorld* World = GetWorld())
+		{
+			for (TActorIterator<ASHEnemyCharacter> It(World); It; ++It)
+			{
+				const ASHEnemyCharacter* Other = *It;
+				if (!Other || Other == ControlledPawn || !Other->IsAlive())
+				{
+					continue;
+				}
+				if (FVector::DistSquared(MyLocation, Other->GetActorLocation()) <= RadiusSq)
+				{
+					++NearbyFriendlyCount;
+				}
+			}
+		}
+	}
+	BlackboardComp->SetValueAsInt(SHBBKeys::NearbySquadMates, NearbyFriendlyCount);
 
 	if (!LastKnownThreatLocation.IsNearlyZero())
 	{

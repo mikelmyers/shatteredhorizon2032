@@ -2,6 +2,7 @@
 
 #include "SHPlayerController.h"
 #include "SHPlayerCharacter.h"
+#include "SHInteractable.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/World.h"
@@ -284,9 +285,18 @@ void ASHPlayerController::TryInteract()
 	FHitResult Hit;
 	if (PerformInteractionTrace(Hit) && Hit.GetActor())
 	{
-		// Check if the hit actor implements an interaction interface.
-		// TODO: Cast to ISHInteractable and call Interact().
-		UE_LOG(LogTemp, Log, TEXT("[SHPlayerController] Interact with: %s"), *Hit.GetActor()->GetName());
+		AActor* HitActor = Hit.GetActor();
+
+		// Check if the hit actor implements the interaction interface.
+		if (HitActor->GetClass()->ImplementsInterface(USHInteractable::StaticClass()))
+		{
+			if (ISHInteractable::Execute_CanInteract(HitActor, this))
+			{
+				const bool bConsumed = ISHInteractable::Execute_Interact(HitActor, this);
+				UE_LOG(LogTemp, Log, TEXT("[SHPlayerController] Interact with: %s (consumed: %s)"),
+					*HitActor->GetName(), bConsumed ? TEXT("true") : TEXT("false"));
+			}
+		}
 	}
 }
 

@@ -2,6 +2,8 @@
 
 #include "SHPlayerCharacter.h"
 #include "SHCameraSystem.h"
+#include "Weapons/SHWeaponBase.h"
+#include "Weapons/SHWeaponData.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -124,10 +126,29 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		CamCtx.Suppression = SuppressionLevel;
 		CamCtx.Fatigue = FatigueSystem ? (1.f - FatigueSystem->GetStaminaPercent()) : 0.f;
 		CamCtx.HipFOV = 90.f;
-		// TODO: Read ADS FOV from equipped weapon data when weapon system is wired.
-		CamCtx.ADSFOV = 55.f;
-		CamCtx.ADSTransitionTime = 0.2f;
+		if (EquippedWeapon && EquippedWeapon->WeaponData)
+		{
+			CamCtx.ADSFOV = EquippedWeapon->WeaponData->ADSFOV;
+			CamCtx.ADSTransitionTime = EquippedWeapon->WeaponData->ADSTransitionTime;
+		}
+		else
+		{
+			CamCtx.ADSFOV = 55.f;
+			CamCtx.ADSTransitionTime = 0.2f;
+		}
 		CameraSystem->SetCameraContext(CamCtx);
+	}
+
+	// --- Feed weapon system with current character state ---
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->SetStance(CurrentStance);
+		EquippedWeapon->SetSuppressionLevel(SuppressionLevel);
+		EquippedWeapon->SetIsMoving(GetVelocity().Size2D() > 10.f);
+		if (FatigueSystem)
+		{
+			EquippedWeapon->SetFatigueLevel(1.f - FatigueSystem->GetStaminaPercent());
+		}
 	}
 
 	// Apply dynamic movement speed based on stance, weight, injuries.
@@ -470,6 +491,44 @@ void ASHPlayerCharacter::SetLeanState(ESHLeanState InLeanState)
 }
 
 // =======================================================================
+//  Weapon management
+// =======================================================================
+
+void ASHPlayerCharacter::EquipWeapon(ASHWeaponBase* Weapon)
+{
+	if (Weapon == EquippedWeapon)
+	{
+		return;
+	}
+
+	// Detach previous weapon.
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->StopFire();
+		EquippedWeapon->StopADS();
+		EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
+
+	EquippedWeapon = Weapon;
+
+	if (EquippedWeapon)
+	{
+		// Attach to first-person arms weapon socket.
+		if (FirstPersonArms)
+		{
+			EquippedWeapon->AttachToComponent(FirstPersonArms, FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName(TEXT("WeaponSocket")));
+		}
+
+		EquippedWeapon->SetOwner(this);
+		EquippedWeapon->SetStance(CurrentStance);
+		RecalculateWeight();
+
+		UE_LOG(LogTemp, Log, TEXT("[SHPlayerCharacter] Equipped weapon: %s"),
+			EquippedWeapon->WeaponData ? *EquippedWeapon->WeaponData->GetName() : TEXT("Unknown"));
+	}
+}
+
+// =======================================================================
 //  Combat
 // =======================================================================
 
@@ -481,12 +540,19 @@ void ASHPlayerCharacter::StartFire()
 	}
 
 	bIsFiring = true;
-	// TODO: Interface with weapon component to fire.
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->StartFire();
+	}
 }
 
 void ASHPlayerCharacter::StopFire()
 {
 	bIsFiring = false;
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->StopFire();
+	}
 }
 
 void ASHPlayerCharacter::StartADS()
@@ -497,12 +563,19 @@ void ASHPlayerCharacter::StartADS()
 	}
 
 	bIsADS = true;
-	// TODO: Adjust camera FOV and apply weapon ADS offset.
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->StartADS();
+	}
 }
 
 void ASHPlayerCharacter::StopADS()
 {
 	bIsADS = false;
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->StopADS();
+	}
 }
 
 void ASHPlayerCharacter::Reload()
@@ -512,8 +585,10 @@ void ASHPlayerCharacter::Reload()
 		return;
 	}
 
-	// TODO: Interface with weapon component to reload.
-	UE_LOG(LogTemp, Log, TEXT("[SHPlayerCharacter] Reload requested"));
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->StartReload();
+	}
 }
 
 void ASHPlayerCharacter::EquipSlot(int32 SlotIndex)
@@ -575,17 +650,33 @@ void ASHPlayerCharacter::AddSuppression(float Amount)
 
 void ASHPlayerCharacter::RecalculateWeight()
 {
-	// Base weight: body armor + helmet + basic gear.
+	// Base weight: body armor + helmet + basic gear (plate carrier, radio, NVG, hydration).
 	CurrentWeight = 12.f;
 
-	// TODO: Sum actual equipped item weights from the inventory system.
-	// Placeholder estimates per slot:
-	// Primary weapon: ~4-5 kg, Sidearm: ~1 kg, Grenades: ~0.5 kg each,
-	// Gear varies. For now, use a fixed estimate.
-	CurrentWeight += 4.5f; // primary
-	CurrentWeight += 1.2f; // sidearm
-	CurrentWeight += 1.5f; // grenades (3x)
-	CurrentWeight += 3.0f; // other gear (radio, NVG, etc.)
+	// Primary weapon weight from equipped weapon data.
+	if (EquippedWeapon && EquippedWeapon->WeaponData)
+	{
+		CurrentWeight += EquippedWeapon->WeaponData->WeightKg;
+
+		// Estimate loaded magazine weight: mag capacity × bullet mass (grams → kg).
+		const float MagWeightKg = EquippedWeapon->WeaponData->MagazineCapacity
+			* EquippedWeapon->WeaponData->Ballistics.BulletMassGrams * 0.001f;
+
+		// Reserve ammo weight: total reserve rounds.
+		const float ReserveWeightKg = EquippedWeapon->GetReserveAmmo()
+			* EquippedWeapon->WeaponData->Ballistics.BulletMassGrams * 0.001f;
+
+		CurrentWeight += MagWeightKg + ReserveWeightKg;
+	}
+	else
+	{
+		CurrentWeight += 4.5f; // fallback primary estimate
+	}
+
+	// Standard loadout additions (sidearm, grenades, gear).
+	CurrentWeight += 1.2f; // sidearm (M17 SIG)
+	CurrentWeight += 1.5f; // grenades (3× M67 at ~0.5 kg each)
+	CurrentWeight += 3.0f; // other gear (medical, radio battery, NVG battery, water)
 }
 
 // =======================================================================

@@ -9,6 +9,8 @@
 class ASHGameState;
 class ASHPlayerController;
 class ASHPlayerCharacter;
+class ASHEnemyCharacter;
+class USHPrimordiaDecisionEngine;
 
 /** Mission phases representing the arc of the Taoyuan Beach defense. */
 UENUM(BlueprintType)
@@ -250,4 +252,15 @@ private:
 	/** Cached pointer to the authoritative game state. */
 	UPROPERTY()
 	TObjectPtr<ASHGameState> SHGameState = nullptr;
+
+	/** Enemy character class to spawn for infantry. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Spawning")
+	TSubclassOf<AActor> EnemyCharacterClass;
+
+	/** Primordia decision engine instance for tactical order assignment. */
+	UPROPERTY()
+	TObjectPtr<USHPrimordiaDecisionEngine> PrimordiaDecisionEngine = nullptr;
+
+	/** Auto-incrementing squad ID for Primordia registration. */
+	int32 NextSquadId = 1;
 };
