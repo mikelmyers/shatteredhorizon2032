@@ -4,18 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "Combat/SHMoraleSystem.h"
 #include "SHPlayerState.generated.h"
 
-/** Morale state affecting gameplay behavior and UI. */
-UENUM(BlueprintType)
-enum class ESHMoraleState : uint8
-{
-	Resolute    UMETA(DisplayName = "Resolute"),     // peak performance
-	Steady      UMETA(DisplayName = "Steady"),       // normal
-	Shaken      UMETA(DisplayName = "Shaken"),       // minor penalties
-	Breaking    UMETA(DisplayName = "Breaking"),     // significant penalties
-	Routed      UMETA(DisplayName = "Routed")        // severe impairment
-};
+// ESHMoraleState is defined in Combat/SHMoraleSystem.h (authoritative source)
 
 /** Ammo state for a single weapon type. */
 USTRUCT(BlueprintType)

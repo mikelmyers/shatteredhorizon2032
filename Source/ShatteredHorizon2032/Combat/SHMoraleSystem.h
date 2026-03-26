@@ -13,7 +13,11 @@ class USHFatigueSystem;
 //  Enums
 // ─────────────────────────────────────────────────────────────
 
-/** Morale state brackets. */
+/**
+ * Morale state brackets — authoritative definition.
+ * Used by: SHMoraleSystem, SHEnemyCharacter, SHPlayerState.
+ * DO NOT duplicate this enum elsewhere.
+ */
 UENUM(BlueprintType)
 enum class ESHMoraleState : uint8
 {
@@ -21,7 +25,8 @@ enum class ESHMoraleState : uint8
 	Steady		UMETA(DisplayName = "Steady"),
 	Shaken		UMETA(DisplayName = "Shaken"),
 	Breaking	UMETA(DisplayName = "Breaking"),
-	Routed		UMETA(DisplayName = "Routed")
+	Routed		UMETA(DisplayName = "Routed"),
+	Surrendered	UMETA(DisplayName = "Surrendered")
 };
 
 /** Events that can modify morale. */
@@ -169,10 +174,13 @@ public:
 	ESHMoraleState GetMoraleState() const { return CurrentState; }
 
 	UFUNCTION(BlueprintPure, Category = "SH|Morale")
-	bool IsBroken() const { return CurrentState == ESHMoraleState::Breaking || CurrentState == ESHMoraleState::Routed; }
+	bool IsBroken() const { return CurrentState == ESHMoraleState::Breaking || CurrentState == ESHMoraleState::Routed || CurrentState == ESHMoraleState::Surrendered; }
 
 	UFUNCTION(BlueprintPure, Category = "SH|Morale")
 	bool IsRouted() const { return CurrentState == ESHMoraleState::Routed; }
+
+	UFUNCTION(BlueprintPure, Category = "SH|Morale")
+	bool HasSurrendered() const { return CurrentState == ESHMoraleState::Surrendered; }
 
 	/** Whether this component belongs to a player-controlled character. */
 	UFUNCTION(BlueprintPure, Category = "SH|Morale")

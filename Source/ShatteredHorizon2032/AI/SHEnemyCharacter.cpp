@@ -196,7 +196,7 @@ void ASHEnemyCharacter::EvaluateMoraleState()
 
 	if (Morale >= 0.7f)
 	{
-		NewState = ESHMoraleState::Confident;
+		NewState = ESHMoraleState::Determined;
 	}
 	else if (Morale >= 0.5f)
 	{
@@ -212,7 +212,7 @@ void ASHEnemyCharacter::EvaluateMoraleState()
 	}
 	else
 	{
-		NewState = ESHMoraleState::Broken;
+		NewState = ESHMoraleState::Routed;
 	}
 
 	if (NewState != MoraleState)
@@ -221,7 +221,7 @@ void ASHEnemyCharacter::EvaluateMoraleState()
 		OnMoraleChanged.Broadcast(this, MoraleState);
 
 		// Auto-voice lines on morale transitions.
-		if (MoraleState == ESHMoraleState::Broken)
+		if (MoraleState == ESHMoraleState::Routed)
 		{
 			PlayVoiceLine(ESHVoiceLineContext::Retreating);
 		}
@@ -232,7 +232,7 @@ void ASHEnemyCharacter::EvaluateMoraleState()
 	}
 
 	// Automatic surrender check when deeply broken.
-	if (MoraleState == ESHMoraleState::Broken && IsHeavilySuppressed() && NearbySquadMateCount == 0)
+	if (MoraleState == ESHMoraleState::Routed && IsHeavilySuppressed() && NearbySquadMateCount == 0)
 	{
 		// Stochastic surrender — 2% chance per second.
 		if (FMath::FRand() < 0.02f * GetWorld()->GetDeltaSeconds())
