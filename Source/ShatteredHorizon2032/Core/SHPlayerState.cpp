@@ -176,7 +176,7 @@ void ASHPlayerState::UpdateMoraleState()
 {
 	if (MoraleValue >= 90.f)
 	{
-		MoraleState = ESHMoraleState::Resolute;
+		MoraleState = ESHMoraleState::Determined;
 	}
 	else if (MoraleValue >= 60.f)
 	{

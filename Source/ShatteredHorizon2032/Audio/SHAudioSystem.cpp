@@ -413,3 +413,131 @@ void USHAudioSystem::TickMixBusLevels(float DeltaSeconds)
 		DialogueAudioSubmix->SetSubmixOutputVolume(DialogueGain);
 	}
 }
+
+// =====================================================================
+//  Crack-Thump propagation
+// =====================================================================
+
+void USHAudioSystem::PlayCrackThump(
+	const FVector& MuzzleLocation,
+	const FVector& BulletPassLocation,
+	float ProjectileSpeed,
+	USoundBase* MuzzleSound,
+	USoundBase* CrackSound,
+	bool bIsSuppressed)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const FVector ListenerPos = GetListenerPosition();
+	const bool bIsSuperSonic = ProjectileSpeed > SpeedOfSoundCmS;
+
+	// ---------------------------------------------------------------
+	// STEP 1: Supersonic crack — arrives FIRST at bullet pass point
+	// ---------------------------------------------------------------
+	// The crack is the shock wave from the bullet breaking the sound
+	// barrier. It's heard at the point of closest approach, nearly
+	// instantaneously (it travels with the bullet, ahead of the sound).
+
+	if (bIsSuperSonic && CrackSound)
+	{
+		// Play crack at the bullet's closest approach to the listener.
+		// Slight delay based on distance from pass point to listener ears.
+		const float CrackDistanceCm = FVector::Dist(BulletPassLocation, ListenerPos);
+		// Crack propagates outward from the Mach cone at the speed of sound.
+		const float CrackDelay = CrackDistanceCm / SpeedOfSoundCmS;
+
+		if (CrackDelay < 0.01f)
+		{
+			// Very close — play immediately.
+			const float DopplerPitch = ComputeDopplerPitchShift(
+				BulletPassLocation, FVector::ForwardVector * ProjectileSpeed, ListenerPos);
+
+			UGameplayStatics::PlaySoundAtLocation(
+				World, CrackSound, BulletPassLocation,
+				1.0f, DopplerPitch, 0.0f);
+		}
+		else
+		{
+			// Schedule the crack with a small propagation delay.
+			FTimerHandle CrackTimer;
+			FTimerDelegate CrackDelegate;
+			CrackDelegate.BindLambda([World, CrackSound, BulletPassLocation, ProjectileSpeed, this, ListenerPos]()
+			{
+				const float DopplerPitch = ComputeDopplerPitchShift(
+					BulletPassLocation, FVector::ForwardVector * ProjectileSpeed, ListenerPos);
+				UGameplayStatics::PlaySoundAtLocation(
+					World, CrackSound, BulletPassLocation,
+					1.0f, DopplerPitch, 0.0f);
+			});
+			World->GetTimerManager().SetTimer(CrackTimer, CrackDelegate, CrackDelay, false);
+		}
+	}
+
+	// ---------------------------------------------------------------
+	// STEP 2: Muzzle thump — arrives SECOND, delayed by distance
+	// ---------------------------------------------------------------
+	// The muzzle report travels at the speed of sound from the weapon.
+	// The delay = distance from muzzle to listener / speed of sound.
+	// This delay is what tells the listener HOW FAR the shooter is.
+
+	if (MuzzleSound)
+	{
+		const float MuzzleDistanceCm = FVector::Dist(MuzzleLocation, ListenerPos);
+		const float ThumpDelay = MuzzleDistanceCm / SpeedOfSoundCmS;
+
+		// Suppressed weapons: greatly reduced volume.
+		const float Volume = bIsSuppressed ? 0.15f : 1.0f;
+
+		// Distant muzzle reports are attenuated and shifted (lower freq arrives).
+		const float DistanceFraction = FMath::Clamp(MuzzleDistanceCm / 100000.f, 0.0f, 1.0f);
+		const float DistancePitch = FMath::Lerp(1.0f, 0.85f, DistanceFraction); // Lower pitch at distance
+
+		if (ThumpDelay < 0.02f)
+		{
+			// Point-blank — crack and thump are simultaneous.
+			UGameplayStatics::PlaySoundAtLocation(
+				World, MuzzleSound, MuzzleLocation,
+				Volume, DistancePitch, 0.0f);
+		}
+		else
+		{
+			// Schedule the thump with propagation delay.
+			FTimerHandle ThumpTimer;
+			FTimerDelegate ThumpDelegate;
+			ThumpDelegate.BindLambda([World, MuzzleSound, MuzzleLocation, Volume, DistancePitch]()
+			{
+				UGameplayStatics::PlaySoundAtLocation(
+					World, MuzzleSound, MuzzleLocation,
+					Volume, DistancePitch, 0.0f);
+			});
+			World->GetTimerManager().SetTimer(ThumpTimer, ThumpDelegate, ThumpDelay, false);
+		}
+	}
+}
+
+float USHAudioSystem::ComputeCrackThumpDelay(
+	const FVector& MuzzleLocation,
+	const FVector& ListenerPosition,
+	float ProjectileSpeed)
+{
+	// If the projectile is subsonic, there's no crack — only the thump.
+	if (ProjectileSpeed <= SpeedOfSoundCmS)
+	{
+		return 0.0f;
+	}
+
+	// The thump delay is the time for sound to travel from muzzle to listener.
+	const float MuzzleDistCm = FVector::Dist(MuzzleLocation, ListenerPosition);
+	const float ThumpArrival = MuzzleDistCm / SpeedOfSoundCmS;
+
+	// The crack arrives nearly instantly (it's part of the bullet's shock wave).
+	// More precisely, the crack propagates from the Mach cone, but for gameplay
+	// purposes, we model it as arriving with minimal delay from the pass point.
+	// The meaningful delay is between crack and thump.
+
+	return ThumpArrival;
+}

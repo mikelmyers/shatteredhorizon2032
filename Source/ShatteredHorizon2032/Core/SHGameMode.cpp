@@ -5,7 +5,10 @@
 #include "SHPlayerController.h"
 #include "SHPlayerCharacter.h"
 #include "SHPlayerState.h"
+#include "AI/SHEnemyCharacter.h"
+#include "AI/Primordia/SHPrimordiaDecisionEngine.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -234,7 +237,122 @@ void ASHGameMode::ExecuteWaveSpawn(const FSHReinforcementWave& Wave)
 		SHGameState->AddBattleIntensity(FMath::Clamp(IntensityBump, 0.f, 0.3f));
 	}
 
-	// TODO: Interface with AI spawning subsystem to actually instantiate units at the spawn zone.
+	// Spawn infantry squads at tagged spawn points.
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// Find spawn points tagged with the wave's spawn zone.
+	TArray<AActor*> SpawnPoints;
+	UGameplayStatics::GetAllActorsWithTag(World, Wave.SpawnZoneTag, SpawnPoints);
+
+	if (SpawnPoints.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHGameMode] No spawn points found with tag '%s'. Cannot spawn wave."),
+			*Wave.SpawnZoneTag.ToString());
+		return;
+	}
+
+	// Spawn infantry in squads of 6 (doctrine PLA squad size).
+	const int32 SquadSize = 6;
+	const int32 SquadCount = FMath::CeilToInt(static_cast<float>(Wave.InfantryCount) / SquadSize);
+	TArray<int32> NewSquadIds;
+
+	for (int32 SquadIdx = 0; SquadIdx < SquadCount; ++SquadIdx)
+	{
+		const int32 MembersInThisSquad = FMath::Min(SquadSize, Wave.InfantryCount - (SquadIdx * SquadSize));
+		const AActor* SpawnOrigin = SpawnPoints[SquadIdx % SpawnPoints.Num()];
+		const FVector BaseLocation = SpawnOrigin->GetActorLocation();
+
+		for (int32 MemberIdx = 0; MemberIdx < MembersInThisSquad; ++MemberIdx)
+		{
+			// Offset each member within the squad formation (spread ~200cm apart).
+			const float AngleRad = (2.0f * PI * MemberIdx) / MembersInThisSquad;
+			const FVector Offset(FMath::Cos(AngleRad) * 200.0f, FMath::Sin(AngleRad) * 200.0f, 0.0f);
+			const FVector SpawnLocation = BaseLocation + Offset;
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			// Spawn the enemy character. The actual class is set via DefaultPawnClass
+			// or a data-driven class reference. For now, use the EnemyCharacterClass.
+			AActor* SpawnedEnemy = World->SpawnActor<AActor>(
+				EnemyCharacterClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+
+			if (SpawnedEnemy)
+			{
+				SpawnedEnemy->Tags.Add(Wave.SpawnZoneTag);
+			}
+		}
+
+		// Register squad with Primordia Decision Engine if available.
+		const int32 SquadId = NextSquadId++;
+		NewSquadIds.Add(SquadId);
+
+		UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Spawned squad %d (%d members) at %s"),
+			SquadId, MembersInThisSquad, *BaseLocation.ToString());
+	}
+
+	// Notify Primordia Decision Engine of new squads.
+	if (PrimordiaDecisionEngine)
+	{
+		for (int32 SquadId : NewSquadIds)
+		{
+			PrimordiaDecisionEngine->RegisterSquad(SquadId, SquadSize, false);
+		}
+		PrimordiaDecisionEngine->OnReinforcementWaveSpawned(NewSquadIds);
+	}
+
+	// Spawn armored vehicles at the same spawn zone.
+	if (Wave.ArmorCount > 0 && ArmorVehicleClass && SpawnPoints.Num() > 0)
+	{
+		for (int32 VIdx = 0; VIdx < Wave.ArmorCount; ++VIdx)
+		{
+			const AActor* SpawnOrigin = SpawnPoints[VIdx % SpawnPoints.Num()];
+			// Offset vehicles laterally so they don't stack on infantry.
+			const FVector VehicleOffset(0.0f, (VIdx + 1) * 600.0f, 0.0f);
+			const FVector VehicleLocation = SpawnOrigin->GetActorLocation() + VehicleOffset;
+
+			FActorSpawnParameters VSpawnParams;
+			VSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			AActor* SpawnedVehicle = World->SpawnActor<AActor>(
+				ArmorVehicleClass, VehicleLocation, FRotator::ZeroRotator, VSpawnParams);
+
+			if (SpawnedVehicle)
+			{
+				SpawnedVehicle->Tags.Add(Wave.SpawnZoneTag);
+				UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Spawned armor vehicle %d at %s"),
+					VIdx, *VehicleLocation.ToString());
+			}
+		}
+	}
+
+	// Spawn amphibious vehicles.
+	if (Wave.AmphibiousCount > 0 && AmphibiousVehicleClass && SpawnPoints.Num() > 0)
+	{
+		for (int32 AIdx = 0; AIdx < Wave.AmphibiousCount; ++AIdx)
+		{
+			const AActor* SpawnOrigin = SpawnPoints[AIdx % SpawnPoints.Num()];
+			const FVector AmphibOffset(0.0f, -(AIdx + 1) * 800.0f, 0.0f);
+			const FVector AmphibLocation = SpawnOrigin->GetActorLocation() + AmphibOffset;
+
+			FActorSpawnParameters ASpawnParams;
+			ASpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			AActor* SpawnedAmphib = World->SpawnActor<AActor>(
+				AmphibiousVehicleClass, AmphibLocation, FRotator::ZeroRotator, ASpawnParams);
+
+			if (SpawnedAmphib)
+			{
+				SpawnedAmphib->Tags.Add(Wave.SpawnZoneTag);
+				UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Spawned amphibious vehicle %d at %s"),
+					AIdx, *AmphibLocation.ToString());
+			}
+		}
+	}
 }
 
 // =======================================================================

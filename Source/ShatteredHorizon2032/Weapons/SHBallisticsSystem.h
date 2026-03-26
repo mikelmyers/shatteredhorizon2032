@@ -323,9 +323,95 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Ballistics|Tracers")
 	static bool IsTracerRound(int32 RoundNumber, int32 TracerInterval);
 
+	/* --- Multi-Surface Penetration --- */
+
+	/**
+	 * Trace a projectile through multiple surfaces (chained penetration).
+	 * A bullet passing through drywall → air gap → drywall processes each
+	 * surface independently, losing velocity and damage at each layer.
+	 *
+	 * @param StartPosition          Entry position of the trace.
+	 * @param Direction              Normalized flight direction.
+	 * @param InitialVelocity        Speed at entry (cm/s).
+	 * @param InitialDamage          Damage at entry.
+	 * @param MuzzleVelocityCmS      Original muzzle velocity for scaling.
+	 * @param PenetrationTable       Weapon's material penetration table.
+	 * @param MaxSurfaces            Maximum number of surfaces to penetrate.
+	 * @param MaxTotalThicknessCm    Maximum cumulative material thickness.
+	 * @param OutHits                Array of all hit results including penetrations.
+	 * @return Final position and velocity after all penetrations.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ballistics|Penetration")
+	bool TraceWithPenetration(
+		const FVector& StartPosition,
+		const FVector& Direction,
+		float InitialVelocity,
+		float InitialDamage,
+		float MuzzleVelocityCmS,
+		const TArray<FSHPenetrationEntry>& PenetrationTable,
+		int32 MaxSurfaces,
+		float MaxTotalThicknessCm,
+		TArray<FSHBallisticHitResult>& OutHits) const;
+
+	/* --- Atmospheric Corrections --- */
+
+	/**
+	 * Environmental conditions affecting ballistic flight.
+	 */
+	struct FSHAtmosphericConditions
+	{
+		/** Temperature in Celsius (affects air density and speed of sound). */
+		float TemperatureCelsius = 20.0f;
+
+		/** Altitude above sea level in meters (affects air density). */
+		float AltitudeMeters = 0.0f;
+
+		/** Barometric pressure in hPa (standard = 1013.25). */
+		float PressureHPa = 1013.25f;
+
+		/** Relative humidity 0-1 (affects air density slightly). */
+		float Humidity = 0.5f;
+
+		/** Latitude in degrees (for Coriolis calculation). */
+		float LatitudeDeg = 25.0f; // Taoyuan, Taiwan ≈ 25°N
+	};
+
+	/**
+	 * Set the atmospheric conditions for ballistic calculations.
+	 * Affects air density (drag), speed of sound, and Coriolis deflection.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ballistics|Atmosphere")
+	void SetAtmosphericConditions(float TemperatureC, float AltitudeM,
+		float PressureHPa, float Humidity, float LatitudeDeg);
+
+	/**
+	 * Calculate Coriolis acceleration for a projectile.
+	 * At 1500m range, Coriolis deflects ~10cm at 25° latitude.
+	 * Snipers must account for this.
+	 *
+	 * @param Velocity    Current projectile velocity (cm/s).
+	 * @return Coriolis acceleration vector (cm/s²).
+	 */
+	FVector CalculateCoriolisAcceleration(const FVector& Velocity) const;
+
+	/**
+	 * Calculate adjusted air density based on atmospheric conditions.
+	 * @return Air density in kg/m³.
+	 */
+	float CalculateAirDensity() const;
+
+	/**
+	 * Calculate speed of sound for current atmospheric conditions.
+	 * @return Speed of sound in cm/s.
+	 */
+	float CalculateSpeedOfSound() const;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Ballistics|Wind")
 	FSHWindState CurrentWind;
+
+	/** Current atmospheric conditions. */
+	FSHAtmosphericConditions Atmosphere;
 
 	/** Material property table. Populated in Initialize(). */
 	UPROPERTY()

@@ -479,9 +479,22 @@ bool USHCoverSystem::CanLean(const AActor* Character, ESHLeanDirection Direction
 	// Check that leaning exposes to the forward direction (there is no cover at the lean position).
 	const FVector LeanForwardEnd = LeanTarget + Forward * CoverCheckDistance;
 	FHitResult LeanForwardHit;
-	// We want NO hit here (or a hit far enough away) -- meaning the lean exposes.
-	// Actually, for lean to be useful, we want to be able to see/shoot around the cover.
-	// The lean is valid as long as the lateral space is clear.
+	// Lean is useful ONLY if the leaned position actually has sightline forward.
+	// If leaning around a corner and there's still cover blocking the forward view,
+	// the lean doesn't accomplish anything. Validate that the lean position has
+	// either no obstruction or obstruction far enough to shoot past.
+	if (World->LineTraceSingleByChannel(LeanForwardHit, LeanTarget, LeanForwardEnd, CoverTraceChannel, Params))
+	{
+		// There IS something in the forward direction from the lean position.
+		// Lean is only useful if the obstruction is far enough to shoot past (>100cm).
+		// If cover wraps around the corner, the lean doesn't help.
+		if (LeanForwardHit.Distance < 100.f)
+		{
+			return false; // Cover wraps around corner — lean doesn't expose.
+		}
+	}
+
+	// Lean position has either clear sightline or enough room to shoot.
 	return true;
 }
 

@@ -367,10 +367,15 @@ void USHDestructionSystem::ActivateChaosDestruction(AActor* Actor, ESHDestructio
 		float StrainValue = 0.f;
 		switch (Level)
 		{
-		case ESHDestructionLevel::LightDamage:		StrainValue = 100.f; break;
-		case ESHDestructionLevel::ModerateDamage:	StrainValue = 500.f; break;
-		case ESHDestructionLevel::HeavyDamage:		StrainValue = 2000.f; break;
-		case ESHDestructionLevel::Destroyed:		StrainValue = 10000.f; break;
+		case ESHDestructionLevel::Scratched:			StrainValue = 10.f; break;
+		case ESHDestructionLevel::BulletHoles:		StrainValue = 50.f; break;
+		case ESHDestructionLevel::Chipped:			StrainValue = 150.f; break;
+		case ESHDestructionLevel::Fractured:		StrainValue = 400.f; break;
+		case ESHDestructionLevel::Breached:			StrainValue = 1000.f; break;
+		case ESHDestructionLevel::PartialCollapse:	StrainValue = 2500.f; break;
+		case ESHDestructionLevel::HeavyDamage:		StrainValue = 5000.f; break;
+		case ESHDestructionLevel::Skeleton:			StrainValue = 8000.f; break;
+		case ESHDestructionLevel::Destroyed:		StrainValue = 15000.f; break;
 		default: break;
 		}
 
@@ -548,10 +553,16 @@ void USHDestructionSystem::TickPerformanceManagement(float DeltaTime)
 
 ESHDestructionLevel USHDestructionSystem::ComputeDestructionLevel(float HealthFraction) const
 {
-	if (HealthFraction <= 0.f)		return ESHDestructionLevel::Destroyed;
-	if (HealthFraction <= 0.25f)	return ESHDestructionLevel::HeavyDamage;
-	if (HealthFraction <= 0.55f)	return ESHDestructionLevel::ModerateDamage;
-	if (HealthFraction <= 0.85f)	return ESHDestructionLevel::LightDamage;
+	// 10-level progressive destruction: continuous damage feels real, not binary.
+	if (HealthFraction <= 0.0f)  return ESHDestructionLevel::Destroyed;       // Rubble pile
+	if (HealthFraction <= 0.10f) return ESHDestructionLevel::Skeleton;        // Only frame remains
+	if (HealthFraction <= 0.20f) return ESHDestructionLevel::HeavyDamage;     // Most structure gone
+	if (HealthFraction <= 0.35f) return ESHDestructionLevel::PartialCollapse; // Section fallen, debris pile
+	if (HealthFraction <= 0.50f) return ESHDestructionLevel::Breached;        // Hole large enough for sightline/traversal
+	if (HealthFraction <= 0.65f) return ESHDestructionLevel::Fractured;       // Visible fracture lines, structural stress
+	if (HealthFraction <= 0.75f) return ESHDestructionLevel::Chipped;         // Surface chunks missing, rebar exposed
+	if (HealthFraction <= 0.85f) return ESHDestructionLevel::BulletHoles;     // Penetration marks, small holes
+	if (HealthFraction <= 0.95f) return ESHDestructionLevel::Scratched;       // Paint chipped, cosmetic marks only
 	return ESHDestructionLevel::Pristine;
 }
 

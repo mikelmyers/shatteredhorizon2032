@@ -13,6 +13,8 @@
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
+#include "EngineUtils.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -866,4 +868,166 @@ void ASHSquadAIController::SyncBlackboard()
 	{
 		BlackboardComp->SetValueAsVector(SHBBKeys::CoverLocation, BestCoverPosition);
 	}
+
+	// Wounded ally detection — update blackboard for corpsman behavior.
+	if (AActor* Wounded = FindWoundedAlly())
+	{
+		BlackboardComp->SetValueAsObject(SHBBKeys::WoundedAlly, Wounded);
+	}
+	else
+	{
+		BlackboardComp->ClearValue(SHBBKeys::WoundedAlly);
+	}
+}
+
+// =====================================================================
+//  Medical / Casualty Response
+// =====================================================================
+
+AActor* ASHSquadAIController::FindWoundedAlly(float MaxRange) const
+{
+	const APawn* MyPawn = GetPawn();
+	if (!MyPawn) return nullptr;
+
+	const FVector MyLocation = MyPawn->GetActorLocation();
+	const UWorld* World = GetWorld();
+	if (!World) return nullptr;
+
+	AActor* NearestWounded = nullptr;
+	float NearestDistSq = MaxRange * MaxRange;
+
+	// Iterate all squad members to find wounded allies.
+	for (TActorIterator<ASHSquadMember> It(World); It; ++It)
+	{
+		ASHSquadMember* Member = *It;
+		if (!Member || Member == MyPawn)
+		{
+			continue;
+		}
+
+		// Check if this member is wounded and alive.
+		const float HealthFraction = (Member->MaxHealth > 0.f) ? (Member->CurrentHealth / Member->MaxHealth) : 0.f;
+		if (HealthFraction < 0.5f && HealthFraction > 0.0f)
+		{
+			const float DistSq = FVector::DistSquared(MyLocation, Member->GetActorLocation());
+			if (DistSq < NearestDistSq)
+			{
+				NearestDistSq = DistSq;
+				NearestWounded = Member;
+			}
+		}
+	}
+
+	return NearestWounded;
+}
+
+void ASHSquadAIController::BeginCasualtyResponse(AActor* WoundedAlly)
+{
+	if (!WoundedAlly || bIsTreatingCasualty)
+	{
+		return;
+	}
+
+	CurrentCasualty = WoundedAlly;
+	bIsTreatingCasualty = true;
+	TreatmentTimer = 0.f;
+
+	// Move to the wounded ally.
+	const FVector WoundedLocation = WoundedAlly->GetActorLocation();
+	CombatState = ESHAICombatState::DraggingWounded;
+
+	// Use tactical movement — stay in cover while approaching.
+	MoveToTacticalPosition(WoundedLocation);
+
+	UE_LOG(LogTemp, Log, TEXT("[SquadAI] %s beginning casualty response for %s"),
+		*GetPawn()->GetName(), *WoundedAlly->GetName());
+}
+
+void ASHSquadAIController::ApplyFieldTreatment(AActor* WoundedAlly)
+{
+	if (!WoundedAlly)
+	{
+		return;
+	}
+
+	// Apply healing — use buddy aid system.
+	if (ASHSquadMember* Member = Cast<ASHSquadMember>(WoundedAlly))
+	{
+		// Apply buddy aid: stop bleeding, partial health restore.
+		Member->ApplyBuddyAid(25.f);
+
+		UE_LOG(LogTemp, Log, TEXT("[SquadAI] %s applied field treatment to %s"),
+			*GetPawn()->GetName(), *WoundedAlly->GetName());
+	}
+
+	// Reset state.
+	bIsTreatingCasualty = false;
+	CurrentCasualty = nullptr;
+	TreatmentTimer = 0.f;
+
+	// Return to previous combat behavior.
+	CombatState = ESHAICombatState::InCover;
+}
+
+void ASHSquadAIController::BeginDragToSafety(AActor* WoundedAlly)
+{
+	if (!WoundedAlly || !bHasValidCover)
+	{
+		return;
+	}
+
+	CurrentCasualty = WoundedAlly;
+	CombatState = ESHAICombatState::DraggingWounded;
+
+	// Move to cover with the wounded ally.
+	// Movement speed is reduced while dragging.
+	if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
+	{
+		if (UCharacterMovementComponent* CMC = MyChar->GetCharacterMovement())
+		{
+			CMC->MaxWalkSpeed *= 0.3f; // 30% speed while dragging.
+		}
+	}
+
+	MoveToTacticalPosition(BestCoverPosition);
+
+	UE_LOG(LogTemp, Log, TEXT("[SquadAI] %s dragging %s to cover at %s"),
+		*GetPawn()->GetName(), *WoundedAlly->GetName(), *BestCoverPosition.ToString());
+}
+
+void ASHSquadAIController::AbortCasualtyResponse()
+{
+	if (!bIsTreatingCasualty && CombatState != ESHAICombatState::DraggingWounded)
+	{
+		return;
+	}
+
+	// Restore movement speed if was dragging.
+	if (CombatState == ESHAICombatState::DraggingWounded)
+	{
+		if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
+		{
+			if (UCharacterMovementComponent* CMC = MyChar->GetCharacterMovement())
+			{
+				CMC->MaxWalkSpeed /= 0.3f; // Restore original speed.
+			}
+		}
+	}
+
+	bIsTreatingCasualty = false;
+	CurrentCasualty = nullptr;
+	TreatmentTimer = 0.f;
+
+	// Return to combat — take cover.
+	CombatState = ESHAICombatState::InCover;
+	TrySeekCover();
+}
+
+bool ASHSquadAIController::IsCorpsman() const
+{
+	if (const ASHSquadMember* Member = Cast<ASHSquadMember>(GetPawn()))
+	{
+		return Member->GetRole() == ESHSquadRole::Corpsman;
+	}
+	return false;
 }

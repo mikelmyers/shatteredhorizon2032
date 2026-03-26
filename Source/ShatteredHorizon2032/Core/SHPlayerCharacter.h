@@ -17,6 +17,7 @@ class USHDamageSystem;
 class USHFatigueSystem;
 class USHReverbZoneManager;
 class USHAmbientSoundscape;
+class ASHWeaponBase;
 
 // Forward declare the lean enum from the controller.
 enum class ESHLeanState : uint8;
@@ -236,6 +237,18 @@ public:
 	/** Layered ambient soundscape (wind, insects, distant battle). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
 	TObjectPtr<USHAmbientSoundscape> AmbientSoundscape;
+
+	/** Currently equipped weapon actor. Set via EquipWeapon(). */
+	UPROPERTY(BlueprintReadOnly, Category = "SH|Weapon")
+	TObjectPtr<ASHWeaponBase> EquippedWeapon;
+
+	/** Equip a weapon — attaches to first-person arms, sets up delegates. */
+	UFUNCTION(BlueprintCallable, Category = "SH|Weapon")
+	void EquipWeapon(ASHWeaponBase* Weapon);
+
+	/** Returns the currently equipped weapon (may be null). */
+	UFUNCTION(BlueprintPure, Category = "SH|Weapon")
+	ASHWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
 protected:
 	// ------------------------------------------------------------------

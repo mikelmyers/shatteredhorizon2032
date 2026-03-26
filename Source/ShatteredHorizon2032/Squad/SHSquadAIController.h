@@ -241,6 +241,36 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|Combat")
 	void ExecuteBreachProcedure(const FVector& EntryPoint, AActor* DoorActor);
 
+	/* ── Medical / Casualty Response ──────────────────────────── */
+
+	/** Check if any squad member is wounded and needs treatment. */
+	UFUNCTION(BlueprintCallable, Category = "AI|Medical")
+	AActor* FindWoundedAlly(float MaxRange = 3000.f) const;
+
+	/** Begin moving to and treating a wounded squad member. */
+	UFUNCTION(BlueprintCallable, Category = "AI|Medical")
+	void BeginCasualtyResponse(AActor* WoundedAlly);
+
+	/** Apply field treatment to a wounded squad member (bandage, tourniquet). */
+	UFUNCTION(BlueprintCallable, Category = "AI|Medical")
+	void ApplyFieldTreatment(AActor* WoundedAlly);
+
+	/** Drag a wounded squad member to cover. */
+	UFUNCTION(BlueprintCallable, Category = "AI|Medical")
+	void BeginDragToSafety(AActor* WoundedAlly);
+
+	/** Cancel casualty response (e.g., threat too close). */
+	UFUNCTION(BlueprintCallable, Category = "AI|Medical")
+	void AbortCasualtyResponse();
+
+	/** Whether this squad member has the Corpsman role (priority medic). */
+	UFUNCTION(BlueprintPure, Category = "AI|Medical")
+	bool IsCorpsman() const;
+
+	/** Whether this AI is currently treating a casualty. */
+	UFUNCTION(BlueprintPure, Category = "AI|Medical")
+	bool IsTreatingCasualty() const { return bIsTreatingCasualty; }
+
 	/* ── Self-Preservation vs. Order Compliance ─────────────── */
 
 	/** Returns a weight [0,1] for how much self-preservation overrides orders.
@@ -305,4 +335,17 @@ private:
 	int32 BurstRoundsRemaining = 0;
 	float BurstFireTimer = 0.f;
 	float BurstFireRate = 0.1f; // 600 RPM default
+
+	/* ── Medical State ──────────────────────────────────────── */
+	UPROPERTY()
+	TWeakObjectPtr<AActor> CurrentCasualty;
+
+	bool bIsTreatingCasualty = false;
+	float TreatmentTimer = 0.f;
+
+	/** Time to apply field treatment (seconds). */
+	static constexpr float FieldTreatmentDuration = 6.f;
+
+	/** Time to drag a casualty to cover (seconds per 100cm). */
+	static constexpr float DragSpeedCmPerSec = 80.f;
 };

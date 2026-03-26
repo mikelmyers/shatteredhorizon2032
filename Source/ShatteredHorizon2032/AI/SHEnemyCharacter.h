@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Combat/SHMoraleSystem.h"
 #include "SHEnemyCharacter.generated.h"
 
 class USHAIPerceptionConfig;
@@ -26,17 +27,7 @@ enum class ESHEnemyRole : uint8
 	Medic         UMETA(DisplayName = "Medic")
 };
 
-/** Current morale state. */
-UENUM(BlueprintType)
-enum class ESHMoraleState : uint8
-{
-	Confident    UMETA(DisplayName = "Confident"),
-	Steady       UMETA(DisplayName = "Steady"),
-	Shaken       UMETA(DisplayName = "Shaken"),
-	Breaking     UMETA(DisplayName = "Breaking"),
-	Broken       UMETA(DisplayName = "Broken"),
-	Surrendered  UMETA(DisplayName = "Surrendered")
-};
+// ESHMoraleState is defined in Combat/SHMoraleSystem.h (authoritative source)
 
 /** Voice line context for Mandarin callouts. */
 UENUM(BlueprintType)

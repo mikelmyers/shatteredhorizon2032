@@ -183,6 +183,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Loadout")
 	float MaxCarryWeight = 45.f;
 
+	/** Weapon Blueprint classes keyed by weapon ID (e.g., "M4A1" -> BP_Weapon_M4A1). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Loadout")
+	TMap<FName, TSubclassOf<AActor>> WeaponClassRegistry;
+
 	/** Master list of all weapon data (ID -> weight in kg). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Loadout")
 	TMap<FName, float> WeaponWeights;
