@@ -1,10 +1,10 @@
-# SHATTERED HORIZON 2032 — BLOCKBUSTER DEMO BUILD DOCUMENT
+# SHATTERED HORIZON 2032 — MISSION 1 BUILD DOCUMENT
 
-**Document Version:** 1.0
-**Date:** 2026-03-25
-**Target:** Investment-grade demo capable of raising $25–30M
-**Scope:** Mission 1 — Operation Breakwater (Taoyuan Beach)
-**Demo Runtime:** 20–30 minutes of playable content
+**Document Version:** 1.1
+**Date:** 2026-03-26
+**Target:** Ship-quality Mission 1 — the game's first level AND the investment vehicle to raise $25–30M
+**Scope:** Mission 1 — Operation Breakwater (Taoyuan Beach) — FULL MISSION, not a demo slice
+**Mission Runtime:** 45–75 minutes of playable content (varies by difficulty and playstyle)
 
 ---
 
@@ -46,13 +46,17 @@ The gap is no longer **systems** — it's **experience assembly.** The code work
 7. **Performance validation** — Zero profiling done. 114+ AI entities per mission untested at scale.
 8. **One compilation bug** — `SHPrimordiaDecisionEngine.cpp:91` calls `GetAvailableSquadCount(false)` but declaration missing from header.
 
-### Demo Philosophy
+### Build Philosophy
 
-This demo must accomplish one thing: **make investors feel what this game is.**
+This is not a demo. This is not a vertical slice. This is **Mission 1 of Shattered Horizon 2032** — the full first level of a shipped game. It must stand on its own as a complete, replayable, ship-quality experience. It also happens to be what we show investors, which means it must be so good that someone writes a $25–30M check after playing it.
 
-Not a tech demo. Not a feature checklist. A 20–30 minute experience that puts you on Taoyuan Beach at 0430, lets you hear the silence before the storm, then drowns you in the most authentic beach assault ever rendered in a video game. When the demo ends, the investor should be thinking: *"I need to fund this before someone else does."*
+**Full scale.** The GDD specifies 64 km² minimum (8 km × 8 km). Mission 1 delivers that. The player experiences the vastness of a real battlefield — long engagement distances, the terror of crossing open ground, the claustrophobia of urban collapse. No invisible walls at 2 km. No scaled-down compromise.
 
-The competitive moat is the AI. Every other military shooter scripts enemy behavior. Ours thinks. The demo must make that visible — enemies that flank, suppress, communicate, adapt, and break. That's what $25–30M buys: the only military game where the enemy is trying to win.
+**Full duration.** A real playthrough of Operation Breakwater runs 45–75 minutes depending on difficulty and playstyle. The 4 phases (Pre-Invasion, Beach Assault, Urban Fallback, Collapse) play out at real operational tempo. Time pressure comes from the mission, not from artificial constraints.
+
+**Full replayability.** Because the AI thinks instead of following scripts, no two playthroughs are the same. Different difficulties change AI cognitive depth, not enemy health. Different loadout choices change tactical options. Different squad order decisions change outcomes. Mission 1 ships as a level people replay to see what the AI does differently.
+
+The competitive moat is the AI. Every other military shooter scripts enemy behavior. Ours thinks. Mission 1 must make that visible — enemies that flank, suppress, communicate, adapt, and break. That's what $25–30M buys: the only military game where the enemy is trying to win.
 
 ---
 
@@ -192,32 +196,42 @@ The remaining work falls into **9 parallel workstreams**. Each workstream is ind
 
 ### A.1 — Taoyuan Beach World Design
 
-The demo map must deliver a **focused, high-density 2km × 2km slice** of the full 8×8km battlefield. This is not a compromise — it's a deliberate choice. Investors don't need to walk across empty terrain. They need to feel the beach assault, the urban fallback, and the collapse in a tightly paced 20–30 minute experience.
+The full battlefield is **8 km × 8 km (64 km²)** per the GDD. This is not negotiable — the engagement distances, the operational tempo, and the sense of scale that separates this from every other shooter all depend on a real-scale battlefield. The player must feel the vastness. Movement between engagements takes real time. Most of the map is empty space — that emptiness is the point.
+
+The map is divided into **high-density combat zones** connected by **traversal terrain**. World Partition streams content — the player never sees pop-in at tactical distances, but the engine only renders what's needed.
 
 #### A.1.1 — Map Layout Requirements
 
-| Zone | Size | Purpose | Phase |
-|---|---|---|---|
-| **Defensive Position (Trench Line)** | 200m × 50m | Player starts here. Sandbag bunkers, firing slits, mortar pits. Overlooks beach. | Phase 1 (Pre-Invasion) |
-| **Beach & Landing Zone** | 800m × 400m | Open kill zone. PLA landing craft approach. Minimal cover — craters form dynamically. | Phase 2 (Beach Assault) |
-| **Coastal Road & Infrastructure** | 400m × 200m | Destroyed checkpoint, overturned vehicles, concrete barriers. Transitional combat. | Phase 2→3 Transition |
-| **Urban Edge (Taoyuan Outskirts)** | 600m × 400m | 2–3 story buildings, narrow streets, market stalls, civilian vehicles. Close-quarters fallback. | Phase 3 (Urban Fallback) |
-| **Collapse Rally Point** | 200m × 200m | Ruined intersection, last-stand position. Extraction point. | Phase 4 (Collapse) |
+| Zone | Size | Purpose | Phase | Density |
+|---|---|---|---|---|
+| **Taiwan Strait (Ocean)** | 8km × 3km | PLA fleet staging. Landing craft approach visible from 3km+. Naval bombardment origin. | Phase 1–2 visual | LOW — water plane, distant vessel LODs |
+| **Beach & Landing Zone** | 4km × 1.5km | Full-width beach assault front. Multiple landing sectors. Open kill zone. Craters form dynamically. Tidal flats, sea walls, wire obstacles. | Phase 2 (Beach Assault) | HIGH — destruction, AI, vehicles |
+| **Defensive Position (Trench Line)** | 3km × 200m | Player's sector is ~400m wide. Full trench system with bunkers, firing slits, mortar pits, command post. Adjacent sectors have friendly units (visible, audible, not player-controlled). | Phase 1 (Pre-Invasion), Phase 2 | HIGH — fortifications, squad |
+| **Coastal Infrastructure** | 3km × 500m | Coastal highway, checkpoint, fuel depot, radar installation (destroyed in Phase 1 bombardment), seawall. Transitional combat zone. | Phase 2→3 | MEDIUM — vehicles, debris, infrastructure |
+| **Agricultural Buffer** | 2km × 1km | Rice paddies, irrigation channels, farm buildings, tree lines. Open terrain with sparse concealment. Sniper and MG engagement distances (500–800m). | Phase 2→3 | LOW — vegetation, sparse structures |
+| **Taoyuan City Outskirts** | 3km × 2km | 2–5 story residential and commercial buildings, narrow streets, market district, temple, school (civilian shelter), parking structures. Dense urban CQB. | Phase 3 (Urban Fallback) | VERY HIGH — buildings, interiors, civilians |
+| **Taoyuan Airport (Background)** | 2km × 2km | Visible on skyline. Burning from Phase 1 bombardment. Smoke column is persistent landmark. PLA air operations visible (distant aircraft, AA tracers). Not player-accessible in Mission 1. | Visual reference | MINIMAL — LOD, VFX, skybox |
+| **Collapse Zone & Extraction** | 1km × 1km | Highway interchange, overpass, industrial buildings. Last-stand defensible position. Extraction route south. | Phase 4 (Collapse) | HIGH — final combat |
+| **Mountain Backdrop (East)** | Visual only | Forested hills rising behind the city. Establishes geography. | All phases | MINIMAL — HLOD terrain |
 
-**Total Playable Area:** ~2 km² with visual horizon extending to 3km+ (ocean, distant mountains, Taoyuan airport visible on skyline).
+**Total Playable Area:** 64 km² (8 km × 8 km)
+**High-Density Combat Zones:** ~15 km² (where 90% of gameplay occurs)
+**Traversal/Visual Terrain:** ~49 km² (streamed at lower LOD, provides scale and horizon)
 
 #### A.1.2 — Terrain & Landscape Tasks
 
 | # | Task | Detail | Tool |
 |---|---|---|---|
-| A-01 | Create base heightmap | 2049×2049 resolution, beach-to-urban elevation gradient, 1m resolution | World Machine / Gaea |
-| A-02 | Import heightmap into UE5 Landscape | World Partition enabled, streaming distance configured | UE5 Editor |
-| A-03 | Sculpt beach topography | Tidal flat, gentle slope to defensive ridge, drainage channels | UE5 Landscape |
-| A-04 | Sculpt urban terrain | Flat with road grades, sidewalk elevation, building footprints | UE5 Landscape |
+| A-01 | Create base heightmap | 8129×8129 resolution (1m per pixel for 8km × 8km), real Taoyuan coastal geography reference, beach-to-urban-to-mountain elevation gradient | World Machine / Gaea |
+| A-02 | Import heightmap into UE5 Landscape | World Partition enabled, 256m streaming cells, landscape components sized for streaming | UE5 Editor |
+| A-03 | Sculpt beach topography | 4km beach front, tidal flats, gentle slope to defensive ridge, drainage channels, sea walls | UE5 Landscape |
+| A-04 | Sculpt urban terrain | Flat with road grid, sidewalk elevation, building footprints, drainage, Taoyuan city reference | UE5 Landscape |
+| A-04b | Sculpt agricultural buffer | Rice paddy grid, irrigation channels, farm road network, tree line breaks | UE5 Landscape |
+| A-04c | Sculpt mountain backdrop | Eastern hills, forested slopes, visual-only terrain with HLOD | World Machine → UE5 |
 | A-05 | Apply landscape material layers | Sand, wet sand, mud, concrete, asphalt, grass, dirt (from Art Pipeline PBR textures) | UE5 Material |
 | A-06 | Paint landscape weights | Blend zones between terrain types, road edges, crater-ready areas | UE5 Landscape |
-| A-07 | Configure World Partition | Streaming cells sized for engagement distances (256m cells recommended) | UE5 World Partition |
-| A-08 | Set up HLOD for distant terrain | LOD0–LOD3 for visible-but-unplayable terrain beyond 2km | UE5 HLOD |
+| A-07 | Configure World Partition | 256m streaming cells, proximity-based loading, 3km active radius around player, low-LOD beyond | UE5 World Partition |
+| A-08 | Set up HLOD for full 64 km² | LOD0 (combat zones, <500m), LOD1 (traversal, <2km), LOD2 (visual, <5km), LOD3 (horizon, >5km). Airport and mountain as HLOD only. | UE5 HLOD |
 | A-09 | Ocean/water plane | Nanite water, wave simulation, landing craft interaction | UE5 Water Plugin |
 | A-10 | Skybox & atmosphere | Pre-dawn (0430) to morning (0800) progression, volumetric clouds, haze | UE5 Sky Atmosphere |
 
@@ -225,23 +239,26 @@ The demo map must deliver a **focused, high-density 2km × 2km slice** of the fu
 
 | # | Task | Detail | Quantity |
 |---|---|---|---|
-| A-11 | Defensive bunker (modular) | Sandbag walls, firing slits, overhead cover, destructible | 4–6 variants |
-| A-12 | Trench system | Connecting trenches, communication trenches, mortar pits | ~300m linear |
-| A-13 | Beach obstacles | Czech hedgehogs, concrete tetrapods, wire obstacles | 30–50 pieces |
-| A-14 | Landing craft (PLA) | Type 726 LCAC or similar, beached and active variants | 3–5 models |
-| A-15 | Urban buildings (modular) | 2–3 story shells with interiors, destructible walls, climbable roofs | 15–20 buildings |
-| A-16 | Market / commercial structures | Street-level shops, signage (Traditional Chinese), market stalls | 8–10 structures |
-| A-17 | Civilian vehicles | Scooters, sedans, trucks, buses — abandoned, some burning | 15–20 variants |
-| A-18 | Military vehicles (PLA) | ZBD-05 amphibious IFV, Type 05 AAV — for Wave 2+ | 3–4 models |
-| A-19 | Road infrastructure | Street lights, power lines, traffic signals, road markings, drains | Kit |
-| A-20 | Vegetation | Coastal grasses, palm trees, urban landscaping, rice paddies (background) | Procedural + manual |
-| A-21 | Destruction pre-sets | Pre-damaged building variants for Phase 3/4 (progressive destruction) | Per building |
+| A-11 | Defensive bunker (modular) | Sandbag walls, firing slits, overhead cover, command post, mortar pits, ammo storage — destructible | 8–10 variants |
+| A-12 | Trench system | Full 3km defensive line: fighting trenches, communication trenches, mortar pits, command bunkers, wire obstacles, mine markers | ~3km linear (player sector ~400m, adjacent sectors visible) |
+| A-13 | Beach obstacles | Czech hedgehogs, concrete tetrapods, wire obstacles, anti-vehicle ditches, sea wall sections | 100–150 pieces across 4km beach |
+| A-14 | Landing craft (PLA) | Type 726 LCAC, Type 072A LST — beached, approaching, and destroyed variants. Interior for boarding/unloading sequences. | 6–8 models |
+| A-15 | Urban buildings (modular) | 2–5 story residential, commercial, industrial shells with playable interiors, destructible walls, climbable roofs, balconies, stairwells | 40–60 buildings (modular kit, ~12 base types with variants) |
+| A-16 | Market / commercial district | Street-level shops, signage (Traditional Chinese), market stalls, restaurant, convenience store, temple, school (civilian shelter) | 15–20 structures |
+| A-17 | Civilian vehicles | Scooters, sedans, trucks, buses, taxis — abandoned, some burning, some used as barricades | 25–30 variants |
+| A-18 | Military vehicles (PLA) | ZBD-05 amphibious IFV, Type 05 AAV, Type 08 wheeled IFV, logistics trucks — active, destroyed, burning variants | 5–6 base models with state variants |
+| A-18b | Military vehicles (USMC/ROC) | HMMWV, JLTV, LAV-25 — pre-positioned at defensive line, some destroyed in bombardment | 3–4 base models |
+| A-19 | Road infrastructure | Street lights, power lines (destroyable, droop when cut), traffic signals, road markings, drains, highway signs, overpass sections | Full kit |
+| A-20 | Vegetation | Coastal grasses, palm trees, tropical shrubs, urban landscaping, rice paddies (agricultural buffer), tree lines, bamboo groves | Procedural placement via `SHProceduralPlacement` + manual hero placement |
+| A-21 | Destruction pre-sets | Pre-damaged building variants for Phase 3/4 (progressive destruction), plus pre-bombardment damaged variants for coastal infrastructure | Per building, per destruction stage |
+| A-21b | Agricultural structures | Farm buildings, storage sheds, irrigation pump houses, raised grain stores — sparse cover in open terrain | 6–8 variants |
+| A-21c | Highway / overpass infrastructure | Multi-lane highway, on/off ramps, overpass bridge (Phase 4 collapse zone), jersey barriers, highway signage | Kit for ~2km highway segment |
 
 #### A.1.4 — Lighting & Atmosphere
 
 | # | Task | Detail |
 |---|---|---|
-| A-22 | Time-of-day blueprint | Drives sun position, color temperature, shadow direction across 0430–0800 |
+| A-22 | Time-of-day blueprint | Drives sun position, color temperature, shadow direction across 0430–0800+ (full mission may extend to midday depending on player pace). Real Taoyuan lat/long for accurate sun angles. |
 | A-23 | Pre-dawn lighting (Phase 1) | Deep blue-black, stars visible, horizon glow starting. Flashlights and NVG territory. |
 | A-24 | Dawn lighting (Phase 2) | Golden hour from behind PLA forces — player shoots into the light. Deliberate. |
 | A-25 | Morning lighting (Phase 3–4) | Harsh daylight, smoke diffusion, fire glow in shadows. |
@@ -717,7 +734,7 @@ These are the moments investors will remember. Each must land perfectly.
 | GPU memory | < 8 GB VRAM | < 10 GB |
 | System RAM | < 16 GB | < 24 GB |
 | Load time (NVMe) | < 15 seconds | < 30 seconds |
-| Simultaneous AI entities | 114+ (full Wave 2) | 50+ |
+| Simultaneous AI entities | 200+ (Wave 4 peak across full beach) | 80+ |
 | Active physics bodies | 500+ (debris, ragdolls) | 200+ |
 | Active Niagara particles | 10,000+ | 5,000+ |
 | Draw calls per frame | < 2,000 | < 3,500 |
@@ -825,84 +842,102 @@ These are the moments investors will remember. Each must land perfectly.
 
 ---
 
-## THE DEMO EXPERIENCE — MINUTE BY MINUTE
+## THE MISSION EXPERIENCE — PHASE BY PHASE
 
-This is what the investor sees. Every minute is designed.
+This is what the player (and the investor) experiences. Every phase is designed. Timings are approximate — the AI and player agency create natural variation. A full playthrough runs 45–75 minutes.
 
-### Pre-Game (2 minutes)
+### Pre-Game (2–3 minutes)
 
-| Time | What Happens | Systems Active |
+| Beat | What Happens | Systems Active |
 |---|---|---|
-| 0:00 | Main menu. Dawn over Taoyuan Beach. Ocean ambient. Title appears. | UI, Audio |
-| 0:30 | Player selects BEGIN MISSION. Difficulty selection. | UI |
-| 0:45 | Loading screen — mission briefing plays. Map, intel, squad roster. CO voiceover. | Briefing System, Audio |
-| 2:00 | Load complete. Fade to black. | — |
+| Menu | Main menu. Dawn over Taoyuan Beach. Ocean ambient. Title appears. | UI, Audio |
+| Start | Player selects BEGIN MISSION. Difficulty selection. Loadout customization. | UI, Loadout System |
+| Briefing | Loading screen becomes mission briefing: satellite imagery, force disposition, squad roster, intel summary. CO voiceover. Player reads the situation they're about to enter. | Briefing System, Audio |
+| Deploy | Load complete. Fade to black. | — |
 
-### Phase 1 — Pre-Invasion: "The Silence" (5 minutes)
+### Phase 1 — Pre-Invasion: "The Silence" (~10 minutes)
 
-| Time | What Happens | Investor Feels | Systems Showcased |
+The entire purpose of Phase 1 is psychological. The player has time to explore the trench system, check their equipment, talk to squad members, look out at the ocean. The silence is the game. When the bombardment comes, it's earned.
+
+| Beat | What Happens | The Player Feels | Systems Showcased |
 |---|---|---|---|
-| 2:00 | Fade in. 0430. Near-total darkness. Player is in trench, looking through firing slit at the ocean. | Unease | Lighting, Atmosphere |
-| 2:30 | Squad member offers gum. First dialogue. Nervous small talk. | Connection to characters | Dialogue, Squad Personality |
-| 3:00 | Silence. Ocean. Wind. A dog barks far away. Then stops. | Dread building | Environmental Audio |
-| 3:30 | Radio crackle: FLASH traffic. "Satellite confirms invasion fleet. ETA 30 minutes." | Stakes raised | Radio System, EW |
-| 4:00 | GPS warning flashes on HUD, then dies. Compass drifts. | Isolation | Electronic Warfare |
-| 5:00 | Distant flashes on the horizon. Like lightning, but wrong. | Visual spectacle | Lighting, VFX |
-| 5:30 | Vasquez whispers: "Sofia, daddy loves you." | Emotional gut punch | Dialogue, Character |
-| 6:00 | Preparatory artillery begins hitting nearby positions. Ground shakes. Dust falls. | Visceral terror | Indirect Fire, Camera Shake, Audio |
-| 6:30 | Dawn light begins. The ocean resolves. Landing craft visible. Hundreds. | "Oh my God" moment | Lighting, Draw Distance |
-| 7:00 | Kim: "Oh my God." Phase 2 begins. | — | — |
+| Arrival | Fade in. 0430. Near-total darkness. Player is in trench, looking through firing slit at the black ocean. Free to move along the defensive line. | Unease, curiosity | Lighting, Atmosphere, World Scale |
+| Small talk | Squad member offers gum. Nervous small talk. Player can explore — adjacent positions have other Marines (not player squad) doing the same nervous waiting. | Connection to characters | Dialogue, Squad Personality |
+| Silence | Ocean. Wind. A dog barks far away. Then stops. **Long stretches of nothing.** The player fills the silence with their own dread. | Dread building | Environmental Audio |
+| FLASH traffic | Radio crackle: "Satellite confirms PLA amphibious fleet bearing 270. ETA 30 minutes." | Stakes crystallize | Radio System |
+| EW escalation | GPS warning flashes on HUD, then dies. Compass drifts. Radio starts cutting out. Comms with adjacent units go silent. | Isolation | Electronic Warfare |
+| Horizon | Distant flashes on the horizon. Like lightning, but too regular. Too bright. Naval gunfire. | Visual spectacle | Lighting, VFX, Draw Distance |
+| Personal moment | Vasquez whispers into a personal radio: "Sofia, daddy loves you." No one comments. | Emotional gut punch | Dialogue, Character |
+| Bombardment | Preparatory artillery begins hitting the defensive line. Not the player's position — yet. Adjacent positions take hits. Ground shakes. Dust cascades. Screaming on radio. | Visceral terror | Indirect Fire, Camera Shake, Audio, Destruction |
+| Dawn | Dawn light begins. The ocean resolves. The player can see landing craft. Not dozens — **hundreds.** Stretching across the entire 4km beach front. The scale is incomprehensible. | "Oh my God" moment | Lighting, Draw Distance, World Scale |
+| Transition | Kim: "Oh my God." Vasquez: "Weapons free. Make every round count." Phase 2 begins. | — | — |
 
-### Phase 2 — Beach Assault: "The Overwhelm" (12 minutes)
+### Phase 2 — Beach Assault: "The Overwhelm" (~25 minutes)
 
-| Time | What Happens | Investor Feels | Systems Showcased |
+The longest phase. The player defends their sector (~400m) of a 4km beach. They can see other sectors being attacked simultaneously — distant gunfire, smoke, explosions — but can only affect their own fight. The AI brings wave after wave with increasing sophistication. This phase ends when the position becomes untenable.
+
+| Beat | What Happens | The Player Feels | Systems Showcased |
 |---|---|---|---|
-| 7:00 | Wave 1: 24 PLA infantry land. Player opens fire. | Empowerment (brief) | Ballistics, Weapon Feel, AI |
-| 7:30 | Return fire. First suppression. Screen darkens, sound distorts. | Fear | Suppression System |
-| 8:00 | AI squads use bounding advance. One element suppresses while another moves. | "The AI is smart" | Primordia, Squad Coordination |
-| 8:30 | Player kills enemy soldier — no hitmarker. Must look through scope to confirm. | Authenticity | HUD Philosophy, Optics |
-| 9:00 | Nearby artillery impact. AUDITORY EXCLUSION: all sound drops to heartbeat and muffled ringing. | Physiological immersion | Combat Stress System |
-| 9:30 | Wave 2: 18 more infantry + 2 vehicles. Overwhelming numbers. | Desperation | Mission Script, Spawning |
-| 10:00 | Call for air support — denied. "All air assets committed elsewhere." | Isolation | Dialogue, Narrative |
-| 10:30 | Enemy flanking attempt. AI Aletheia validates the maneuver. Player must reposition. | Tactical depth | AI Validation, Cover System |
-| 11:00 | Chen gets hit. Williams rushes to treat under fire. Player must cover. | Personal stakes | Squad AI, Medical System |
-| 12:00 | Wave 3: 30 infantry + vehicle. Defensive line buckling. | Overwhelm | MassEntity, Performance |
-| 13:00 | Enemy morale break on one squad — they retreat. Another squad pushes through. | "AI has morale!" | Morale System |
-| 14:00 | Player weapon jams (if fired continuously). Must clear under fire. | Tension mechanic | Weapon Heat/Jam |
-| 15:00 | Wave 4: 42 infantry + 4 vehicles + air support. The line is untenable. | Dread | Full system stress test |
-| 16:00 | Mortar fire called on player position. Must displace. | Forced movement | Indirect Fire, Destruction |
-| 17:00 | Squad leader radios: "Fall back to Rally Point Bravo." | Loss | Narrative, Mission Script |
-| 18:00 | Fighting withdrawal begins. Rear guard action. | Intensity | AI pursuing, Squad orders |
-| 19:00 | Phase 3 transition: player enters urban area. | — | — |
+| First contact | Wave 1: 24 PLA infantry land on player's sector. Hovercraft beach. Troops disembark under fire. Player opens fire at 400–600m. | Empowerment (brief) | Ballistics, Weapon Feel, Long-range Engagement |
+| Return fire | PLA establishes fire base on beach. First suppression hits player position. Screen darkens, sound distorts. | Fear | Suppression System |
+| AI tactics | AI squads use doctrine: one element suppresses from cover (craters, beach obstacles) while another bounds forward. Not scripted — Primordia deciding in real time. | "The AI is smart" | Primordia Decision Engine, Squad Coordination |
+| Authenticity | Player kills enemy soldier at 300m — no hitmarker. Must look through optics to confirm the body. Other enemies keep moving. War doesn't pause for kills. | Authenticity | HUD Philosophy, Optics System |
+| Stress onset | Nearby artillery impact. AUDITORY EXCLUSION: all sound drops to muffled heartbeat and ringing. Vision narrows. Player's hands shake (weapon sway increases). First taste of combat stress. | Physiological immersion | Combat Stress System |
+| Escalation | Wave 2: 18 more infantry + 2 ZBD-05 amphibious vehicles. The player's weapons can't penetrate the vehicles. Must call for support or use M320/RPG. | Desperation, tactical thinking | Vehicle System, Indirect Fire |
+| Isolation | Call for air support — denied. "All air assets committed to northern sectors." Call for reinforcement — denied. "No reserves available." The squad is alone. | Isolation, dread | Dialogue, Narrative, Comms |
+| Flanking | PLA element attempts to flank player position via drainage channel. AI Aletheia validated the maneuver. Player must reposition or direct squad to counter. | Tactical depth | AI Validation, Squad Orders, Cover System |
+| Casualties | Chen gets hit — leg wound, can still fight but reduced mobility. Williams rushes to treat under fire. Player must provide covering fire. **Personal stakes now.** | Personal investment | Squad AI, Medical System, Damage System |
+| Drone warfare | Player deploys ISR drone for overwatch. Sees PLA staging for next wave. Drone signal degrades under EW. FPV strike drone available for one high-value target. | Modern warfare | Drone System, EW, ISR |
+| Overwhelming force | Wave 3: 30 infantry + vehicle. Adjacent sector falls — player sees friendly position overrun 800m to the left. Surviving Marines retreat past player's position. Chaos. | Overwhelm, chaos | MassEntity, AI Scale, Environmental Storytelling |
+| Morale dynamics | One PLA squad breaks under concentrated MG fire — they retreat to cover on the beach. Another squad, led by an aggressive officer, pushes through the gap. | "AI has morale!" | Morale System, Role-based AI |
+| Attrition | Player weapon overheats or jams (if fired continuously). Must clear under fire. Ammo running low — HUD shows "LOW" not exact count. Must scavenge or conserve. | Tension, resource management | Weapon Heat/Jam, Logistics |
+| Crisis | Wave 4: 42 infantry + 4 vehicles + PLA air strike on defensive positions. The line is untenable. Mortar fire walks onto player position — must displace or die. | Overwhelming dread | Full system stress test, Indirect Fire, Destruction |
+| Retreat order | Battalion radio (barely audible through EW): "All Viper elements, fall back to Phase Line Bravo. I say again, fall back." | Loss, failure | Narrative, Mission Script |
+| Fighting withdrawal | Player must leapfrog back through coastal infrastructure and agricultural buffer. Rear guard action — sprint, cover, fire, sprint. PLA pursuing. 1–2km of running combat. | Intensity, exhaustion | AI Pursuit, Fatigue System, Open Terrain Combat |
+| Transition | Squad reaches urban outskirts. Enters building. Brief respite. Phase 3 begins. | Relief (temporary) | — |
 
-### Phase 3 — Urban Fallback: "The Cost" (6 minutes)
+### Phase 3 — Urban Fallback: "The Cost" (~15 minutes)
 
-| Time | What Happens | Investor Feels | Systems Showcased |
+The terrain changes everything. 800m engagements become 30m engagements. The player moves through a city that was someone's home. Civilians are still here. The AI adapts to CQB — different tactics, different lethality, different moral weight.
+
+| Beat | What Happens | The Player Feels | Systems Showcased |
 |---|---|---|---|
-| 19:00 | Urban environment. Buildings, streets, civilian vehicles. Close quarters. | Claustrophobia | Environment, Lighting |
-| 19:30 | CQB engagement. Shotgun/sidearm territory. Corners, doorways. | Tactical shift | Weapon variety, Cover |
-| 20:00 | Civilians sheltering in building. Chen translates. Can't fire freely — ROE. | Moral complexity | Narrative, Environmental storytelling |
-| 20:30 | PLA squad breaches adjacent building. Player hears them through wall. | Audio immersion | Sound Propagation, Occlusion |
-| 21:00 | Building destruction: RPG hits wall. Structural collapse. Dust, debris. | Spectacle | Destruction System, VFX |
-| 22:00 | Enemy learns player is using a building as cover — flanks from two directions simultaneously. | "The AI adapts" | Mnemonic (Learning), Tactical Analyzer |
-| 23:00 | Rain starts. Visibility drops. Sound changes. Everything degrades. | Atmosphere | Weather System, Detection modifiers |
-| 24:00 | Another squad member hit. Medic is overwhelmed. Hard choices. | Weight | Squad AI, Medical |
-| 25:00 | Radio: "All positions falling back. Rally at intersection." Phase 4 begins. | Finality | — |
+| Urban entry | Commercial district. 2–3 story buildings, narrow streets, civilian vehicles. Signage in Traditional Chinese. A café with chairs still on the sidewalk. | Claustrophobia, guilt | Environment, Lighting, Urban Design |
+| CQB shift | Close-quarters engagement. Corners, doorways, stairwells. Shotgun/sidearm territory. Enemy is inside buildings. Sound of boots above you. | Tactical shift | Weapon Variety, Cover, Sound Propagation |
+| Civilians | Civilians sheltering in a school. Chen (Taiwanese-American) translates — they're terrified, won't leave. ROE: cannot fire freely, must identify targets. Moral complexity. | Moral weight | Narrative, Environmental Storytelling, ROE |
+| Sound warfare | PLA squad breaches adjacent building. Player hears them stacking on a door through the wall. Boot scrapes, Mandarin whispers. Audio tells the story before visual. | Audio immersion | Sound Propagation, Occlusion, HRTF |
+| Destruction | RPG hits exterior wall. Structural collapse — not clean, but cascading. Dust, debris, secondary cracks. Usable cover changes. AI re-evaluates routes. | Spectacle, unpredictability | Destruction System, VFX, AI Cover Re-evaluation |
+| AI adaptation | Mnemonic subsystem has recorded player's tendency (camping, flanking, sniping). PLA adapts — if player camps, they envelope. If player is aggressive, they set ambushes. | "The AI learns" | Mnemonic (Learning), Tactical Analyzer |
+| Weather shift | Rain starts. Visibility drops to 150m. Sound changes — rain masks footsteps. Detection ranges shrink. Everything becomes closer, more dangerous. | Atmosphere degradation | Weather System, Detection Modifiers |
+| Attrition deepens | Another squad member hit. Williams overwhelmed — treating two casualties. Hard choices about who to stabilize, who to carry, who to leave. | Weight, consequence | Squad AI, Medical, Narrative |
+| Sniper threat | PLA marksman in elevated position pins squad. Must locate by muzzle flash or crack-thump timing. Counter-sniper engagement at 200–400m through urban canyon. | Tactical puzzle | Ballistics, Sound Propagation, Optics |
+| Collapse order | Radio (barely functional): "All positions falling back. Rally at Highway 4 interchange." Phase 4 begins. | Finality | — |
 
-### Phase 4 — Collapse: "The End" (4 minutes)
+### Phase 4 — Collapse: "The End" (~10 minutes)
 
-| Time | What Happens | Investor Feels | Systems Showcased |
+The mission is lost. The beach is lost. The airport is lost. The question is: who gets out. Phase 4 is a fighting retreat to an extraction point under overwhelming pressure. It's the emotional climax.
+
+| Beat | What Happens | The Player Feels | Systems Showcased |
 |---|---|---|---|
-| 25:00 | Last-stand intersection. Remaining squad digs in. | Resignation | Cover, Squad Orders |
-| 26:00 | Overwhelming PLA force approaching from multiple directions. | Hopelessness | AI Command Hierarchy |
-| 27:00 | Order comes: "Extraction vehicle en route. Hold 90 seconds." | Last hope | Mission Script |
-| 28:00 | 90 seconds of the most intense combat in the demo. Everything firing. | Peak intensity | All systems at max |
-| 28:30 | Extraction vehicle arrives. Squad boards. | Relief | Vehicle System |
-| 29:00 | Camera pulls out. Reveals scale of destruction. Beach burning. Fleet still coming. | Awe + grief | Cinematic Camera |
-| 29:30 | Black screen. Squad headcount. Names of who survived. Names of who didn't. Silence. | Emotional impact | AAR, Narrative |
-| 30:00 | Title: "OPERATION BREAKWATER — MISSION 1 OF 12" | Investment thesis | Demo End Screen |
-| 30:15 | "THE ENEMY'S PERSPECTIVE" — Primordia AI replay of one key decision. | The hook | AI Replay Timeline |
-| 30:30 | End. | "I need to fund this." | — |
+| Rally | Highway interchange. Overpass provides overhead cover. What's left of the platoon gathers — player's squad plus 8–10 other survivors. Improvised position. | Resignation, solidarity | Cover, Squad Orders, Environment |
+| 360° threat | PLA approaching from multiple directions. North (beach pursuit), west (flanking force), east (urban clearance force). The AI coordinates a three-axis assault. | Hopelessness | AI Command Hierarchy, Three-axis Tactics |
+| Combined arms | PLA vehicles, dismounted infantry, and mortar fire all coordinated. This is the full Primordia system at maximum: decision engine running escalation, Aletheia validating, Astraea modeling cognitive state, Simulon predicting player positions. | "This AI is real" | Full Primordia Stack |
+| Last transmission | Command radio: "Extraction vehicle en route to RP Echo. ETA 3 minutes. Hold." | Last hope | Mission Script |
+| Final stand | 3 minutes of the most intense combat in the mission. Everything firing. Destruction cascading. Squad members calling targets, reloading, treating wounded. Player's stress system at max — tunnel vision, auditory exclusion, shaking hands. | Peak intensity, peak immersion | All systems at maximum load |
+| Extraction | Armored vehicle arrives. Squad boards under fire. Player provides covering fire from vehicle. Vehicle moves. | Relief, exhaustion | Vehicle System, Mounted Weapons |
+| Pullback | Vehicle drives south. Camera stays first-person — player looks back. Taoyuan Beach is burning. The fleet is still coming. Smoke columns from the airport. It's not over. It's just beginning. | Awe + grief + scale | Environment, Lighting, Draw Distance |
+| Silence | Engine noise fades. Squad is silent. Head count. Names spoken aloud — who's here, who's not. | Emotional devastation | Dialogue, Squad Personality |
+| Black | Fade to black. | — | — |
+
+### Post-Mission (2–3 minutes)
+
+| Beat | What Happens | Purpose |
+|---|---|---|
+| After-Action Report | Military debrief format: time survived, shots fired, accuracy, enemies neutralized, squad casualties, phases completed, objectives met/failed. | Player sees their performance |
+| Squad fate | Per-member outcome: survived, wounded, KIA — with portrait and status. Names matter. | Emotional weight |
+| **"The Enemy's Perspective"** | Interactive Primordia AI replay of one key engagement. Shows the AI's decision tree — what it saw, what it considered, why it flanked left instead of right, when it decided to commit reserves. The player sees the intelligence behind the enemy. | **THE investor hook** — no other game can show this |
+| Mission context | "OPERATION BREAKWATER — MISSION 1 OF 12" / "The beach fell. The airport fell. But Viper squad survived. The war for Taiwan has begun." | Sets up the full game |
+| End screen | "SHATTERED HORIZON 2032" / "COMING [YEAR]" / Wishlist/follow CTA | Investment CTA |
 
 ---
 
@@ -917,7 +952,7 @@ No workstream is "done" until it passes its quality gate. Gates are sequential �
 - [ ] Editor launches, project loads
 
 ### Gate 2: IT RUNS
-- [ ] Player spawns in Taoyuan Beach map
+- [ ] Player spawns in Taoyuan Beach map (full 64 km² world loads, World Partition streaming functional)
 - [ ] Player can move, look, shoot
 - [ ] At least one weapon fully functional (fire, reload, ADS)
 - [ ] At least one enemy AI spawns and exhibits basic behavior (move, shoot, take cover)
@@ -952,13 +987,14 @@ No workstream is "done" until it passes its quality gate. Gates are sequential �
 - [ ] Weather progression affects mood and gameplay
 
 ### Gate 6: IT SELLS
-- [ ] Complete playthrough from main menu to end screen — zero crashes
+- [ ] Complete playthrough from main menu to end screen — zero crashes, all 4 phases, 45+ minutes
 - [ ] First-time player can navigate without external instruction
 - [ ] AAR screen with "Enemy's Perspective" AI replay functions
 - [ ] 4K resolution, stable 60fps, no visual artifacts
 - [ ] Controller support functional
+- [ ] Replay value confirmed — second playthrough feels different (AI makes different decisions)
 - [ ] 10 consecutive full playthroughs with zero critical issues
-- [ ] Demo build locked, tagged, and sealed
+- [ ] Mission build locked, tagged, and sealed
 
 ---
 
@@ -980,35 +1016,36 @@ No workstream is "done" until it passes its quality gate. Gates are sequential �
 ### Parallel Execution Map
 
 ```
-Week 1-2:  [A: Level blockout] [B: Pipeline execution & import] [C-01/02/03: Bug fixes & compile]
-Week 2-4:  [A: Level detailing] [B: Asset organization]          [C: Player & AI wiring]
-Week 3-5:  [A: Lighting & VFX]  [B: Blueprint creation]          [C: Mission script wiring]     [D: Camera & movement]
-Week 4-6:  [E: Audio integration]                                 [D: Weapon & impact feel]      [F: UI implementation]
-Week 5-7:  [G: Voice recording & narrative moments]               [D: Stress & immersion]        [F: HUD & flow]
-Week 6-8:  [H: Performance profiling & optimization]              [G: Cinematic polish]
-Week 7-9:  [I: Automated tests] [I: Playtesting]                  [H: Final optimization]
-Week 8-10: [I: Investor-specific QA] [Quality gates 1-6]          [Demo build lockdown]
+Week 1-3:   [A: 64km² level blockout + heightmap]  [B: Pipeline execution & import]  [C-01/02/03: Bug fixes & compile]
+Week 2-5:   [A: High-density zone detailing]        [B: Asset organization]           [C: Player & AI wiring]
+Week 4-7:   [A: Urban district build]               [B: Blueprint creation]           [C: Mission script wiring]       [D: Camera & movement]
+Week 5-8:   [A: Lighting, VFX, weather]             [E: Audio integration]            [D: Weapon & impact feel]        [F: UI implementation]
+Week 6-9:   [G: Voice recording & narrative]                                          [D: Stress & immersion]          [F: HUD & flow]
+Week 8-11:  [H: Performance profiling & 64km² streaming optimization]                 [G: Cinematic polish]
+Week 9-13:  [I: Automated tests] [I: Playtesting full 4-phase mission]                [H: AI LOD + MassEntity at scale]
+Week 12-14: [I: Full QA, investor-specific testing] [Quality gates 1-6]               [Mission build lockdown]
 ```
 
 ### Critical Path
 
 The **longest sequential chain** that determines minimum calendar time:
 
-1. Level blockout (A-01 through A-10) — **must exist before anything else can be placed**
-2. Asset import (B-01 through B-36) — **parallel with level, but placement requires both**
-3. C++ → Blueprint wiring (C-04 through C-53) — **requires level + assets**
-4. Feel pass (D-01 through D-36) — **requires wired systems**
-5. Audio integration (E-01 through E-36) — **requires wired systems + assets**
-6. Performance optimization (H-01 through H-25) — **requires everything assembled**
-7. QA (I-01 through I-27) — **requires optimized build**
+1. 64 km² level blockout + heightmap + World Partition (A-01 through A-10) — **must exist before anything else can be placed**
+2. High-density zone construction: beach, trench line, urban district (A-11 through A-21c) — **the bulk of environment art**
+3. Asset import (B-01 through B-36) — **parallel with level, but placement requires both**
+4. C++ → Blueprint wiring (C-04 through C-53) — **requires level + assets**
+5. Feel pass (D-01 through D-36) — **requires wired systems**
+6. Audio integration (E-01 through E-36) — **requires wired systems + assets**
+7. Performance optimization for 64 km² + 200 AI (H-01 through H-25) — **requires everything assembled, expect iteration**
+8. Full 4-phase QA (I-01 through I-27) — **requires optimized build**
 
-**Critical path length: 8–10 weeks with a focused team.**
+**Critical path length: 12–14 weeks with a focused team.** The 64 km² world and urban district construction add ~4 weeks over a smaller slice. Worth every day — the scale is part of the pitch.
 
 ---
 
-## WHAT MAKES THIS DEMO RAISE $25–30M
+## WHAT MAKES MISSION 1 RAISE $25–30M
 
-The investment thesis in the demo is three-fold:
+The investment thesis is three-fold. Mission 1 isn't a demo or a proof of concept — it's the ship-quality first level of a 12-mission game. Investors aren't being asked to imagine what the game could be. They're playing what it is.
 
 ### 1. The AI Is Real
 Every other military shooter scripts enemy behavior. Enemies in Shattered Horizon 2032 **think**. They suppress, flank, communicate, adapt, and break. The Primordia system is a genuine competitive moat — 10 dedicated subsystems, 20 source files, behavioral learning, decision validation, cognitive state modeling. The "Enemy's Perspective" replay at the end of the demo makes this visible. Investors see the AI's decision tree, its tactical reasoning, its morale collapse. No other game can show this.
@@ -1023,8 +1060,8 @@ This isn't a power fantasy. It's a loss. Taoyuan Beach falls. The question is wh
 
 *"Every system is authentic when a combat veteran plays it, does not laugh, and does not explain what is wrong."*
 
-*This demo will be that standard, rendered playable, in 20–30 minutes that change how investors think about military games.*
+*Mission 1 is that standard, rendered playable, in 45–75 minutes that redefine what a military game can be. Eleven more missions follow. This is the beginning.*
 
 ---
 
-**Document ends. 298 tasks across 9 workstreams. 6 quality gates. One demo that changes everything.**
+**Document ends. 298+ tasks across 9 workstreams. 6 quality gates. One mission that launches a franchise.**
