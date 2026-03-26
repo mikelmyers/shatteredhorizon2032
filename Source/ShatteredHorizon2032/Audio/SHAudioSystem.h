@@ -167,6 +167,50 @@ public:
 		const FVector& ListenerPosition);
 
 	// ------------------------------------------------------------------
+	//  Crack-Thump propagation
+	// ------------------------------------------------------------------
+
+	/**
+	 * Play a gunshot with proper crack-thump separation.
+	 *
+	 * Doctrine: For supersonic rounds, the listener hears two distinct sounds:
+	 * 1) The supersonic CRACK arrives first (travels with the bullet's shock wave)
+	 * 2) The muzzle THUMP arrives later (travels at speed of sound: distance / 343 m/s)
+	 *
+	 * A skilled player can estimate shooter distance from the delay between
+	 * crack and thump. This is THE defining audio signature of real combat.
+	 *
+	 * @param MuzzleLocation      World position of the weapon muzzle (cm).
+	 * @param BulletPassLocation  Closest point the bullet passed to the listener (cm).
+	 * @param ProjectileSpeed     Bullet velocity at pass point (cm/s).
+	 * @param MuzzleSound         Muzzle report (thump) sound asset.
+	 * @param CrackSound          Supersonic crack sound asset.
+	 * @param bIsSuppressed       If true, muzzle report is greatly reduced.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SH|Audio|CrackThump")
+	void PlayCrackThump(
+		const FVector& MuzzleLocation,
+		const FVector& BulletPassLocation,
+		float ProjectileSpeed,
+		USoundBase* MuzzleSound,
+		USoundBase* CrackSound,
+		bool bIsSuppressed = false);
+
+	/**
+	 * Compute the delay between crack and thump for a given geometry.
+	 *
+	 * @param MuzzleLocation      World muzzle position (cm).
+	 * @param ListenerPosition    Listener position (cm).
+	 * @param ProjectileSpeed     Speed of the projectile at listener pass (cm/s).
+	 * @return Delay in seconds (thump arrives this much later than crack). 0 if subsonic.
+	 */
+	UFUNCTION(BlueprintPure, Category = "SH|Audio|CrackThump")
+	static float ComputeCrackThumpDelay(
+		const FVector& MuzzleLocation,
+		const FVector& ListenerPosition,
+		float ProjectileSpeed);
+
+	// ------------------------------------------------------------------
 	//  Delegates
 	// ------------------------------------------------------------------
 
