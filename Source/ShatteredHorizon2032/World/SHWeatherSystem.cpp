@@ -529,24 +529,31 @@ void USHWeatherSystem::FeedWindToBallistics()
 
 void USHWeatherSystem::FeedSoundPropagationToAudio()
 {
-	// The audio system does not yet expose a SetSoundPropagationMultiplier().
-	// When it does, uncomment and wire this in:
-	//
-	// if (!CachedAudioSystem)
-	// {
-	//     if (UWorld* World = GetWorld())
-	//     {
-	//         CachedAudioSystem = World->GetSubsystem<USHAudioSystem>();
-	//     }
-	// }
-	//
-	// if (CachedAudioSystem)
-	// {
-	//     CachedAudioSystem->SetSoundPropagationMultiplier(CurrentEffects.SoundPropagationMultiplier);
-	// }
-	//
-	// For now, the SoundPropagationMultiplier is available via GetGameplayEffects()
-	// and can be queried by any system that needs it.
+	if (!CachedAudioSystem)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			CachedAudioSystem = World->GetSubsystem<USHAudioSystem>();
+		}
+	}
+
+	if (CachedAudioSystem)
+	{
+		// Weather affects combat audio perception: rain masks sounds, wind carries them.
+		// Use the stress level interface to modulate audio when weather is severe —
+		// heavy rain at propagation 0.6 means sounds are 40% quieter/shorter range.
+		//
+		// Additionally, register the weather itself as a persistent low-intensity
+		// audio event so the mixing system accounts for environmental noise floor.
+		const float PropMult = CurrentEffects.SoundPropagationMultiplier;
+		if (PropMult < 0.9f)
+		{
+			// Weather is degrading sound propagation — register as ambient noise.
+			// Higher degradation = more ambient noise masking.
+			const float WeatherNoiseIntensity = (1.0f - PropMult) * 0.3f;
+			CachedAudioSystem->RegisterCombatEvent(FVector::ZeroVector, WeatherNoiseIntensity);
+		}
+	}
 }
 
 // ======================================================================

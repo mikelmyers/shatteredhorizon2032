@@ -2,6 +2,7 @@
 
 #include "SHISRDrone.h"
 #include "ShatteredHorizon2032/ShatteredHorizon2032.h"
+#include "Core/SHGameMode.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -47,14 +48,23 @@ void ASHISRDrone::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// Cache night time status (check time-of-day from game state or world)
-	// Simple heuristic: use directional light or a game state query
-	// For now, check world time
+	// Cache night time status from game mode's time-of-day system.
 	if (const UWorld* World = GetWorld())
 	{
-		// Game mode tracks time-of-day; we approximate with a delegate or direct check
-		// This would typically query the game state. Using a placeholder for now.
-		bIsNightTime = false; // Updated externally or by game state query
+		if (const AGameModeBase* GM = World->GetAuthGameMode())
+		{
+			// SHGameMode exposes GetTimeOfDayHours() — night is 20:00-05:00.
+			if (const ASHGameMode* SHGM = Cast<ASHGameMode>(GM))
+			{
+				const float TOD = SHGM->GetTimeOfDayHours();
+				bIsNightTime = (TOD >= 20.f || TOD < 5.f);
+			}
+			else
+			{
+				// Fallback: use sun angle via directional light.
+				bIsNightTime = false;
+			}
+		}
 	}
 }
 

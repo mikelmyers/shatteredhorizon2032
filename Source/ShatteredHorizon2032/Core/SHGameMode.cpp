@@ -305,10 +305,53 @@ void ASHGameMode::ExecuteWaveSpawn(const FSHReinforcementWave& Wave)
 		PrimordiaDecisionEngine->OnReinforcementWaveSpawned(NewSquadIds);
 	}
 
-	// TODO(future): Spawn armored vehicles from Wave.ArmorCount and amphibious from Wave.AmphibiousCount.
-	if (Wave.ArmorCount > 0)
+	// Spawn armored vehicles at the same spawn zone.
+	if (Wave.ArmorCount > 0 && ArmorVehicleClass && SpawnPoints.Num() > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Armor spawn (%d vehicles) — vehicle spawning not yet wired."), Wave.ArmorCount);
+		for (int32 VIdx = 0; VIdx < Wave.ArmorCount; ++VIdx)
+		{
+			const AActor* SpawnOrigin = SpawnPoints[VIdx % SpawnPoints.Num()];
+			// Offset vehicles laterally so they don't stack on infantry.
+			const FVector VehicleOffset(0.0f, (VIdx + 1) * 600.0f, 0.0f);
+			const FVector VehicleLocation = SpawnOrigin->GetActorLocation() + VehicleOffset;
+
+			FActorSpawnParameters VSpawnParams;
+			VSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			AActor* SpawnedVehicle = World->SpawnActor<AActor>(
+				ArmorVehicleClass, VehicleLocation, FRotator::ZeroRotator, VSpawnParams);
+
+			if (SpawnedVehicle)
+			{
+				SpawnedVehicle->Tags.Add(Wave.SpawnZoneTag);
+				UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Spawned armor vehicle %d at %s"),
+					VIdx, *VehicleLocation.ToString());
+			}
+		}
+	}
+
+	// Spawn amphibious vehicles.
+	if (Wave.AmphibiousCount > 0 && AmphibiousVehicleClass && SpawnPoints.Num() > 0)
+	{
+		for (int32 AIdx = 0; AIdx < Wave.AmphibiousCount; ++AIdx)
+		{
+			const AActor* SpawnOrigin = SpawnPoints[AIdx % SpawnPoints.Num()];
+			const FVector AmphibOffset(0.0f, -(AIdx + 1) * 800.0f, 0.0f);
+			const FVector AmphibLocation = SpawnOrigin->GetActorLocation() + AmphibOffset;
+
+			FActorSpawnParameters ASpawnParams;
+			ASpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			AActor* SpawnedAmphib = World->SpawnActor<AActor>(
+				AmphibiousVehicleClass, AmphibLocation, FRotator::ZeroRotator, ASpawnParams);
+
+			if (SpawnedAmphib)
+			{
+				SpawnedAmphib->Tags.Add(Wave.SpawnZoneTag);
+				UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Spawned amphibious vehicle %d at %s"),
+					AIdx, *AmphibLocation.ToString());
+			}
+		}
 	}
 }
 

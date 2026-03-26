@@ -257,6 +257,14 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Spawning")
 	TSubclassOf<AActor> EnemyCharacterClass;
 
+	/** Armored vehicle class to spawn (e.g., ZBD-05, Type 08). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Spawning")
+	TSubclassOf<AActor> ArmorVehicleClass;
+
+	/** Amphibious assault vehicle class to spawn. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Spawning")
+	TSubclassOf<AActor> AmphibiousVehicleClass;
+
 	/** Primordia decision engine instance for tactical order assignment. */
 	UPROPERTY()
 	TObjectPtr<USHPrimordiaDecisionEngine> PrimordiaDecisionEngine = nullptr;

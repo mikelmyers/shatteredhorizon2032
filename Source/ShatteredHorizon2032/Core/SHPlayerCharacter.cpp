@@ -720,10 +720,38 @@ void ASHPlayerCharacter::TickSuppression(float DeltaSeconds)
 {
 	if (SuppressionLevel > 0.f)
 	{
+		const float OldLevel = SuppressionLevel;
 		SuppressionLevel = FMath::Max(0.f, SuppressionLevel - SuppressionDecayRate * DeltaSeconds);
 
-		// Apply camera shake / screen effects proportional to suppression.
-		// TODO: Interface with post-process volume for suppression VFX.
+		// Feed suppression to camera system for vignette, desaturation, and shake.
+		if (CameraSystem)
+		{
+			CameraSystem->SetSuppressionLevel(SuppressionLevel);
+		}
+
+		// At high suppression, apply camera shake proportional to intensity.
+		if (SuppressionLevel > 0.5f && FirstPersonCamera)
+		{
+			const float ShakeIntensity = (SuppressionLevel - 0.5f) * 2.0f; // 0-1 in heavy range
+			if (APlayerController* PC = Cast<APlayerController>(GetController()))
+			{
+				// Use built-in camera shake or manual offset.
+				// The CameraSystem handles the actual vignette/desaturation via
+				// its suppression parameter. Here we add the flinch component.
+				const float FlinchMagnitude = ShakeIntensity * 0.3f; // Degrees
+				const FRotator Flinch(
+					FMath::RandRange(-FlinchMagnitude, FlinchMagnitude),
+					FMath::RandRange(-FlinchMagnitude, FlinchMagnitude),
+					0.0f);
+				PC->AddPitchInput(Flinch.Pitch * DeltaSeconds);
+				PC->AddYawInput(Flinch.Yaw * DeltaSeconds);
+			}
+		}
+
+		if (!FMath::IsNearlyEqual(OldLevel, SuppressionLevel, 0.01f))
+		{
+			OnSuppressionChanged.Broadcast(SuppressionLevel);
+		}
 	}
 }
 
