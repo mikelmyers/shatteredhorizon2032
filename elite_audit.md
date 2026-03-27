@@ -131,6 +131,46 @@ Each item below was verified against the actual source code. Status reflects wha
 | 32 | Server-authoritative fire validation | **MISSING** | `SHWeaponBase.cpp:130-420` — `StartFire()`/`FireShot()`/`ExecuteHitscan()` all execute client-side; no `Server_Fire()` RPC | Zero server authority on weapon fire; ammo/hit validation entirely client-trusted |
 | 33 | OnRep callbacks on GameState | **PARTIAL** | `SHGameState.h:229-258` — 9 properties use `UPROPERTY(Replicated)` with `DOREPLIFETIME()` registration | No `OnRep_` functions defined; clients must poll every frame to detect state changes |
 
+### Input/Platform
+
+| # | Feature | Status | Evidence | What's Missing |
+|---|---------|--------|----------|----------------|
+| 34 | Gamepad/controller support | **MISSING** | Project uses Enhanced Input System (`UInputAction`, `UInputMappingContext`) but no gamepad-specific bindings found anywhere in source | No gamepad input mapping, no aim assist, no gamepad sensitivity curves, no button remapping |
+
+### UI/Feedback
+
+| # | Feature | Status | Evidence | What's Missing |
+|---|---------|--------|----------|----------------|
+| 35 | Kill feed / killfeed | **MISSING** | `SHDeathRecapSystem.h` provides one-way death recap (who killed you + damage history) only | No real-time "X killed Y with Z" broadcast widget; no killfeed UI for spectators or teammates |
+| 36 | Minimap / tactical map | **MISSING** | `SHCompassWidget.h` — compass strip showing bearing, contacts, objectives in degrees only | No minimap with squad positions, no radar, no tactical overhead map overlay |
+| 37 | Dynamic crosshair | **MISSING** | `SHHUD.h` — `ShowHitMarker()` + `bShowHitMarkers` toggle exist; no crosshair system found | No procedural crosshair, no crosshair expansion on firing/movement, no crosshair bloom |
+| 40 | Screen damage effects | **MISSING** | `SHCameraSystem` has suppression vignette only (fade edges under fire) | No blood splatter on screen, no lens dirt, no screen gore on taking damage |
+
+### Sandbox/Interaction
+
+| # | Feature | Status | Evidence | What's Missing |
+|---|---------|--------|----------|----------------|
+| 38 | Weapon pickup/drop | **MISSING** | `ISHInteractable` interface exists for doors/crates; no weapon ground items found | No ground weapons, no weapon drops on death, no ammo scavenging from fallen enemies |
+| 41 | Weapon inspection | **MISSING** | `SHWeaponAnimSystem.cpp` — procedural transforms for recoil/bob/sway only | No first-person weapon examination animation, no inspect input binding |
+
+### Performance
+
+| # | Feature | Status | Evidence | What's Missing |
+|---|---------|--------|----------|----------------|
+| 39 | Object pooling (projectiles/FX) | **MISSING** | `SHProjectile` spawned via `SpawnActor` directly; no pool pattern anywhere in codebase | Every projectile and effect spawned fresh — GC pressure and hitch risk at scale |
+
+### Ammunition
+
+| # | Feature | Status | Evidence | What's Missing |
+|---|---------|--------|----------|----------------|
+| 42 | Ammo type distinction (AP/FMJ/HP) | **PARTIAL** | `SHBallisticsSystem.h` — `IsTracerRound()` checks tracer every Nth round with tracer particles | No AP/FMJ/hollow-point enum; no per-ammo-type damage scaling or penetration modifiers |
+
+### Spectator
+
+| # | Feature | Status | Evidence | What's Missing |
+|---|---------|--------|----------|----------------|
+| 43 | Death cam / on-death spectate | **PARTIAL** | `SHSpectatorController.h` — FreeCamera, FirstPerson, TacticalOverhead modes; can cycle through alive players and AI | No automatic transition to spectator on death; no killcam replay showing killer's perspective |
+
 ---
 
 ## Tier 3 Summary
@@ -144,7 +184,13 @@ Each item below was verified against the actual source code. Status reflects wha
 | Optics/Scopes (25-27) | 3 | 3 | 0 | 0 |
 | Mission/Narrative (28-31) | 4 | 2 | 1 | 1 |
 | Networking (32-33) | 2 | 1 | 1 | 0 |
-| **TOTAL** | **33** | **20** | **8** | **5** |
+| Input/Platform (34) | 1 | 1 | 0 | 0 |
+| UI/Feedback (35-37, 40) | 4 | 4 | 0 | 0 |
+| Sandbox/Interaction (38, 41) | 2 | 2 | 0 | 0 |
+| Performance (39) | 1 | 1 | 0 | 0 |
+| Ammunition (42) | 1 | 0 | 1 | 0 |
+| Spectator (43) | 1 | 0 | 1 | 0 |
+| **TOTAL** | **43** | **28** | **10** | **5** |
 
 ---
 
@@ -180,5 +226,6 @@ The original audit listed all 33 items as missing. Code verification found **5 i
 
 1. **Fix Tier 1** (compilation/broken) — nothing else matters if it doesn't compile
 2. **Wire Tier 2** (connect disconnected systems) — most value for least work, hard code already written
-3. **Implement top Tier 3** — movement inertia, sprint-to-fire delay, weapon drag, audio occlusion, server-authoritative fire
-4. **Complete partial Tier 3** — prone animation, vault animation, sensitivity application, OnRep callbacks, conditional dialogue
+3. **Implement top Tier 3** — movement inertia, sprint-to-fire delay, weapon drag, audio occlusion, server-authoritative fire, object pooling
+4. **Complete partial Tier 3** — prone animation, vault animation, sensitivity application, OnRep callbacks, conditional dialogue, death cam
+5. **Add missing polish systems** — dynamic crosshair, screen damage effects, kill feed, weapon pickup/drop, gamepad support, minimap
