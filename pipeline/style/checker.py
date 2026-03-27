@@ -181,7 +181,7 @@ class StyleChecker:
         """
 
         db = inventory_db  # type: ignore[assignment]
-        pending_assets = db.list_assets(status_filter="generated")  # type: ignore[attr-defined]
+        pending_assets = db.list_assets(status="generated")  # type: ignore[attr-defined]
 
         results: list[StyleResult] = []
         for asset in pending_assets:
@@ -199,10 +199,9 @@ class StyleChecker:
             try:
                 db.update_style_check(asset_id, style_result.result, style_result.score)  # type: ignore[attr-defined]
                 if style_result.result == "fail":
-                    db.update_status(  # type: ignore[attr-defined]
+                    db.quarantine(  # type: ignore[attr-defined]
                         asset_id,
-                        "quarantined",
-                        notes="; ".join(style_result.issues),
+                        reason="; ".join(style_result.issues),
                     )
             except Exception as exc:
                 logger.warning("Failed to persist style result for %s: %s", asset_id, exc)
