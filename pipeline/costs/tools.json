@@ -1,0 +1,25 @@
+{
+  "tools": [
+    { "id": "midjourney", "name": "Midjourney", "tier": "paid", "monthly_cap": 30.00, "cost_per_call": 0 },
+    { "id": "leonardo", "name": "Leonardo.ai", "tier": "freemium", "monthly_cap": 24.00, "cost_per_call": 0 },
+    { "id": "scenario", "name": "Scenario.gg", "tier": "freemium", "monthly_cap": 20.00, "cost_per_call": 0 },
+    { "id": "elevenlabs", "name": "ElevenLabs", "tier": "freemium", "monthly_cap": 22.00, "cost_per_call": 0 },
+    { "id": "suno", "name": "Suno", "tier": "freemium", "monthly_cap": 10.00, "cost_per_call": 0 },
+    { "id": "aiva", "name": "AIVA", "tier": "paid", "monthly_cap": 15.00, "cost_per_call": 0 },
+    { "id": "speedtree", "name": "SpeedTree", "tier": "paid", "monthly_cap": 19.00, "cost_per_call": 0 },
+    { "id": "meshy", "name": "Meshy.ai", "tier": "freemium", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "kitbash3d", "name": "KitBash3D Unlimited", "tier": "paid", "annual_cost": 995.00, "monthly_cap": 0 },
+    { "id": "stable_diffusion", "name": "Stable Diffusion (local)", "tier": "free", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "poly_haven", "name": "Poly Haven", "tier": "free", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "metahuman", "name": "MetaHuman", "tier": "free", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "ue5_pcg", "name": "UE5 PCG", "tier": "free", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "niagara", "name": "Niagara", "tier": "free", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "kenney", "name": "Kenney.nl", "tier": "free", "monthly_cap": 0, "cost_per_call": 0 },
+    { "id": "houdini", "name": "Houdini Indie", "tier": "paid", "monthly_cap": 25.00, "cost_per_call": 0 },
+    { "id": "adobe_substance", "name": "Adobe Substance", "tier": "paid", "monthly_cap": 20.00, "cost_per_call": 0 },
+    { "id": "rokoko", "name": "Rokoko", "tier": "paid", "monthly_cap": 15.00, "cost_per_call": 0 },
+    { "id": "promethean", "name": "Promethean AI", "tier": "paid", "monthly_cap": 25.00, "cost_per_call": 0 }
+  ],
+  "total_monthly_budget": 200.00,
+  "alert_threshold_pct": 80
+}

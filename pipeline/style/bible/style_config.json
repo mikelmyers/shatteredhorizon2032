@@ -1,0 +1,46 @@
+{
+  "clip_threshold": 0.75,
+  "palette": {
+    "dominant_hues": ["olive", "gunmetal", "sand"],
+    "saturation_max": 0.45,
+    "forbidden_hues": ["cyan", "magenta", "bright_yellow"],
+    "hue_ranges": {
+      "olive": [60, 100],
+      "gunmetal": [200, 220],
+      "sand": [30, 50],
+      "burnt_orange": [15, 30]
+    },
+    "forbidden_hue_ranges": {
+      "cyan": [170, 195],
+      "magenta": [290, 330],
+      "bright_yellow": [50, 65]
+    }
+  },
+  "poly_budget": {
+    "hero_character": 80000,
+    "environment_prop": 15000,
+    "vehicle": 120000,
+    "weapon": 25000,
+    "foliage": 5000
+  },
+  "texture_resolution": {
+    "min": 512,
+    "max": 4096,
+    "hero_min": 2048
+  },
+  "audio": {
+    "music_bpm_range": [60, 140],
+    "approved_moods": ["tense", "ambient", "cinematic", "dramatic", "sparse"],
+    "approved_keys": ["Cm", "Dm", "Am", "Em", "Fm", "Gm", "Bbm"],
+    "max_duration_seconds": 300
+  },
+  "naming_conventions": {
+    "texture_prefix": "T_",
+    "mesh_prefix": "SM_",
+    "material_prefix": "M_",
+    "sound_prefix": "S_",
+    "music_prefix": "MUS_",
+    "vfx_prefix": "VFX_",
+    "ui_prefix": "UI_"
+  }
+}

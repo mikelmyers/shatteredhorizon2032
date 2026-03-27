@@ -1,0 +1,22 @@
+# Pipeline databases (local, not committed)
+pipeline.db
+pipeline.db-wal
+pipeline.db-shm
+costs/ledger.db
+costs/ledger.db-wal
+costs/ledger.db-shm
+
+# Generated assets (large binary files)
+assets/concept_art/
+assets/meshes/
+assets/textures/
+assets/audio/
+assets/quarantine/
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
