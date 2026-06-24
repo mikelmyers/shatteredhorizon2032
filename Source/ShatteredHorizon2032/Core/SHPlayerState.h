@@ -33,7 +33,7 @@ struct FSHAmmoState
 
 /** Engagement/kill record for AAR and scoring. */
 USTRUCT(BlueprintType)
-struct FSHEngagementRecord
+struct FSHPlayerEngagementRecord
 {
 	GENERATED_BODY()
 
@@ -81,7 +81,7 @@ struct FSHEngagementRecord
 	}
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnMoraleChanged, ESHMoraleState, NewState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnPlayerMoraleChanged, ESHMoraleState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnAmmoChanged, FName, AmmoType, const FSHAmmoState&, NewState);
 
 /**
@@ -105,7 +105,7 @@ public:
 	// ------------------------------------------------------------------
 
 	UFUNCTION(BlueprintPure, Category = "SH|Stats")
-	const FSHEngagementRecord& GetEngagementRecord() const { return EngagementRecord; }
+	const FSHPlayerEngagementRecord& GetEngagementRecord() const { return EngagementRecord; }
 
 	UFUNCTION(BlueprintCallable, Category = "SH|Stats")
 	void RecordKill(float Distance);
@@ -155,7 +155,7 @@ public:
 	void AdjustMorale(float Delta);
 
 	UPROPERTY(BlueprintAssignable, Category = "SH|Morale")
-	FSHOnMoraleChanged OnMoraleChanged;
+	FSHOnPlayerMoraleChanged OnMoraleChanged;
 
 	// ------------------------------------------------------------------
 	//  Ammo / equipment
@@ -203,7 +203,7 @@ private:
 	// ------------------------------------------------------------------
 
 	UPROPERTY(Replicated)
-	FSHEngagementRecord EngagementRecord;
+	FSHPlayerEngagementRecord EngagementRecord;
 
 	UPROPERTY(Replicated)
 	ESHMoraleState MoraleState = ESHMoraleState::Steady;

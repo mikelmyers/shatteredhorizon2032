@@ -3,6 +3,7 @@
 #include "SHISRDrone.h"
 #include "ShatteredHorizon2032/ShatteredHorizon2032.h"
 #include "Core/SHGameMode.h"
+#include "World/SHWeatherSystem.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -252,6 +253,20 @@ bool ASHISRDrone::IsInDetectionCone(AActor* Target, float& OutConfidence) const
 	else if (CurrentCameraMode == ESHISRCameraMode::Daylight && bIsNightTime)
 	{
 		EffectiveRange *= NightDetectionPenalty;
+	}
+
+	// Weather obscurants (fog / heavy rain) shrink optical detection range.
+	// Thermal imaging is largely unaffected, so only degrade non-thermal modes —
+	// mirrors how the night penalty applies only to the daylight camera.
+	if (CurrentCameraMode != ESHISRCameraMode::ThermalIR)
+	{
+		if (const UWorld* World = GetWorld())
+		{
+			if (const USHWeatherSystem* Weather = World->GetSubsystem<USHWeatherSystem>())
+			{
+				EffectiveRange *= Weather->GetGameplayEffects().VisualDetectionMultiplier;
+			}
+		}
 	}
 
 	if (Distance > EffectiveRange)
@@ -603,15 +618,16 @@ void ASHISRDrone::AdvanceToNextWaypoint()
 
 	if (CurrentPatrolPattern == ESHPatrolPattern::Racetrack)
 	{
-		// Racetrack: go back and forth
-		static bool bForward = true;
-		if (bForward)
+		// Racetrack: go back and forth. Direction is per-instance state
+		// (bRacetrackForward) — a function-local static would be shared across
+		// every drone and make their patrols interfere.
+		if (bRacetrackForward)
 		{
 			CurrentWaypointIndex++;
 			if (CurrentWaypointIndex >= PatrolWaypoints.Num())
 			{
 				CurrentWaypointIndex = PatrolWaypoints.Num() - 2;
-				bForward = false;
+				bRacetrackForward = false;
 			}
 		}
 		else
@@ -620,7 +636,7 @@ void ASHISRDrone::AdvanceToNextWaypoint()
 			if (CurrentWaypointIndex < 0)
 			{
 				CurrentWaypointIndex = 1;
-				bForward = true;
+				bRacetrackForward = true;
 			}
 		}
 	}

@@ -70,7 +70,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAfterActionContinue);
  * USHAfterActionWidget
  *
  * Post-mission After Action Report (AAR) screen. Presents:
- *  - Engagement statistics from FSHEngagementRecord
+ *  - Engagement statistics from FSHPlayerEngagementRecord
  *  - AI analysis summary text
  *  - XP awarded breakdown
  *  - Rank progress bar
@@ -92,7 +92,7 @@ public:
 	/** Populate the AAR with engagement data and supporting information. */
 	UFUNCTION(BlueprintCallable, Category = "SH|UI|AAR")
 	void SetAfterActionData(
-		const FSHEngagementRecord& InRecord,
+		const FSHPlayerEngagementRecord& InRecord,
 		const FText& InAIAnalysis,
 		const FSHXPBreakdown& InXPBreakdown,
 		const FSHRankProgress& InRankProgress);
@@ -102,7 +102,7 @@ public:
 	// ------------------------------------------------------------------
 
 	UFUNCTION(BlueprintPure, Category = "SH|UI|AAR")
-	const FSHEngagementRecord& GetEngagementRecord() const { return EngagementRecord; }
+	const FSHPlayerEngagementRecord& GetEngagementRecord() const { return EngagementRecord; }
 
 	UFUNCTION(BlueprintPure, Category = "SH|UI|AAR")
 	const FText& GetAIAnalysis() const { return AIAnalysis; }
@@ -145,7 +145,7 @@ protected:
 	virtual void NativeOnDeactivated() override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SH|UI|AAR")
-	FSHEngagementRecord EngagementRecord;
+	FSHPlayerEngagementRecord EngagementRecord;
 
 	UPROPERTY(BlueprintReadOnly, Category = "SH|UI|AAR")
 	FText AIAnalysis;

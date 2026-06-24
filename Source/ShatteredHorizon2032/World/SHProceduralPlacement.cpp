@@ -2,6 +2,7 @@
 
 #include "SHProceduralPlacement.h"
 #include "Engine/World.h"
+#include "Engine/OverlapResult.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
 #include "CollisionQueryParams.h"
@@ -576,7 +577,7 @@ AActor* USHProceduralPlacement::SpawnPlacedActor(TSubclassOf<AActor> ActorClass,
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-	AActor* Spawned = GetWorld()->SpawnActor<AActor>(ActorClass, &Transform, Params);
+	AActor* Spawned = GetWorld()->SpawnActor<AActor>(ActorClass, Transform, Params);
 	if (Spawned)
 	{
 		Result.bWasPlaced = true;

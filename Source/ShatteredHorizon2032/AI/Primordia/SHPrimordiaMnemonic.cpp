@@ -8,30 +8,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogSH_Mnemonic, Log, All);
 
 // -----------------------------------------------------------------------
-//  Simple save game wrapper
-// -----------------------------------------------------------------------
-
-UCLASS()
-class USHMnemonicSaveGame : public USaveGame
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	FSHPlayerBehaviorProfile Profile;
-
-	/** Serialized action buffer for carry-over between sessions. */
-	UPROPERTY()
-	TArray<FVector> ActionLocations;
-
-	UPROPERTY()
-	TArray<FName> ActionTypes;
-
-	UPROPERTY()
-	TArray<float> ActionTimestamps;
-};
-
-// -----------------------------------------------------------------------
 //  Subsystem lifecycle
 // -----------------------------------------------------------------------
 

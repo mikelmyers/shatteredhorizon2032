@@ -6,6 +6,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "Engine/DamageEvents.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/DamageType.h"
 

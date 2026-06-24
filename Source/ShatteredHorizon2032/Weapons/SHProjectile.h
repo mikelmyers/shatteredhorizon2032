@@ -3,15 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/HitResult.h"
 #include "GameFramework/Actor.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "SHWeaponData.h"
 #include "SHBallisticsSystem.h"
 #include "SHProjectile.generated.h"
 
+class UParticleSystem;
 class UProjectileMovementComponent;
 class USphereComponent;
 class UParticleSystemComponent;
 class UNiagaraComponent;
+class USoundBase;
 
 /* -----------------------------------------------------------------------
  *  ASHProjectile — Physical projectile with ballistic simulation

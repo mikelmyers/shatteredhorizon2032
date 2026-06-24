@@ -4,14 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Sound/SoundBase.h"
 #include "SHDestructionSystem.generated.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogSH_Destruction, Log, All);
 
 class UGeometryCollectionComponent;
 class UStaticMeshComponent;
 class UNiagaraSystem;
-class USoundBase;
 
 /** Destructible object category — determines fracture behavior. */
 UENUM(BlueprintType)

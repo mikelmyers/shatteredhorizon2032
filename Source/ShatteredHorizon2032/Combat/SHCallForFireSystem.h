@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameFramework/DamageType.h"
 #include "ShatteredHorizon2032/Weapons/SHBallisticsSystem.h"
 #include "SHCallForFireSystem.generated.h"
 

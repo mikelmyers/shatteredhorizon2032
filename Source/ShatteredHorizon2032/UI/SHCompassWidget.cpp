@@ -1,13 +1,14 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
 #include "SHCompassWidget.h"
+#include "EW/SHCommsDisruption.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
-
-DEFINE_LOG_CATEGORY(LogSH_Compass);
+#include "Rendering/DrawElements.h"
+#include "Styling/CoreStyle.h"
 
 // ======================================================================
 //  Construction
@@ -54,6 +55,13 @@ void USHCompassWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 		{
 			FRotator Rot = Pawn->GetControlRotation();
 			CurrentBearing = FMath::Fmod(Rot.Yaw + 360.f, 360.f);
+
+			// Under enemy GPS denial the compass drifts. Route the true bearing
+			// through the comms-disruption component (no-op when comms are clear).
+			if (const USHCommsDisruption* Comms = Pawn->FindComponentByClass<USHCommsDisruption>())
+			{
+				CurrentBearing = FMath::Fmod(Comms->GetDriftedCompassBearing(CurrentBearing) + 360.f, 360.f);
+			}
 		}
 	}
 
@@ -93,7 +101,7 @@ void USHCompassWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 // ======================================================================
 
 int32 USHCompassWidget::NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
-									 const FSlateRect& MyCullingRect, FSlateClipRectangleList& OutDrawElements,
+									 const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
 									 int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	// The compass paints itself using Slate draw elements for crisp rendering.

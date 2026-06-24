@@ -18,6 +18,8 @@ class UAISenseConfig_Hearing;
 class UAISenseConfig_Damage;
 class UEnvQuery;
 class UEnvQueryInstanceBlueprintWrapper;
+struct FEnvQueryResult;
+struct FActorPerceptionUpdateInfo;
 
 /* ───────────────────────────────────────────────────────────── */
 /*  AI Combat State (Blackboard-mirrored)                       */
@@ -135,7 +137,7 @@ protected:
 	void OnPerceptionUpdated(const TArray<AActor*>& UpdatedActors);
 
 	UFUNCTION()
-	void OnTargetPerceptionInfoUpdated(AActor* Actor, FAIStimulus Stimulus);
+	void OnTargetPerceptionInfoUpdated(const FActorPerceptionUpdateInfo& UpdateInfo);
 
 public:
 	/* ── Order Interface (called by ASHSquadMember) ─────────── */
@@ -342,6 +344,19 @@ private:
 
 	bool bIsTreatingCasualty = false;
 	float TreatmentTimer = 0.f;
+
+	/** Apply / restore the drag movement-speed penalty. Cache-and-restore (not a
+	 *  fragile multiply/divide on the live value) and guarded so it applies and
+	 *  restores at most once — prevents both compounding slowdown and the 3.33×
+	 *  "supersonic" restore when the reduction was never applied. */
+	void ApplyDragMovementSpeed();
+	void RestoreDragMovementSpeed();
+
+	/** Walk speed cached before the drag penalty was applied. */
+	float PreDragWalkSpeed = 0.f;
+
+	/** True while the drag movement penalty is currently applied. */
+	bool bDragSpeedApplied = false;
 
 	/** Time to apply field treatment (seconds). */
 	static constexpr float FieldTreatmentDuration = 6.f;

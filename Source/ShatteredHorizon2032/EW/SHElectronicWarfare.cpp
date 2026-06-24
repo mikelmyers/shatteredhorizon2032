@@ -3,6 +3,7 @@
 #include "SHElectronicWarfare.h"
 #include "ShatteredHorizon2032/ShatteredHorizon2032.h"
 #include "ShatteredHorizon2032/Drones/SHDroneBase.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -218,11 +219,9 @@ FSHEWQueryResult ASHElectronicWarfare::QueryEWAtPosition(const FVector& Position
 		}
 	}
 
-	Result.MaxEffectStrength = FMath::Max({
-		Result.GPSDenialStrength,
-		Result.CommsJammingStrength,
-		Result.RadarDisruptionStrength,
-		Result.DroneJammingStrength});
+	Result.MaxEffectStrength = FMath::Max(
+		FMath::Max(Result.GPSDenialStrength, Result.CommsJammingStrength),
+		FMath::Max(Result.RadarDisruptionStrength, Result.DroneJammingStrength));
 
 	return Result;
 }

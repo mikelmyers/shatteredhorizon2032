@@ -10,12 +10,14 @@
 #include "ShatteredHorizon2032/AI/SHEnemyCharacter.h"
 #include "ShatteredHorizon2032/Core/SHGameSessionManager.h"
 
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY(LogSH_MissionScript);
 
@@ -72,7 +74,7 @@ void USHMissionScriptRunner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 //  Mission lifecycle
 // =====================================================================
 
-void USHMissionScriptRunner::LoadMission(USHMissionDefinition* Definition)
+void USHMissionScriptRunner::LoadMission(USHScriptedMissionDefinition* Definition)
 {
 	if (!Definition)
 	{
@@ -180,7 +182,7 @@ void USHMissionScriptRunner::EnterCurrentPhase()
 		return;
 	}
 
-	const FSHPhaseDefinition& PhaseDef = ActiveMission->Phases[CurrentPhaseIndex];
+	const FSHMissionScriptPhaseDefinition& PhaseDef = ActiveMission->Phases[CurrentPhaseIndex];
 
 	UE_LOG(LogSH_MissionScript, Log, TEXT("Entering phase %d: %s (duration: %.1fs)"),
 		CurrentPhaseIndex, *UEnum::GetDisplayValueAsText(PhaseDef.Phase).ToString(),
@@ -188,19 +190,19 @@ void USHMissionScriptRunner::EnterCurrentPhase()
 
 	// Populate pending queues from the phase definition, sorted by delay ascending.
 	PendingWaves = PhaseDef.Waves;
-	PendingWaves.Sort([](const FSHWaveDefinition& A, const FSHWaveDefinition& B)
+	PendingWaves.Sort([](const FSHScriptedWaveDefinition& A, const FSHScriptedWaveDefinition& B)
 	{
 		return A.DelayFromPhaseStart < B.DelayFromPhaseStart;
 	});
 
 	PendingEvents = PhaseDef.ScriptedEvents;
-	PendingEvents.Sort([](const FSHScriptedEventDefinition& A, const FSHScriptedEventDefinition& B)
+	PendingEvents.Sort([](const FSHMissionScriptedEventDefinition& A, const FSHMissionScriptedEventDefinition& B)
 	{
 		return A.DelayFromPhaseStart < B.DelayFromPhaseStart;
 	});
 
 	PendingDialogue = PhaseDef.DialogueTriggers;
-	PendingDialogue.Sort([](const FSHDialogueTrigger& A, const FSHDialogueTrigger& B)
+	PendingDialogue.Sort([](const FSHMissionDialogueTrigger& A, const FSHMissionDialogueTrigger& B)
 	{
 		return A.DelayFromPhaseStart < B.DelayFromPhaseStart;
 	});
@@ -254,7 +256,7 @@ void USHMissionScriptRunner::TickAdvanceConditions(float DeltaTime)
 		return;
 	}
 
-	const FSHPhaseDefinition& PhaseDef = ActiveMission->Phases[CurrentPhaseIndex];
+	const FSHMissionScriptPhaseDefinition& PhaseDef = ActiveMission->Phases[CurrentPhaseIndex];
 
 	// If there are no advance conditions, never auto-advance.
 	if (PhaseDef.AdvanceConditions.Num() == 0)
@@ -269,19 +271,19 @@ void USHMissionScriptRunner::TickAdvanceConditions(float DeltaTime)
 
 		switch (Rule.Condition)
 		{
-		case ESHPhaseAdvanceCondition::AllObjectivesComplete:
+		case ESHScriptedPhaseAdvanceCondition::AllObjectivesComplete:
 			bConditionMet = EvaluateAllObjectivesComplete();
 			break;
 
-		case ESHPhaseAdvanceCondition::TimerExpired:
+		case ESHScriptedPhaseAdvanceCondition::TimerExpired:
 			bConditionMet = EvaluateTimerExpired();
 			break;
 
-		case ESHPhaseAdvanceCondition::EnemyBreachesLine:
+		case ESHScriptedPhaseAdvanceCondition::EnemyBreachesLine:
 			bConditionMet = EvaluateEnemyBreachesLine(Rule);
 			break;
 
-		case ESHPhaseAdvanceCondition::FriendlyForcesOverrun:
+		case ESHScriptedPhaseAdvanceCondition::FriendlyForcesOverrun:
 			bConditionMet = EvaluateFriendlyForcesOverrun(Rule);
 			break;
 		}
@@ -304,13 +306,13 @@ void USHMissionScriptRunner::TickPendingWaves(float DeltaTime)
 	// Process from the front — list is sorted by delay ascending.
 	while (PendingWaves.Num() > 0)
 	{
-		const FSHWaveDefinition& NextWave = PendingWaves[0];
+		const FSHScriptedWaveDefinition& NextWave = PendingWaves[0];
 		if (PhaseElapsedTime < NextWave.DelayFromPhaseStart)
 		{
 			break; // Not yet time for this wave.
 		}
 
-		FSHWaveDefinition WaveToSpawn = PendingWaves[0];
+		FSHScriptedWaveDefinition WaveToSpawn = PendingWaves[0];
 		PendingWaves.RemoveAt(0, EAllowShrinking::No);
 
 		SpawnWave(WaveToSpawn);
@@ -321,13 +323,13 @@ void USHMissionScriptRunner::TickPendingEvents(float DeltaTime)
 {
 	while (PendingEvents.Num() > 0)
 	{
-		const FSHScriptedEventDefinition& NextEvent = PendingEvents[0];
+		const FSHMissionScriptedEventDefinition& NextEvent = PendingEvents[0];
 		if (PhaseElapsedTime < NextEvent.DelayFromPhaseStart)
 		{
 			break;
 		}
 
-		FSHScriptedEventDefinition EventToRun = PendingEvents[0];
+		FSHMissionScriptedEventDefinition EventToRun = PendingEvents[0];
 		PendingEvents.RemoveAt(0, EAllowShrinking::No);
 
 		ExecuteScriptedEvent(EventToRun);
@@ -338,13 +340,13 @@ void USHMissionScriptRunner::TickPendingDialogue(float DeltaTime)
 {
 	while (PendingDialogue.Num() > 0)
 	{
-		const FSHDialogueTrigger& NextLine = PendingDialogue[0];
+		const FSHMissionDialogueTrigger& NextLine = PendingDialogue[0];
 		if (PhaseElapsedTime < NextLine.DelayFromPhaseStart)
 		{
 			break;
 		}
 
-		FSHDialogueTrigger DialogueToPlay = PendingDialogue[0];
+		FSHMissionDialogueTrigger DialogueToPlay = PendingDialogue[0];
 		PendingDialogue.RemoveAt(0, EAllowShrinking::No);
 
 		USHDialogueSystem* DialogueSys = GetDialogueSystem();
@@ -496,7 +498,7 @@ bool USHMissionScriptRunner::EvaluateFriendlyForcesOverrun(const FSHPhaseAdvance
 //  Event execution
 // =====================================================================
 
-void USHMissionScriptRunner::ExecuteScriptedEvent(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteScriptedEvent(const FSHMissionScriptedEventDefinition& Event)
 {
 	UE_LOG(LogSH_MissionScript, Log, TEXT("Executing scripted event: %s (type: %s)"),
 		*Event.EventId.ToString(),
@@ -504,27 +506,27 @@ void USHMissionScriptRunner::ExecuteScriptedEvent(const FSHScriptedEventDefiniti
 
 	switch (Event.EventType)
 	{
-	case ESHScriptedEventType::ArtilleryBarrage:
+	case ESHMissionScriptedEventType::ArtilleryBarrage:
 		ExecuteArtilleryBarrage(Event);
 		break;
 
-	case ESHScriptedEventType::DroneSwarm:
+	case ESHMissionScriptedEventType::DroneSwarm:
 		ExecuteDroneSwarm(Event);
 		break;
 
-	case ESHScriptedEventType::EWJammingZone:
+	case ESHMissionScriptedEventType::EWJammingZone:
 		ExecuteEWJammingZone(Event);
 		break;
 
-	case ESHScriptedEventType::WeatherChange:
+	case ESHMissionScriptedEventType::WeatherChange:
 		ExecuteWeatherChange(Event);
 		break;
 
-	case ESHScriptedEventType::Dialogue:
+	case ESHMissionScriptedEventType::Dialogue:
 		ExecuteDialogue(Event);
 		break;
 
-	case ESHScriptedEventType::AirStrike:
+	case ESHMissionScriptedEventType::AirStrike:
 		ExecuteAirStrike(Event);
 		break;
 	}
@@ -532,7 +534,7 @@ void USHMissionScriptRunner::ExecuteScriptedEvent(const FSHScriptedEventDefiniti
 	OnScriptedEventTriggered.Broadcast(Event.EventId);
 }
 
-void USHMissionScriptRunner::ExecuteArtilleryBarrage(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteArtilleryBarrage(const FSHMissionScriptedEventDefinition& Event)
 {
 	// Try to use the CallForFire system on the game mode first.
 	ASHGameMode* GM = GetSHGameMode();
@@ -604,7 +606,7 @@ void USHMissionScriptRunner::ExecuteArtilleryBarrage(const FSHScriptedEventDefin
 	}
 }
 
-void USHMissionScriptRunner::ExecuteDroneSwarm(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteDroneSwarm(const FSHMissionScriptedEventDefinition& Event)
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -660,7 +662,7 @@ void USHMissionScriptRunner::ExecuteDroneSwarm(const FSHScriptedEventDefinition&
 	}
 }
 
-void USHMissionScriptRunner::ExecuteEWJammingZone(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteEWJammingZone(const FSHMissionScriptedEventDefinition& Event)
 {
 	ASHElectronicWarfare* EW = GetEWManager();
 	if (!EW)
@@ -686,7 +688,7 @@ void USHMissionScriptRunner::ExecuteEWJammingZone(const FSHScriptedEventDefiniti
 		Event.Radius, Event.Intensity, Event.Duration);
 }
 
-void USHMissionScriptRunner::ExecuteWeatherChange(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteWeatherChange(const FSHMissionScriptedEventDefinition& Event)
 {
 	USHWeatherSystem* WeatherSys = GetWeatherSystem();
 	if (!WeatherSys)
@@ -703,7 +705,7 @@ void USHMissionScriptRunner::ExecuteWeatherChange(const FSHScriptedEventDefiniti
 		*UEnum::GetDisplayValueAsText(TargetWeather).ToString(), Event.Duration);
 }
 
-void USHMissionScriptRunner::ExecuteDialogue(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteDialogue(const FSHMissionScriptedEventDefinition& Event)
 {
 	// A dialogue event embedded as a scripted event (not using the dedicated
 	// dialogue trigger queue). This allows dialogue to be placed at arbitrary
@@ -723,7 +725,7 @@ void USHMissionScriptRunner::ExecuteDialogue(const FSHScriptedEventDefinition& E
 	DialogueSys->PlayDialogueLine(Line);
 }
 
-void USHMissionScriptRunner::ExecuteAirStrike(const FSHScriptedEventDefinition& Event)
+void USHMissionScriptRunner::ExecuteAirStrike(const FSHMissionScriptedEventDefinition& Event)
 {
 	// Air strikes are executed as a high-intensity artillery barrage with
 	// faster interval and larger blast radius.
@@ -777,7 +779,7 @@ void USHMissionScriptRunner::ExecuteAirStrike(const FSHScriptedEventDefinition& 
 //  Wave spawning
 // =====================================================================
 
-void USHMissionScriptRunner::SpawnWave(const FSHWaveDefinition& WaveDef)
+void USHMissionScriptRunner::SpawnWave(const FSHScriptedWaveDefinition& WaveDef)
 {
 	ASHGameMode* GM = GetSHGameMode();
 	if (!GM)
@@ -808,7 +810,7 @@ void USHMissionScriptRunner::SpawnWave(const FSHWaveDefinition& WaveDef)
 //  Objective management
 // =====================================================================
 
-void USHMissionScriptRunner::ActivatePhaseObjectives(const FSHPhaseDefinition& PhaseDef)
+void USHMissionScriptRunner::ActivatePhaseObjectives(const FSHMissionScriptPhaseDefinition& PhaseDef)
 {
 	USHObjectiveSystem* ObjSys = GetObjectiveSystem();
 	if (!ObjSys)

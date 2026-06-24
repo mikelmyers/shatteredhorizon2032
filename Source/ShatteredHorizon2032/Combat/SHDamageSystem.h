@@ -339,6 +339,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SH|Damage")
 	ESHWoundSeverity GetWorstWoundOnZone(ESHHitZone Zone) const;
 
+	/** Number of hit zones with configured damage multipliers. */
+	UFUNCTION(BlueprintPure, Category = "SH|Damage")
+	int32 GetHitZoneCount() const { return ZoneDamageMultipliers.Num(); }
+
+	/** Get the damage multiplier for a specific hit zone (0.0 if not configured). */
+	UFUNCTION(BlueprintPure, Category = "SH|Damage")
+	float GetHitZoneMultiplier(ESHHitZone Zone) const
+	{
+		const float* Mult = ZoneDamageMultipliers.Find(Zone);
+		return Mult ? *Mult : 0.f;
+	}
+
 	/** Aim penalty from arm wounds (1.0 = no penalty). */
 	UFUNCTION(BlueprintPure, Category = "SH|Damage")
 	float GetAimPenaltyMultiplier() const;

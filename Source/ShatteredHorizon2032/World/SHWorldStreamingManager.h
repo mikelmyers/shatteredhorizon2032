@@ -6,7 +6,6 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "SHWorldStreamingManager.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSH_Streaming, Log, All);
 
 /** Streaming priority tier — determines load/unload order. */
 UENUM(BlueprintType)

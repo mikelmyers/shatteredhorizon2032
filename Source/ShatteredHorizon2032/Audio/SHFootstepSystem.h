@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Sound/SoundBase.h"
+#include "Particles/ParticleSystem.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "SHFootstepSystem.generated.h"
 

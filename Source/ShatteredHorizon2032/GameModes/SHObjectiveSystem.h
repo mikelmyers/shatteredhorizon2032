@@ -138,7 +138,6 @@ public:
 	//  Queries
 	// ------------------------------------------------------------------
 
-	UFUNCTION(BlueprintPure, Category = "SH|Objectives")
 	const FSHObjective* GetObjective(const FGuid& ObjectiveId) const;
 
 	UFUNCTION(BlueprintPure, Category = "SH|Objectives")

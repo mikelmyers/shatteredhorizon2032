@@ -44,19 +44,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "MetaSoundEngine",
-			"Enabled": true
-		},
-		{
 			"Name": "Metasound",
-			"Enabled": true
-		},
-		{
-			"Name": "WorldPartition",
-			"Enabled": true
-		},
-		{
-			"Name": "WorldPartitionHLOD",
 			"Enabled": true
 		},
 		{
@@ -108,14 +96,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "GameplayTags",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayTasks",
-			"Enabled": true
-		},
-		{
 			"Name": "AnimationWarping",
 			"Enabled": true
 		},
@@ -132,10 +112,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "CommonGame",
-			"Enabled": true
-		},
-		{
 			"Name": "ControlFlows",
 			"Enabled": true
 		},
@@ -145,6 +121,10 @@
 		},
 		{
 			"Name": "GameFeatures",
+			"Enabled": true
+		},
+		{
+			"Name": "StructUtils",
 			"Enabled": true
 		},
 		{

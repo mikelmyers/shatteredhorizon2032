@@ -124,7 +124,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemySurrender, ASHEnemyCharacter
  * loadout, death/wound state, equipment drops, squad cohesion awareness,
  * and contextual Mandarin voice lines.
  */
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable, Config = Game)
 class SHATTEREDHORIZON2032_API ASHEnemyCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -133,6 +133,46 @@ public:
 	ASHEnemyCharacter();
 
 	virtual void BeginPlay() override;
+
+	// ------------------------------------------------------------------
+	//  Visual defaults (config-driven fallbacks, applied only when the
+	//  Blueprint/instance has not assigned a mesh of its own)
+	// ------------------------------------------------------------------
+
+	/** Body mesh applied at BeginPlay if the mesh component has none. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Enemy|Visual")
+	TSoftObjectPtr<USkeletalMesh> DefaultBodyMesh;
+
+	/** Animation class applied with the default body mesh. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Enemy|Visual")
+	FSoftClassPath DefaultAnimClass;
+
+	/** Held-weapon visual (static mesh attached to WeaponAttachBone). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Enemy|Visual")
+	TSoftObjectPtr<UStaticMesh> DefaultWeaponMesh;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Enemy|Visual")
+	FName WeaponAttachBone = TEXT("hand_r");
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Enemy|Visual")
+	FVector WeaponAttachLocation = FVector::ZeroVector;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Enemy|Visual")
+	FRotator WeaponAttachRotation = FRotator::ZeroRotator;
+
+	/** Spawned weapon visual component (runtime only). */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> WeaponVisualComp;
+
+	/** Autonomous small-arms fire (no behavior tree required). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Enemy|Combat")
+	TObjectPtr<class USHDirectFireComponent> DirectFire;
+
+protected:
+	/** Apply the config-driven visual fallbacks. */
+	void ApplyDefaultVisuals();
+
+public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 		AController* EventInstigator, AActor* DamageCauser) override;
@@ -158,7 +198,7 @@ public:
 	// ------------------------------------------------------------------
 
 	UFUNCTION(BlueprintPure, Category = "SH|Enemy")
-	ESHEnemyRole GetRole() const { return Role; }
+	ESHEnemyRole GetRole() const { return EnemyRole; }
 
 	UFUNCTION(BlueprintCallable, Category = "SH|Enemy")
 	void SetRole(ESHEnemyRole NewRole);
@@ -283,7 +323,7 @@ public:
 	// ------------------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SH|Enemy|Config")
-	ESHEnemyRole Role = ESHEnemyRole::Rifleman;
+	ESHEnemyRole EnemyRole = ESHEnemyRole::Rifleman;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SH|Enemy|Config")
 	float MaxHealth = 100.f;

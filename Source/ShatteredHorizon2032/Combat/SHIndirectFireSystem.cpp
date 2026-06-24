@@ -12,23 +12,12 @@
 void USHIndirectFireSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-
-	if (UWorld* World = GetWorld())
-	{
-		TickDelegateHandle = World->OnWorldPostActorTick.AddLambda(
-			[this](UWorld*, ELevelTick, float DeltaSeconds)
-			{
-				Tick(DeltaSeconds);
-			});
-	}
+	TickDelegateHandle.Reset();
 }
 
 void USHIndirectFireSystem::Deinitialize()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->OnWorldPostActorTick.Remove(TickDelegateHandle);
-	}
+	TickDelegateHandle.Reset();
 	Super::Deinitialize();
 }
 
@@ -38,9 +27,9 @@ void USHIndirectFireSystem::Tick(float DeltaSeconds)
 
 	for (int32 i = ActiveMissions.Num() - 1; i >= 0; --i)
 	{
-		FSHFireMission& Mission = ActiveMissions[i];
+		FSHIndirectFireMission& Mission = ActiveMissions[i];
 
-		if (Mission.State != ESHFireMissionState::InFlight)
+		if (Mission.State != ESHIndirectFireMissionState::InFlight)
 			continue;
 
 		// Check if next round should impact.
@@ -60,7 +49,7 @@ void USHIndirectFireSystem::Tick(float DeltaSeconds)
 			// Check if salvo is complete.
 			if (Mission.RoundsImpacted >= Mission.RoundCount)
 			{
-				Mission.State = ESHFireMissionState::Complete;
+				Mission.State = ESHIndirectFireMissionState::Complete;
 				OnFireMissionStateChanged.Broadcast(Mission);
 				ActiveMissions.RemoveAt(i);
 			}
@@ -80,11 +69,11 @@ void USHIndirectFireSystem::Tick(float DeltaSeconds)
 
 FGuid USHIndirectFireSystem::RequestFireMission(
 	AActor* Observer,
-	ESHOrdnanceType Ordnance,
+	ESHIndirectOrdnanceType Ordnance,
 	FVector TargetLocation,
 	int32 RoundCount)
 {
-	FSHFireMission Mission;
+	FSHIndirectFireMission Mission;
 	Mission.MissionId = FGuid::NewGuid();
 	Mission.Observer = Observer;
 	Mission.Ordnance = Ordnance;
@@ -99,7 +88,7 @@ FGuid USHIndirectFireSystem::RequestFireMission(
 	// Check ammo.
 	if (AvailableFireMissions <= 0)
 	{
-		Mission.State = ESHFireMissionState::Denied;
+		Mission.State = ESHIndirectFireMissionState::Denied;
 		OnFireMissionStateChanged.Broadcast(Mission);
 		return Mission.MissionId;
 	}
@@ -110,14 +99,14 @@ FGuid USHIndirectFireSystem::RequestFireMission(
 	if (Mission.bIsDangerClose)
 	{
 		// Requires explicit authorization before firing.
-		Mission.State = ESHFireMissionState::Pending;
+		Mission.State = ESHIndirectFireMissionState::Pending;
 		ActiveMissions.Add(Mission);
 		OnFireMissionStateChanged.Broadcast(Mission);
 		return Mission.MissionId;
 	}
 
 	// Approved — rounds away.
-	Mission.State = ESHFireMissionState::InFlight;
+	Mission.State = ESHIndirectFireMissionState::InFlight;
 	Mission.FireTime = GetWorld()->GetTimeSeconds();
 	AvailableFireMissions--;
 	ActiveMissions.Add(Mission);
@@ -128,19 +117,19 @@ FGuid USHIndirectFireSystem::RequestFireMission(
 
 bool USHIndirectFireSystem::AuthorizeDangerClose(const FGuid& MissionId)
 {
-	for (FSHFireMission& Mission : ActiveMissions)
+	for (FSHIndirectFireMission& Mission : ActiveMissions)
 	{
-		if (Mission.MissionId == MissionId && Mission.State == ESHFireMissionState::Pending)
+		if (Mission.MissionId == MissionId && Mission.State == ESHIndirectFireMissionState::Pending)
 		{
 			if (AvailableFireMissions <= 0)
 			{
-				Mission.State = ESHFireMissionState::Denied;
+				Mission.State = ESHIndirectFireMissionState::Denied;
 				OnFireMissionStateChanged.Broadcast(Mission);
 				return false;
 			}
 
 			Mission.bDangerCloseAuthorized = true;
-			Mission.State = ESHFireMissionState::InFlight;
+			Mission.State = ESHIndirectFireMissionState::InFlight;
 			Mission.FireTime = GetWorld()->GetTimeSeconds();
 			AvailableFireMissions--;
 			OnFireMissionStateChanged.Broadcast(Mission);
@@ -157,9 +146,9 @@ void USHIndirectFireSystem::CancelFireMission(const FGuid& MissionId)
 		if (ActiveMissions[i].MissionId == MissionId)
 		{
 			// Can only cancel if still pending. In-flight rounds can't be recalled.
-			if (ActiveMissions[i].State == ESHFireMissionState::Pending)
+			if (ActiveMissions[i].State == ESHIndirectFireMissionState::Pending)
 			{
-				ActiveMissions[i].State = ESHFireMissionState::Cancelled;
+				ActiveMissions[i].State = ESHIndirectFireMissionState::Cancelled;
 				OnFireMissionStateChanged.Broadcast(ActiveMissions[i]);
 				ActiveMissions.RemoveAt(i);
 			}
@@ -168,9 +157,9 @@ void USHIndirectFireSystem::CancelFireMission(const FGuid& MissionId)
 	}
 }
 
-bool USHIndirectFireSystem::GetFireMission(const FGuid& MissionId, FSHFireMission& OutMission) const
+bool USHIndirectFireSystem::GetFireMission(const FGuid& MissionId, FSHIndirectFireMission& OutMission) const
 {
-	for (const FSHFireMission& Mission : ActiveMissions)
+	for (const FSHIndirectFireMission& Mission : ActiveMissions)
 	{
 		if (Mission.MissionId == MissionId)
 		{
@@ -235,47 +224,47 @@ void USHIndirectFireSystem::ReportIncomingImpact(FVector ImpactLocation, float E
 //  Ordnance parameters
 // ======================================================================
 
-void USHIndirectFireSystem::GetOrdnanceParams(ESHOrdnanceType Type, float& OutTOF,
+void USHIndirectFireSystem::GetOrdnanceParams(ESHIndirectOrdnanceType Type, float& OutTOF,
 	float& OutSplashCm, float& OutDamage, float& OutCEP) const
 {
 	switch (Type)
 	{
-	case ESHOrdnanceType::HE_60mm:
+	case ESHIndirectOrdnanceType::HE_60mm:
 		OutTOF       = 8.0f;    // 8 seconds
 		OutSplashCm  = 1500.f;  // 15m lethal radius
 		OutDamage    = 150.f;
 		OutCEP       = 2000.f;  // 20m CEP
 		break;
 
-	case ESHOrdnanceType::HE_81mm:
+	case ESHIndirectOrdnanceType::HE_81mm:
 		OutTOF       = 10.0f;   // 10 seconds
 		OutSplashCm  = 2500.f;  // 25m lethal radius
 		OutDamage    = 250.f;
 		OutCEP       = 3000.f;  // 30m CEP
 		break;
 
-	case ESHOrdnanceType::HE_120mm:
+	case ESHIndirectOrdnanceType::HE_120mm:
 		OutTOF       = 12.0f;   // 12 seconds
 		OutSplashCm  = 4000.f;  // 40m lethal radius
 		OutDamage    = 400.f;
 		OutCEP       = 4000.f;  // 40m CEP
 		break;
 
-	case ESHOrdnanceType::HE_155mm:
+	case ESHIndirectOrdnanceType::HE_155mm:
 		OutTOF       = 15.0f;   // 15 seconds (longer range)
 		OutSplashCm  = 7000.f;  // 70m lethal radius
 		OutDamage    = 600.f;
 		OutCEP       = 5000.f;  // 50m CEP
 		break;
 
-	case ESHOrdnanceType::Smoke_81mm:
+	case ESHIndirectOrdnanceType::Smoke_81mm:
 		OutTOF       = 10.0f;
 		OutSplashCm  = 5000.f;  // 50m smoke screen radius
 		OutDamage    = 0.f;     // Non-lethal
 		OutCEP       = 3000.f;
 		break;
 
-	case ESHOrdnanceType::Illumination:
+	case ESHIndirectOrdnanceType::Illumination:
 		OutTOF       = 12.0f;
 		OutSplashCm  = 30000.f; // 300m illumination radius
 		OutDamage    = 0.f;     // Non-lethal
@@ -322,7 +311,7 @@ bool USHIndirectFireSystem::CheckDangerClose(FVector TargetLocation) const
 	return false;
 }
 
-void USHIndirectFireSystem::ApplyImpact(const FSHFireMission& Mission, FVector ImpactLocation)
+void USHIndirectFireSystem::ApplyImpact(const FSHIndirectFireMission& Mission, FVector ImpactLocation)
 {
 	UWorld* World = GetWorld();
 	if (!World) return;

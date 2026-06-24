@@ -2,7 +2,7 @@
 //
 // Combat Stress System Tests
 //
-// The combat stress system is a key differentiator — it models real
+// The combat stress system is a key differentiator -- it models real
 // physiological responses to combat. These tests verify heart rate
 // modeling, effect thresholds, and the relationship between stress
 // and gameplay degradation.
@@ -23,12 +23,13 @@ bool FCombatStress_HeartRateBounds::RunTest(const FString&)
 	USHCombatStressSystem* Stress = NewObject<USHCombatStressSystem>();
 
 	// Resting heart rate should be 60-80 bpm
-	const float RestHR = Stress->GetRestingHeartRate();
+	// RestingHeartRate is a public UPROPERTY on USHCombatStressSystem
+	const float RestHR = Stress->RestingHeartRate;
 	TestTrue(TEXT("Resting HR >= 60"), RestHR >= 60.f);
 	TestTrue(TEXT("Resting HR <= 80"), RestHR <= 80.f);
 
 	// Maximum heart rate should be 170-200 bpm (combat peak)
-	const float MaxHR = Stress->GetMaxHeartRate();
+	const float MaxHR = Stress->MaxHeartRate;
 	TestTrue(TEXT("Max HR >= 170"), MaxHR >= 170.f);
 	TestTrue(TEXT("Max HR <= 220"), MaxHR <= 220.f);
 
@@ -66,7 +67,7 @@ bool FCombatStress_EffectThresholds::RunTest(const FString&)
 	TestTrue(TEXT("No tunnel vision at rest"), TunnelVisionAtRest < 0.05f);
 
 	// Auditory exclusion at rest should be 0
-	const float AuditoryExclAtRest = Stress->GetAuditoryExclusionLevel();
+	const float AuditoryExclAtRest = Stress->GetAuditoryExclusionStrength();
 	TestTrue(TEXT("No auditory exclusion at rest"), AuditoryExclAtRest < 0.05f);
 
 	return true;
@@ -82,8 +83,8 @@ bool FCombatStress_TimeDilation::RunTest(const FString&)
 {
 	USHCombatStressSystem* Stress = NewObject<USHCombatStressSystem>();
 
-	// Time distortion should never be dramatic — max 15-20% slowdown
-	const float TimeDilation = Stress->GetTimeDilationFactor();
+	// Time distortion should never be dramatic -- max 15-20% slowdown
+	const float TimeDilation = Stress->GetTimeDistortionFactor();
 
 	// At rest, no dilation
 	TestTrue(TEXT("Time dilation at rest ~1.0"), FMath::IsNearlyEqual(TimeDilation, 1.0f, 0.05f));

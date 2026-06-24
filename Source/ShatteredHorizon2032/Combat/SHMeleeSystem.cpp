@@ -2,8 +2,11 @@
 
 #include "SHMeleeSystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
+#include "GameFramework/DamageType.h"
+#include "GameFramework/Pawn.h"
 
 USHMeleeSystem::USHMeleeSystem()
 {

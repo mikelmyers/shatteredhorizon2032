@@ -4,11 +4,16 @@
 #include "SHProjectile.h"
 #include "SHBallisticsSystem.h"
 #include "SHWeaponAnimSystem.h"
+#include "SHWeaponAttachmentSystem.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
+#include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 
 /* -----------------------------------------------------------------------
  *  Construction
@@ -24,6 +29,7 @@ ASHWeaponBase::ASHWeaponBase()
 	WeaponMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	WeaponAnimSystem = CreateDefaultSubobject<USHWeaponAnimSystem>(TEXT("WeaponAnimSystem"));
+	AttachmentSystem = CreateDefaultSubobject<USHWeaponAttachmentSystem>(TEXT("AttachmentSystem"));
 }
 
 void ASHWeaponBase::BeginPlay()
@@ -109,6 +115,20 @@ void ASHWeaponBase::Tick(float DeltaTime)
 			bIsMoving, CurrentStance);
 		WeaponAnimSystem->SetADSAlpha(ADSAlpha);
 		WeaponAnimSystem->SetFatigueLevel(FatigueLevel);
+
+		// Display the computed procedural motion (recoil kick, sway, bob,
+		// breathing) by composing it on top of the resting attach pose.
+		// Without this the animation system runs but never moves the mesh.
+		if (WeaponMeshComp)
+		{
+			const FTransform Procedural = WeaponAnimSystem->GetProceduralTransform();
+			const FVector RestLoc = RestRelativeTransform.GetLocation();
+			const FQuat RestRot = RestRelativeTransform.GetRotation();
+
+			const FVector NewLoc = RestLoc + RestRot.RotateVector(Procedural.GetLocation());
+			const FQuat NewRot = RestRot * Procedural.GetRotation();
+			WeaponMeshComp->SetRelativeLocationAndRotation(NewLoc, NewRot);
+		}
 	}
 
 	// Malfunction clear timer
@@ -271,6 +291,18 @@ void ASHWeaponBase::SetAmmo(int32 MagAmmo, int32 InReserve)
 	}
 }
 
+void ASHWeaponBase::SetRestRelativeTransform(const FTransform& InRest)
+{
+	RestRelativeTransform = InRest;
+
+	// Seat the mesh at the rest pose immediately; Tick will layer procedural
+	// motion on top from here on.
+	if (WeaponMeshComp)
+	{
+		WeaponMeshComp->SetRelativeTransform(InRest);
+	}
+}
+
 /* -----------------------------------------------------------------------
  *  Fire Logic
  * --------------------------------------------------------------------- */
@@ -411,8 +443,7 @@ void ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector&
 			DamageEvent.HitInfo = HitResult;
 			DamageEvent.ShotDirection = ShotDirection;
 
-			HitActor->TakeDamage(FinalDamage, FDamageEvent(DamageEvent.GetTypeID()),
-				GetInstigatorController(), this);
+			HitActor->TakeDamage(FinalDamage, DamageEvent, GetInstigatorController(), this);
 		}
 	}
 }
@@ -500,6 +531,17 @@ float ASHWeaponBase::CalculateCurrentMOA() const
 		MOA *= FMath::Lerp(1.0f, Acc.ADSMultiplier, ADSAlpha);
 	}
 
+	// Attachment modifiers (optics/grips tighten the cone; <1.0 = more accurate).
+	if (AttachmentSystem)
+	{
+		const FSHAttachmentModifiers Mods = AttachmentSystem->GetAggregateModifiers();
+		MOA *= Mods.MOAMultiplier;
+		if (bIsADS)
+		{
+			MOA *= FMath::Lerp(1.0f, Mods.ADSAccuracyMultiplier, ADSAlpha);
+		}
+	}
+
 	return FMath::Max(MOA, 0.05f); // Absolute minimum spread
 }
 
@@ -574,6 +616,14 @@ void ASHWeaponBase::ApplyRecoil()
 		const float ADSRecoilReduction = FMath::Lerp(1.0f, 0.75f, ADSAlpha);
 		VerticalKick *= ADSRecoilReduction;
 		HorizontalKick *= ADSRecoilReduction;
+	}
+
+	// Attachment modifiers (muzzle devices / grips / stocks tame recoil).
+	if (AttachmentSystem)
+	{
+		const FSHAttachmentModifiers Mods = AttachmentSystem->GetAggregateModifiers();
+		VerticalKick *= Mods.VerticalRecoilMultiplier;
+		HorizontalKick *= Mods.HorizontalRecoilMultiplier;
 	}
 
 	AccumulatedVerticalRecoil += VerticalKick;
@@ -927,7 +977,15 @@ void ASHWeaponBase::TickADSTransition(float DeltaTime)
 		return;
 	}
 
-	const float TransitionTime = FMath::Max(WeaponData->ADSTransitionTime, 0.01f);
+	float TransitionTime = WeaponData->ADSTransitionTime;
+
+	// Heavier optics/attachments slow the ADS raise (> 1.0 = slower).
+	if (AttachmentSystem)
+	{
+		TransitionTime *= AttachmentSystem->GetAggregateModifiers().ADSSpeedMultiplier;
+	}
+
+	TransitionTime = FMath::Max(TransitionTime, 0.01f);
 	const float TransitionSpeed = 1.0f / TransitionTime;
 
 	if (bIsADS)
@@ -1060,10 +1118,17 @@ void ASHWeaponBase::PlayFireSound()
 	USoundBase* SoundToPlay = WeaponData->SoundProfile.FireSound.LoadSynchronous();
 	USoundAttenuation* Attenuation = WeaponData->SoundProfile.FireAttenuation.LoadSynchronous();
 
+	// A suppressor (or other muzzle device) lowers the report volume.
+	float VolumeMultiplier = 1.0f;
+	if (AttachmentSystem)
+	{
+		VolumeMultiplier = AttachmentSystem->GetAggregateModifiers().SoundVolumeMultiplier;
+	}
+
 	if (SoundToPlay)
 	{
 		UGameplayStatics::PlaySoundAtLocation(
-			this, SoundToPlay, GetActorLocation(), 1.0f, 1.0f, 0.0f,
+			this, SoundToPlay, GetActorLocation(), VolumeMultiplier, 1.0f, 0.0f,
 			Attenuation);
 	}
 }

@@ -3,8 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimMontage.h"
+#include "Core/SHGameplayTypes.h"
 #include "Engine/DataAsset.h"
+#include "Particles/ParticleSystem.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundBase.h"
 #include "SHWeaponData.generated.h"
+class USkeletalMesh;
 
 /* -----------------------------------------------------------------------
  *  Enums
@@ -24,14 +30,6 @@ enum class ESHWeaponCategory : uint8
 };
 
 UENUM(BlueprintType)
-enum class ESHFireMode : uint8
-{
-	Semi   UMETA(DisplayName = "Semi-Auto"),
-	Burst  UMETA(DisplayName = "Burst"),
-	Auto   UMETA(DisplayName = "Full-Auto"),
-};
-
-UENUM(BlueprintType)
 enum class ESHPenetrableMaterial : uint8
 {
 	Wood      UMETA(DisplayName = "Wood"),
@@ -43,14 +41,6 @@ enum class ESHPenetrableMaterial : uint8
 	Dirt      UMETA(DisplayName = "Dirt / Earth"),
 	Flesh     UMETA(DisplayName = "Flesh"),
 	MAX       UMETA(Hidden),
-};
-
-UENUM(BlueprintType)
-enum class ESHStance : uint8
-{
-	Standing  UMETA(DisplayName = "Standing"),
-	Crouching UMETA(DisplayName = "Crouching"),
-	Prone     UMETA(DisplayName = "Prone"),
 };
 
 /* -----------------------------------------------------------------------

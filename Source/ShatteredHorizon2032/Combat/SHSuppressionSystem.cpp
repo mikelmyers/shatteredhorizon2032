@@ -1,6 +1,7 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
 #include "SHSuppressionSystem.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"

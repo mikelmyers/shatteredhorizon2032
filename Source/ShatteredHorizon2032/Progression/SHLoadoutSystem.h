@@ -108,7 +108,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, const FSHLoadout&
  * Attach to the player controller or player state to manage loadout
  * selection during the pre-mission phase.
  */
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent), Config = Game)
 class SHATTEREDHORIZON2032_API USHLoadoutSystem : public UActorComponent
 {
 	GENERATED_BODY()
@@ -118,6 +118,11 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	/** Resolve ConfigWeaponClasses into WeaponClassRegistry, then apply AutoLoadout. */
+	void AutoApplyConfiguredLoadout();
+
+	FTimerHandle AutoApplyTimerHandle;
 
 public:
 	// ------------------------------------------------------------------
@@ -186,6 +191,20 @@ public:
 	/** Weapon Blueprint classes keyed by weapon ID (e.g., "M4A1" -> BP_Weapon_M4A1). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Loadout")
 	TMap<FName, TSubclassOf<AActor>> WeaponClassRegistry;
+
+	/** Config-driven weapon class registrations (weapon ID -> class path), merged into
+	 *  WeaponClassRegistry at BeginPlay. Allows wiring weapon Blueprints from DefaultGame.ini. */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|Loadout")
+	TMap<FName, FSoftClassPath> ConfigWeaponClasses;
+
+	/** When true, AutoLoadout is set and applied automatically shortly after BeginPlay.
+	 *  Used for direct-to-mission launches that skip the loadout menu. */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|Loadout")
+	bool bAutoApplyOnBeginPlay = false;
+
+	/** Loadout applied automatically when bAutoApplyOnBeginPlay is true. */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|Loadout")
+	FSHLoadout AutoLoadout;
 
 	/** Master list of all weapon data (ID -> weight in kg). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Loadout")

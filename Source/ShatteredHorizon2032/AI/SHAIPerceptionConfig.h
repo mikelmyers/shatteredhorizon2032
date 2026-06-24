@@ -6,6 +6,8 @@
 #include "Engine/DataAsset.h"
 #include "SHAIPerceptionConfig.generated.h"
 
+class UCurveFloat;
+
 // -----------------------------------------------------------------------
 //  Awareness states
 // -----------------------------------------------------------------------

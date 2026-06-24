@@ -6,8 +6,6 @@
 #include "GameFramework/HUD.h"
 #include "SHHUD.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSH_HUD, Log, All);
-
 class USHCompassWidget;
 class USHSquadCommandWidget;
 class UUserWidget;

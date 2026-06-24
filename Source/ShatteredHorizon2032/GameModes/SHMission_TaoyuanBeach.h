@@ -3,8 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-class USHMissionDefinition;
+#include "GameModes/SHMissionDefinition.h"
 
 /**
  * USHMission_TaoyuanBeach

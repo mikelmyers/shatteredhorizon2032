@@ -4,12 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Squad/SHSquadOrder.h"
 #include "SHSquadCommandWidget.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSH_SquadCommand, Log, All);
-
 struct FSHSquadOrder;
-enum class ESHOrderType : uint8;
 
 /** A single option in the radial menu. */
 USTRUCT(BlueprintType)
@@ -27,14 +25,13 @@ struct FSHRadialMenuOption
 
 	/** The order type this option issues. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SquadCommand")
-	ESHOrderType OrderType;
+	ESHOrderType OrderType = ESHOrderType::None;
 
 	/** Whether this option opens a sub-menu instead of issuing directly. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SquadCommand")
 	bool bIsSubMenu = false;
 
-	/** Sub-menu options (if bIsSubMenu). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SquadCommand", meta = (EditCondition = "bIsSubMenu"))
+	/** Sub-menu options (if bIsSubMenu). Kept out of reflection to avoid recursive USTRUCT properties. */
 	TArray<FSHRadialMenuOption> SubOptions;
 
 	/** Whether this option is currently available (context-sensitive). */
@@ -60,7 +57,7 @@ enum class ESHCommandContext : uint8
 
 /** Formation types for sub-menu. */
 UENUM(BlueprintType)
-enum class ESHFormationType : uint8
+enum class ESHSquadCommandFormationType : uint8
 {
 	Wedge		UMETA(DisplayName = "Wedge"),
 	Line		UMETA(DisplayName = "Line"),
@@ -71,22 +68,22 @@ enum class ESHFormationType : uint8
 
 /** Rules of engagement for sub-menu. */
 UENUM(BlueprintType)
-enum class ESHRulesOfEngagement : uint8
+enum class ESHSquadCommandROE : uint8
 {
 	HoldFire	UMETA(DisplayName = "Hold Fire"),
 	ReturnFire	UMETA(DisplayName = "Return Fire Only"),
 	FireAtWill	UMETA(DisplayName = "Fire At Will"),
-	Weapons Free UMETA(DisplayName = "Weapons Free")
+	WeaponsFree	UMETA(DisplayName = "Weapons Free")
 };
 
 /** Delegate fired when a command is selected. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSquadCommandIssued, ESHOrderType, OrderType, FVector, TargetLocation, AActor*, TargetActor);
 
 /** Delegate fired when formation changes. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFormationChanged, ESHFormationType, NewFormation);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFormationChanged, ESHSquadCommandFormationType, NewFormation);
 
 /** Delegate fired when ROE changes. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnROEChanged, ESHRulesOfEngagement, NewROE);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnROEChanged, ESHSquadCommandROE, NewROE);
 
 /**
  * USHSquadCommandWidget
@@ -270,7 +267,7 @@ private:
 	TWeakObjectPtr<AActor> CommandTargetActor;
 
 	/** Last used order type for quick-tap. */
-	ESHOrderType LastUsedOrderType;
+	ESHOrderType LastUsedOrderType = ESHOrderType::None;
 
 	/** Last used target location for quick-tap. */
 	FVector LastCommandLocation = FVector::ZeroVector;

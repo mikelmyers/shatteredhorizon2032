@@ -1,0 +1,34 @@
+# Unreal Engine generated / build artifacts
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.suo
+.vs/
+.vscode/
+
+# Visual Studio / Rider project files
+*.sln
+*.xcodeproj
+*.xcworkspace
+.idea/
+
+# Asset-source dumps that live under Source/ (DCC files, references, not engine code)
+Source/FBX/
+Source/Maya/
+Source/Motionbuilder/
+Source/SKMannequin_A_Pose/
+Source/SKMannequin_T_Pose/
+Source/*.png
+Source/*.txt
+
+# Imported content & misc loose files at repo root
+Content/
+*.png
+*.url
+*.aaa-backup

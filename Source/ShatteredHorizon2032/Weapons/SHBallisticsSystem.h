@@ -3,12 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/HitResult.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "SHWeaponData.h"
 #include "SHBallisticsSystem.generated.h"
 
 class ASHProjectile;
-struct FHitResult;
 
 /* -----------------------------------------------------------------------
  *  Ballistic hit result with penetration / ricochet info

@@ -5,8 +5,11 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/WorldSettings.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
+#include "Styling/CoreStyle.h"
 #include "Squad/SHSquadOrder.h"
 
 DEFINE_LOG_CATEGORY(LogSH_SquadCommand);

@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "Engine/DamageEvents.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 /* -----------------------------------------------------------------------
@@ -315,7 +316,7 @@ void ASHProjectile::ApplyDamage(AActor* HitActor, float Damage, const FHitResult
 
 	HitActor->TakeDamage(
 		Damage,
-		FDamageEvent(DamageEvent.GetTypeID()),
+		DamageEvent,
 		InstigatorController,
 		this);
 }
@@ -337,7 +338,7 @@ void ASHProjectile::SpawnImpactEffects(const FHitResult& HitResult)
 
 	if (const UPhysicalMaterial* PhysMat = HitResult.PhysMaterial.Get())
 	{
-		if (TObjectPtr<UParticleSystem>* Found = ImpactEffects.Find(PhysMat->SurfaceType))
+		if (TObjectPtr<UParticleSystem>* Found = ImpactEffects.Find(UPhysicalMaterial::DetermineSurfaceType(PhysMat)))
 		{
 			if (*Found)
 			{

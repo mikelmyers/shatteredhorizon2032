@@ -104,10 +104,6 @@ FSHDamageResult USHDamageSystem::ApplyDamage(const FSHDamageInfo& DamageInfo)
 	// Determine vital status change.
 	UpdateVitalStatus();
 
-	if (Result.IsLethal())
-	{
-		Result.bIsLethal = true;
-	}
 	if (VitalStatus == ESHVitalStatus::Incapacitated)
 	{
 		Result.bIsIncapacitating = true;

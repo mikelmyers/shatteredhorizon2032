@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/CameraShakeBase.h"
 #include "Components/ActorComponent.h"
 #include "SHCameraSystem.generated.h"
 
@@ -83,6 +84,17 @@ public:
 	/** Update the camera context from character state each frame. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void SetCameraContext(const FSHCameraContext& InContext);
+
+	/**
+	 * Feed the current lean offset so the camera system can compose it with head
+	 * bob and screen punch into a single relative-transform write. Call every
+	 * frame. The holder must NOT write the camera transform directly, or the two
+	 * writers fight (bob overwrites lean and vice versa).
+	 * @param InLeanOffsetY  Lateral camera offset (cm), right-positive.
+	 * @param InLeanRoll      Camera roll (degrees).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
+	void SetLeanOffset(float InLeanOffsetY, float InLeanRoll);
 
 	// ------------------------------------------------------------------
 	//  Queries
@@ -192,6 +204,14 @@ private:
 	// --- Suppression FX state ---
 	float CurrentVignetteIntensity = 0.f;
 	float CurrentDesaturation = 0.f;
+
+	/** True while a suppression shake instance is active, so we start it once
+	 *  (on the rising edge) instead of restarting it every frame. */
+	bool bSuppressionShakeActive = false;
+
+	// --- Lean state (fed by the owning character each frame) ---
+	float LeanOffsetY = 0.f;
+	float LeanRoll = 0.f;
 
 	// --- Screen punch state ---
 	FRotator PunchRotation = FRotator::ZeroRotator;

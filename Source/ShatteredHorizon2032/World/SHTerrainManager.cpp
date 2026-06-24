@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Sound/SoundBase.h"
 #include "CollisionQueryParams.h"
 
 DEFINE_LOG_CATEGORY(LogSH_Terrain);

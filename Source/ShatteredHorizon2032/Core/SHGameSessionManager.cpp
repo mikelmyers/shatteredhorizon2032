@@ -11,8 +11,9 @@
 #include "UI/SHPauseMenuWidget.h"
 
 #include "CommonActivatableWidget.h"
-#include "Widgets/CommonActivatableWidgetContainerBase.h"
+#include "Widgets/CommonActivatableWidgetContainer.h"
 
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/GameModeBase.h"
@@ -227,7 +228,7 @@ void USHGameSessionManager::EndMission(bool bVictory)
 	}
 
 	// Gather engagement records and compute XP.
-	FSHEngagementRecord EngagementRecord;
+	FSHPlayerEngagementRecord EngagementRecord;
 	FSHXPBreakdown XPBreakdown;
 	FSHRankProgress RankProgress;
 
@@ -713,7 +714,7 @@ void USHGameSessionManager::PerformInterMissionCleanup()
 	UE_LOG(LogSH_Session, Verbose, TEXT("[SHGameSessionManager] Inter-mission cleanup complete."));
 }
 
-FSHXPBreakdown USHGameSessionManager::ComputeXPAward(const FSHEngagementRecord& Record, bool bVictory) const
+FSHXPBreakdown USHGameSessionManager::ComputeXPAward(const FSHPlayerEngagementRecord& Record, bool bVictory) const
 {
 	FSHXPBreakdown Breakdown;
 

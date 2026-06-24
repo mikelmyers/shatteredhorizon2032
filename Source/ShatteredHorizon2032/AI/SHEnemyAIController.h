@@ -20,6 +20,7 @@ class USHPrimordiaAletheia;
 class USHPrimordiaSimulon;
 class USHPrimordiaAstraea;
 class USHPrimordiaDebugOverlay;
+struct FActorPerceptionUpdateInfo;
 
 // -----------------------------------------------------------------------
 //  Enums
@@ -132,7 +133,7 @@ public:
 
 	/** Called when the AI perception system detects a stimulus. */
 	UFUNCTION()
-	void OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+	void OnPerceptionUpdated(const FActorPerceptionUpdateInfo& UpdateInfo);
 
 	/** Get current awareness state. */
 	UFUNCTION(BlueprintPure, Category = "SH|AI")
@@ -162,6 +163,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SH|AI|Primordia")
 	bool HasActiveTacticalOrder() const { return bHasTacticalOrder; }
 
+	/**
+	 * Current combat effectiveness (0-1) from the Astraea cognitive model.
+	 * Degrades under stress/suppression. Consumed by the fire logic to
+	 * scale hit probability — stressed soldiers shoot less accurately.
+	 * Returns 1.0 when Astraea is unavailable.
+	 */
+	UFUNCTION(BlueprintPure, Category = "SH|AI|Primordia")
+	float GetCombatEffectiveness() const;
+
 	// ------------------------------------------------------------------
 	//  Combat behaviors
 	// ------------------------------------------------------------------
@@ -180,7 +190,7 @@ public:
 
 	/** Evaluate and potentially throw a grenade. */
 	UFUNCTION(BlueprintCallable, Category = "SH|AI|Combat")
-	bool EvaluateGrenadeUsage();
+	bool EvaluateGrenadeUsage() const;
 
 	/** Begin retreat to a rally point. */
 	UFUNCTION(BlueprintCallable, Category = "SH|AI|Combat")

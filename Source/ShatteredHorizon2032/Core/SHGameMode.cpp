@@ -7,10 +7,14 @@
 #include "SHPlayerState.h"
 #include "AI/SHEnemyCharacter.h"
 #include "AI/Primordia/SHPrimordiaDecisionEngine.h"
+#include "GameModes/SHMissionDefinition.h"
+#include "GameModes/SHMission_TaoyuanBeach.h"
+#include "UI/SHSimpleHUD.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "UnrealClient.h"
 
 ASHGameMode::ASHGameMode()
 {
@@ -21,6 +25,7 @@ ASHGameMode::ASHGameMode()
 	PlayerControllerClass = ASHPlayerController::StaticClass();
 	DefaultPawnClass = ASHPlayerCharacter::StaticClass();
 	PlayerStateClass = ASHPlayerState::StaticClass();
+	HUDClass = ASHSimpleHUD::StaticClass();
 }
 
 // =======================================================================
@@ -37,6 +42,18 @@ void ASHGameMode::InitGame(const FString& MapName, const FString& Options, FStri
 void ASHGameMode::StartPlay()
 {
 	Super::StartPlay();
+
+	// Dev/QA soak screenshots (config-gated; used by automated validation).
+	if (bSoakScreenshots)
+	{
+		GetWorldTimerManager().SetTimer(SoakScreenshotTimerHandle,
+			FTimerDelegate::CreateLambda([]()
+			{
+				FScreenshotRequest::RequestScreenshot(false);
+			}), FMath::Max(2.f, SoakScreenshotInterval), true, 6.f);
+	}
+
+	InitializeMissionDefinition();
 
 	SHGameState = GetGameState<ASHGameState>();
 	if (SHGameState)
@@ -110,6 +127,36 @@ bool ASHGameMode::ShouldAdvancePhase() const
 		return false;
 	}
 
+	if (const FSHPhaseDefinition* MissionPhase = ActiveMissionDefinition
+		? ActiveMissionDefinition->GetPhaseDefinition(CurrentPhase)
+		: nullptr)
+	{
+		switch (MissionPhase->AdvanceCondition)
+		{
+		case ESHPhaseAdvanceCondition::AllObjectivesComplete:
+			// Current runtime objective plumbing is still owned by other systems.
+			// Leave this false until that path is unified to avoid premature advances.
+			return false;
+
+		case ESHPhaseAdvanceCondition::TimerExpired:
+			return MissionPhase->Duration > 0.f && PhaseElapsedTime >= MissionPhase->Duration;
+
+		case ESHPhaseAdvanceCondition::EnemyBreachesLine:
+		{
+			const float EnemyStrength = SHGameState->GetEnemyForceStrengthNormalized();
+			const float PrimaryLineIntegrity = SHGameState->GetDefensiveLineIntegrity(ESHDefensiveLine::Primary);
+			return (EnemyStrength >= MissionPhase->AdvanceThreshold) || (PrimaryLineIntegrity <= 0.2f);
+		}
+
+		case ESHPhaseAdvanceCondition::FriendlyForcesOverrun:
+			return SHGameState->GetFriendlyCasualtyRate() >= MissionPhase->AdvanceThreshold;
+
+		case ESHPhaseAdvanceCondition::ManualTrigger:
+		default:
+			return false;
+		}
+	}
+
 	switch (CurrentPhase)
 	{
 	case ESHMissionPhase::PreInvasion:
@@ -152,9 +199,31 @@ void ASHGameMode::TriggerReinforcementWave(const FSHReinforcementWave& Wave)
 
 void ASHGameMode::BuildReinforcementSchedule(ESHMissionPhase Phase)
 {
-	if (const TArray<FSHReinforcementWave>* Templates = PhaseReinforcementTemplates.Find(Phase))
+	if (const FSHPhaseDefinition* MissionPhase = ActiveMissionDefinition
+		? ActiveMissionDefinition->GetPhaseDefinition(Phase)
+		: nullptr)
 	{
-		PendingWaves = *Templates;
+		PendingWaves.Empty();
+
+		for (const FSHWaveDefinition& Wave : MissionPhase->ReinforcementWaves)
+		{
+			FSHReinforcementWave RuntimeWave;
+			RuntimeWave.DelayFromPhaseStart = Wave.DelayFromPhaseStart;
+			RuntimeWave.InfantryCount = Wave.TotalInfantry;
+			RuntimeWave.ArmorCount = Wave.bIncludesVehicles ? Wave.VehicleCount : 0;
+			RuntimeWave.AmphibiousCount = 0;
+			RuntimeWave.bIncludesAirSupport = Wave.bIncludesAirSupport;
+			RuntimeWave.SpawnZoneTag = Wave.SpawnZoneTag;
+			PendingWaves.Add(RuntimeWave);
+		}
+
+		DispatchedWaveIndices.Empty();
+		return;
+	}
+
+	if (const FSHPhaseReinforcementPlan* Templates = PhaseReinforcementTemplates.Find(Phase))
+	{
+		PendingWaves = Templates->Waves;
 	}
 	else
 	{
@@ -481,6 +550,12 @@ void ASHGameMode::TickPhaseLogic(float DeltaSeconds)
 
 	if (ShouldAdvancePhase())
 	{
+		if (const TOptional<ESHMissionPhase> NextMissionPhase = GetNextMissionPhase(CurrentPhase))
+		{
+			AdvanceToPhase(*NextMissionPhase);
+			return;
+		}
+
 		switch (CurrentPhase)
 		{
 		case ESHMissionPhase::PreInvasion:
@@ -496,6 +571,67 @@ void ASHGameMode::TickPhaseLogic(float DeltaSeconds)
 			break;
 		}
 	}
+}
+
+void ASHGameMode::InitializeMissionDefinition()
+{
+	ActiveMissionDefinition = nullptr;
+
+	if (!bUseCodeAuthoredMissionDefinition)
+	{
+		return;
+	}
+
+	USHMissionDefinition* Mission = USHMission_TaoyuanBeach::CreateMissionDefinition(this);
+	if (!Mission)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHGameMode] Failed to create Taoyuan mission definition."));
+		return;
+	}
+
+	TArray<FText> ValidationErrors;
+	if (!Mission->Validate(ValidationErrors))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHGameMode] Taoyuan mission definition has %d validation issue(s)."), ValidationErrors.Num());
+		for (const FText& Error : ValidationErrors)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SHGameMode] Mission validation: %s"), *Error.ToString());
+		}
+	}
+
+	ActiveMissionDefinition = Mission;
+
+	if (ActiveMissionDefinition->Phases.Num() > 0)
+	{
+		CurrentPhase = ActiveMissionDefinition->Phases[0].Phase;
+		TimeOfDayHours = ActiveMissionDefinition->Phases[0].TimeOfDayStart;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[SHGameMode] Loaded code-authored mission '%s' (%d phases)."),
+		*ActiveMissionDefinition->MissionId.ToString(), ActiveMissionDefinition->Phases.Num());
+}
+
+TOptional<ESHMissionPhase> ASHGameMode::GetNextMissionPhase(ESHMissionPhase Phase) const
+{
+	if (!ActiveMissionDefinition)
+	{
+		return {};
+	}
+
+	for (int32 Index = 0; Index < ActiveMissionDefinition->Phases.Num(); ++Index)
+	{
+		if (ActiveMissionDefinition->Phases[Index].Phase == Phase)
+		{
+			const int32 NextIndex = Index + 1;
+			if (ActiveMissionDefinition->Phases.IsValidIndex(NextIndex))
+			{
+				return ActiveMissionDefinition->Phases[NextIndex].Phase;
+			}
+			return {};
+		}
+	}
+
+	return {};
 }
 
 void ASHGameMode::TickReinforcementScheduler(float DeltaSeconds)

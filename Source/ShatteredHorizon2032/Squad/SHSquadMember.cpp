@@ -3,7 +3,13 @@
 #include "SHSquadMember.h"
 #include "SHSquadManager.h"
 #include "SHSquadAIController.h"
+#include "AI/SHDirectFireComponent.h"
 #include "Components/AudioComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "Animation/AnimInstance.h"
 #include "Sound/SoundCue.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -21,6 +27,55 @@ ASHSquadMember::ASHSquadMember()
 	VoiceAudioComponent->SetupAttachment(GetRootComponent());
 	VoiceAudioComponent->bAutoActivate = false;
 	VoiceAudioComponent->bIsUISound = false;
+
+	// Autonomous direct fire (targets PLA forces). Squad holds its position —
+	// the player directs movement via squad commands.
+	DirectFire = CreateDefaultSubobject<USHDirectFireComponent>(TEXT("DirectFire"));
+	DirectFire->bTargetsPlayerSide = false;
+	DirectFire->bAdvanceWhenNoLOS = false;
+}
+
+void ASHSquadMember::ApplyDefaultVisuals()
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp)
+	{
+		return;
+	}
+
+	if (!MeshComp->GetSkeletalMeshAsset() && !DefaultBodyMesh.IsNull())
+	{
+		if (USkeletalMesh* Body = DefaultBodyMesh.LoadSynchronous())
+		{
+			MeshComp->SetSkeletalMesh(Body);
+			MeshComp->SetRelativeLocation(FVector(0.f, 0.f, -88.f));
+			MeshComp->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+		}
+	}
+
+	// Animation fallback — applies regardless of where the mesh came from.
+	if (MeshComp->GetSkeletalMeshAsset() && !MeshComp->GetAnimClass() && DefaultAnimClass.IsValid())
+	{
+		if (UClass* AnimClass = DefaultAnimClass.TryLoadClass<UAnimInstance>())
+		{
+			MeshComp->SetAnimInstanceClass(AnimClass);
+		}
+	}
+
+	if (!WeaponVisualComp && !DefaultWeaponMesh.IsNull() && MeshComp->GetSkeletalMeshAsset())
+	{
+		if (UStaticMesh* WeaponMesh = DefaultWeaponMesh.LoadSynchronous())
+		{
+			WeaponVisualComp = NewObject<UStaticMeshComponent>(this, TEXT("WeaponVisual"));
+			WeaponVisualComp->SetStaticMesh(WeaponMesh);
+			WeaponVisualComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			WeaponVisualComp->SetupAttachment(MeshComp,
+				MeshComp->DoesSocketExist(WeaponAttachBone) ? WeaponAttachBone : NAME_None);
+			WeaponVisualComp->SetRelativeLocation(WeaponAttachLocation);
+			WeaponVisualComp->SetRelativeRotation(WeaponAttachRotation);
+			WeaponVisualComp->RegisterComponent();
+		}
+	}
 }
 
 void ASHSquadMember::BeginPlay()
@@ -31,8 +86,10 @@ void ASHSquadMember::BeginPlay()
 	BleedoutTimeRemaining = BleedoutTimeMax;
 	RecalculateEffectiveness();
 
+	ApplyDefaultVisuals();
+
 	// Set ammo based on role
-	switch (Role)
+	switch (SquadRole)
 	{
 	case ESHSquadRole::AutomaticRifleman:
 		AmmoState.MagazineCapacity = 200;
@@ -124,26 +181,26 @@ void ASHSquadMember::UpdateSuppression(float DeltaTime)
 	SuppressionValue = FMath::Max(0.f, SuppressionValue - (SuppressionDecayRate * DecayMultiplier * DeltaTime));
 
 	// Update suppression level enum
-	ESHSuppressionLevel NewLevel;
+	ESHSquadSuppressionLevel NewLevel;
 	if (SuppressionValue >= SuppressionPinnedThreshold)
 	{
-		NewLevel = ESHSuppressionLevel::Pinned;
+		NewLevel = ESHSquadSuppressionLevel::Pinned;
 	}
 	else if (SuppressionValue >= SuppressionHeavyThreshold)
 	{
-		NewLevel = ESHSuppressionLevel::Heavy;
+		NewLevel = ESHSquadSuppressionLevel::Heavy;
 	}
 	else if (SuppressionValue >= SuppressionModerateThreshold)
 	{
-		NewLevel = ESHSuppressionLevel::Moderate;
+		NewLevel = ESHSquadSuppressionLevel::Moderate;
 	}
 	else if (SuppressionValue >= SuppressionLightThreshold)
 	{
-		NewLevel = ESHSuppressionLevel::Light;
+		NewLevel = ESHSquadSuppressionLevel::Light;
 	}
 	else
 	{
-		NewLevel = ESHSuppressionLevel::None;
+		NewLevel = ESHSquadSuppressionLevel::None;
 	}
 
 	if (NewLevel != SuppressionLevel)
@@ -151,7 +208,7 @@ void ASHSquadMember::UpdateSuppression(float DeltaTime)
 		SuppressionLevel = NewLevel;
 
 		// Callout when first suppressed or when pinned
-		if (NewLevel == ESHSuppressionLevel::Heavy || NewLevel == ESHSuppressionLevel::Pinned)
+		if (NewLevel == ESHSquadSuppressionLevel::Heavy || NewLevel == ESHSquadSuppressionLevel::Pinned)
 		{
 			PlayVoiceLine(ESHVoiceLineType::Suppressed);
 		}
@@ -163,13 +220,13 @@ void ASHSquadMember::UpdateMorale(float DeltaTime)
 	const float PreviousMorale = Morale;
 
 	// Morale slowly recovers when not suppressed and in cover
-	if (SuppressionLevel == ESHSuppressionLevel::None && bIsInCover)
+	if (SuppressionLevel == ESHSquadSuppressionLevel::None && bIsInCover)
 	{
 		Morale = FMath::Min(100.f, Morale + (5.f * DeltaTime));
 	}
 
 	// Morale drops while suppressed
-	if (SuppressionLevel >= ESHSuppressionLevel::Heavy)
+	if (SuppressionLevel >= ESHSquadSuppressionLevel::Heavy)
 	{
 		Morale = FMath::Max(0.f, Morale - (10.f * DeltaTime));
 	}
@@ -480,7 +537,7 @@ void ASHSquadMember::BeginReload()
 
 	// Reload duration varies by role
 	float ReloadTime = 2.5f;
-	switch (Role)
+	switch (SquadRole)
 	{
 	case ESHSquadRole::AutomaticRifleman: ReloadTime = 5.f; break;
 	case ESHSquadRole::DesignatedMarksman: ReloadTime = 2.f; break;
@@ -626,7 +683,7 @@ float ASHSquadMember::GetMovementSpeedModifier() const
 	}
 
 	// Heavy suppression makes movement sluggish (hunkering)
-	if (SuppressionLevel >= ESHSuppressionLevel::Heavy)
+	if (SuppressionLevel >= ESHSquadSuppressionLevel::Heavy)
 	{
 		Modifier *= 0.6f;
 	}
@@ -644,10 +701,10 @@ float ASHSquadMember::GetAccuracyModifier() const
 	// Suppression degrades accuracy
 	switch (SuppressionLevel)
 	{
-	case ESHSuppressionLevel::Light:    Modifier *= 0.85f; break;
-	case ESHSuppressionLevel::Moderate: Modifier *= 0.65f; break;
-	case ESHSuppressionLevel::Heavy:    Modifier *= 0.4f;  break;
-	case ESHSuppressionLevel::Pinned:   Modifier *= 0.15f; break;
+	case ESHSquadSuppressionLevel::Light:    Modifier *= 0.85f; break;
+	case ESHSquadSuppressionLevel::Moderate: Modifier *= 0.65f; break;
+	case ESHSquadSuppressionLevel::Heavy:    Modifier *= 0.4f;  break;
+	case ESHSquadSuppressionLevel::Pinned:   Modifier *= 0.15f; break;
 	default: break;
 	}
 
@@ -691,13 +748,13 @@ bool ASHSquadMember::IsAlive() const
 bool ASHSquadMember::CanExecuteOrders() const
 {
 	return IsCombatEffective()
-		&& SuppressionLevel != ESHSuppressionLevel::Pinned;
+		&& SuppressionLevel != ESHSquadSuppressionLevel::Pinned;
 }
 
 float ASHSquadMember::GetOptimalEngagementRange() const
 {
 	// In centimeters (UE units)
-	switch (Role)
+	switch (SquadRole)
 	{
 	case ESHSquadRole::AutomaticRifleman:   return 30000.f;  // 300m — area suppression
 	case ESHSquadRole::DesignatedMarksman:  return 50000.f;  // 500m — precision
@@ -710,7 +767,7 @@ float ASHSquadMember::GetOptimalEngagementRange() const
 
 float ASHSquadMember::GetMaxEngagementRange() const
 {
-	switch (Role)
+	switch (SquadRole)
 	{
 	case ESHSquadRole::AutomaticRifleman:   return 80000.f;  // 800m
 	case ESHSquadRole::DesignatedMarksman:  return 80000.f;  // 800m
@@ -725,10 +782,10 @@ int32 ASHSquadMember::GetDesiredBurstLength() const
 {
 	if (bIsConservingAmmo)
 	{
-		return (Role == ESHSquadRole::AutomaticRifleman) ? 5 : 1;
+		return (SquadRole == ESHSquadRole::AutomaticRifleman) ? 5 : 1;
 	}
 
-	switch (Role)
+	switch (SquadRole)
 	{
 	case ESHSquadRole::AutomaticRifleman:   return 10; // Sustained bursts for suppression
 	case ESHSquadRole::DesignatedMarksman:  return 1;  // Single aimed shots
@@ -778,10 +835,10 @@ void ASHSquadMember::RecalculateEffectiveness()
 	// Suppression
 	switch (SuppressionLevel)
 	{
-	case ESHSuppressionLevel::Light:    Eff *= 0.9f;  break;
-	case ESHSuppressionLevel::Moderate: Eff *= 0.7f;  break;
-	case ESHSuppressionLevel::Heavy:    Eff *= 0.4f;  break;
-	case ESHSuppressionLevel::Pinned:   Eff *= 0.1f;  break;
+	case ESHSquadSuppressionLevel::Light:    Eff *= 0.9f;  break;
+	case ESHSquadSuppressionLevel::Moderate: Eff *= 0.7f;  break;
+	case ESHSquadSuppressionLevel::Heavy:    Eff *= 0.4f;  break;
+	case ESHSquadSuppressionLevel::Pinned:   Eff *= 0.1f;  break;
 	default: break;
 	}
 

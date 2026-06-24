@@ -2,13 +2,20 @@
 
 #include "AI/SHEnemyCharacter.h"
 #include "AI/SHAIPerceptionConfig.h"
+#include "AI/SHDirectFireComponent.h"
 #include "Combat/SHDeathSystem.h"
 #include "Combat/SHDamageSystem.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "Animation/AnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/World.h"
+#include "Engine/OverlapResult.h"
 #include "Net/UnrealNetwork.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSHEnemy, Log, All);
@@ -25,10 +32,13 @@ ASHEnemyCharacter::ASHEnemyCharacter()
 	// Death physics system.
 	DeathSystemComp = CreateDefaultSubobject<USHDeathSystem>(TEXT("DeathSystem"));
 
+	// Autonomous direct fire (targets the player side).
+	DirectFire = CreateDefaultSubobject<USHDirectFireComponent>(TEXT("DirectFire"));
+	DirectFire->bTargetsPlayerSide = true;
+
 	// Sensible defaults for a military-sim character.
 	GetCharacterMovement()->MaxWalkSpeed = 450.f;
 	GetCharacterMovement()->MaxWalkSpeedCrouched = 200.f;
-	GetCharacterMovement()->bCanCrouch = true;
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 }
 
@@ -42,9 +52,57 @@ void ASHEnemyCharacter::BeginPlay()
 	MoraleState = ESHMoraleState::Steady;
 
 	// Apply role loadout if preset exists.
-	if (const FSHEnemyLoadout* Preset = RoleLoadoutPresets.Find(Role))
+	if (const FSHEnemyLoadout* Preset = RoleLoadoutPresets.Find(EnemyRole))
 	{
 		Loadout = *Preset;
+	}
+
+	ApplyDefaultVisuals();
+}
+
+void ASHEnemyCharacter::ApplyDefaultVisuals()
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp)
+	{
+		return;
+	}
+
+	// Body mesh fallback (Blueprint-assigned mesh always wins).
+	if (!MeshComp->GetSkeletalMeshAsset() && !DefaultBodyMesh.IsNull())
+	{
+		if (USkeletalMesh* Body = DefaultBodyMesh.LoadSynchronous())
+		{
+			MeshComp->SetSkeletalMesh(Body);
+			// Standard humanoid alignment inside the capsule.
+			MeshComp->SetRelativeLocation(FVector(0.f, 0.f, -88.f));
+			MeshComp->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+		}
+	}
+
+	// Animation fallback — applies regardless of where the mesh came from.
+	if (MeshComp->GetSkeletalMeshAsset() && !MeshComp->GetAnimClass() && DefaultAnimClass.IsValid())
+	{
+		if (UClass* AnimClass = DefaultAnimClass.TryLoadClass<UAnimInstance>())
+		{
+			MeshComp->SetAnimInstanceClass(AnimClass);
+		}
+	}
+
+	// Held-weapon visual.
+	if (!WeaponVisualComp && !DefaultWeaponMesh.IsNull() && MeshComp->GetSkeletalMeshAsset())
+	{
+		if (UStaticMesh* WeaponMesh = DefaultWeaponMesh.LoadSynchronous())
+		{
+			WeaponVisualComp = NewObject<UStaticMeshComponent>(this, TEXT("WeaponVisual"));
+			WeaponVisualComp->SetStaticMesh(WeaponMesh);
+			WeaponVisualComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			WeaponVisualComp->SetupAttachment(MeshComp,
+				MeshComp->DoesSocketExist(WeaponAttachBone) ? WeaponAttachBone : NAME_None);
+			WeaponVisualComp->SetRelativeLocation(WeaponAttachLocation);
+			WeaponVisualComp->SetRelativeRotation(WeaponAttachRotation);
+			WeaponVisualComp->RegisterComponent();
+		}
 	}
 }
 
@@ -257,7 +315,7 @@ bool ASHEnemyCharacter::AttemptSurrender()
 	}
 
 	// Officers and certain roles resist surrender.
-	if (Role == ESHEnemyRole::Officer && FMath::FRand() < 0.7f)
+	if (EnemyRole == ESHEnemyRole::Officer && FMath::FRand() < 0.7f)
 	{
 		return false;
 	}
@@ -331,15 +389,15 @@ float ASHEnemyCharacter::GetSquadCohesionBonus() const
 
 void ASHEnemyCharacter::SetRole(ESHEnemyRole NewRole)
 {
-	Role = NewRole;
+	EnemyRole = NewRole;
 
-	if (const FSHEnemyLoadout* Preset = RoleLoadoutPresets.Find(Role))
+	if (const FSHEnemyLoadout* Preset = RoleLoadoutPresets.Find(EnemyRole))
 	{
 		Loadout = *Preset;
 	}
 
 	// Adjust movement speed by role.
-	switch (Role)
+	switch (EnemyRole)
 	{
 	case ESHEnemyRole::MachineGunner:
 		GetCharacterMovement()->MaxWalkSpeed = 380.f;

@@ -41,12 +41,18 @@ void USHCameraSystem::TickComponent(float DeltaTime, ELevelTick TickType,
 	TickSuppressionFX(DeltaTime);
 	TickScreenPunch(DeltaTime);
 
-	// Apply combined camera offset.
-	const FVector FinalOffset = CurrentBobOffset;
+	// Single writer for the camera's relative transform: compose head bob and
+	// lean offset into one location, and lean roll + screen punch into one
+	// rotation. (Previously the character also wrote this transform from a
+	// different tick group, so bob silently wiped the lean offset.)
+	const FVector FinalOffset = CurrentBobOffset + FVector(0.f, LeanOffsetY, 0.f);
 	OwnerCamera->SetRelativeLocation(FinalOffset);
 
-	// Apply combined rotation (punch + any lean is handled by PlayerCharacter).
-	OwnerCamera->AddRelativeRotation(PunchRotation * DeltaTime);
+	const FRotator FinalRotation(
+		PunchRotation.Pitch,
+		PunchRotation.Yaw,
+		LeanRoll + PunchRotation.Roll);
+	OwnerCamera->SetRelativeRotation(FinalRotation);
 
 	// Apply FOV.
 	OwnerCamera->SetFieldOfView(CurrentFOV);
@@ -59,6 +65,12 @@ void USHCameraSystem::TickComponent(float DeltaTime, ELevelTick TickType,
 void USHCameraSystem::SetCameraContext(const FSHCameraContext& InContext)
 {
 	Context = InContext;
+}
+
+void USHCameraSystem::SetLeanOffset(float InLeanOffsetY, float InLeanRoll)
+{
+	LeanOffsetY = InLeanOffsetY;
+	LeanRoll = InLeanRoll;
 }
 
 void USHCameraSystem::OnNearbyExplosion(const FVector& ExplosionOrigin, float MaxRadius)
@@ -178,18 +190,29 @@ void USHCameraSystem::TickSuppressionFX(float DeltaTime)
 	CurrentDesaturation = FMath::FInterpTo(CurrentDesaturation, TargetDesat,
 										   DeltaTime, SuppressionFXInterpSpeed);
 
-	// Trigger suppression camera shake at medium+ levels.
+	// Trigger suppression camera shake at medium+ levels — start it ONCE on the
+	// rising edge rather than restarting it every frame (which stacked into a
+	// constant max-intensity jitter). Re-arms once suppression drops back below
+	// the threshold.
 	if (Context.Suppression > 0.4f && SuppressionShakeClass)
 	{
-		if (ACharacter* Owner = Cast<ACharacter>(GetOwner()))
+		if (!bSuppressionShakeActive)
 		{
-			if (APlayerController* PC = Cast<APlayerController>(Owner->GetController()))
+			if (ACharacter* Owner = Cast<ACharacter>(GetOwner()))
 			{
-				const float ShakeScale = FMath::GetMappedRangeValueClamped(
-					FVector2D(0.4f, 1.f), FVector2D(0.2f, 1.f), Context.Suppression);
-				PC->ClientStartCameraShake(SuppressionShakeClass, ShakeScale);
+				if (APlayerController* PC = Cast<APlayerController>(Owner->GetController()))
+				{
+					const float ShakeScale = FMath::GetMappedRangeValueClamped(
+						FVector2D(0.4f, 1.f), FVector2D(0.2f, 1.f), Context.Suppression);
+					PC->ClientStartCameraShake(SuppressionShakeClass, ShakeScale);
+					bSuppressionShakeActive = true;
+				}
 			}
 		}
+	}
+	else
+	{
+		bSuppressionShakeActive = false;
 	}
 }
 

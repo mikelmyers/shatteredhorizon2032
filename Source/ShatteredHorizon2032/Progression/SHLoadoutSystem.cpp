@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 
 USHLoadoutSystem::USHLoadoutSystem()
 {
@@ -22,6 +23,45 @@ void USHLoadoutSystem::BeginPlay()
 
 	UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] BeginPlay — %d weapons, %d equipment items, %d attachments registered."),
 		WeaponWeights.Num(), EquipmentWeights.Num(), AllAttachments.Num());
+
+	// Merge config-registered weapon classes into the runtime registry.
+	for (const TPair<FName, FSoftClassPath>& Entry : ConfigWeaponClasses)
+	{
+		if (WeaponClassRegistry.Contains(Entry.Key))
+		{
+			continue;
+		}
+		if (UClass* Resolved = Entry.Value.TryLoadClass<AActor>())
+		{
+			WeaponClassRegistry.Add(Entry.Key, Resolved);
+			UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Registered weapon class from config: %s -> %s"),
+				*Entry.Key.ToString(), *Resolved->GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SHLoadoutSystem] Failed to load configured weapon class for '%s': %s"),
+				*Entry.Key.ToString(), *Entry.Value.ToString());
+		}
+	}
+
+	if (bAutoApplyOnBeginPlay && GetWorld())
+	{
+		// Small delay so possession and pawn BeginPlay complete first.
+		GetWorld()->GetTimerManager().SetTimer(AutoApplyTimerHandle, this,
+			&USHLoadoutSystem::AutoApplyConfiguredLoadout, 0.35f, false);
+	}
+}
+
+void USHLoadoutSystem::AutoApplyConfiguredLoadout()
+{
+	if (AutoLoadout.PrimaryWeapon.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHLoadoutSystem] bAutoApplyOnBeginPlay set but AutoLoadout has no primary weapon."));
+		return;
+	}
+
+	SetLoadout(AutoLoadout);
+	ApplyLoadoutToCharacter();
 }
 
 // =======================================================================

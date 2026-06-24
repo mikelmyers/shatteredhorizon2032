@@ -10,8 +10,6 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 
-DEFINE_LOG_CATEGORY(LogSH_HUD);
-
 // ======================================================================
 //  Construction
 // ======================================================================
@@ -204,15 +202,8 @@ void ASHHUD::DrawDamageIndicators()
 
 		if (DamageIndicatorTexture)
 		{
-			FCanvasTileItem TileItem(
-				FVector2D(PosX - 16.f, PosY - 32.f),
-				FVector2D(32.f, 64.f),
-				DamageIndicatorTexture,
-				IndicatorColor);
-			TileItem.BlendMode = SE_BLEND_Translucent;
-			TileItem.Rotation = FRotator(0, Indicator.DirectionDegrees, 0);
-			TileItem.PivotPoint = FVector2D(0.5f, 0.5f);
-			Canvas->DrawItem(TileItem);
+			FCanvasIcon Icon = UCanvas::MakeIcon(DamageIndicatorTexture, 0.f, 0.f, 32.f, 64.f);
+			Canvas->DrawIcon(Icon, PosX - 16.f, PosY - 32.f, 1.0f);
 		}
 		else
 		{

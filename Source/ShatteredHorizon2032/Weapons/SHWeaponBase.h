@@ -11,6 +11,7 @@ class USHWeaponDataAsset;
 class ASHProjectile;
 class USHBallisticsSystem;
 class USHWeaponAnimSystem;
+class USHWeaponAttachmentSystem;
 
 /* -----------------------------------------------------------------------
  *  Reload state machine
@@ -42,7 +43,7 @@ enum class ESHWeaponState : uint8
  *  Delegates
  * --------------------------------------------------------------------- */
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnAmmoChanged, int32, CurrentMag, int32, Reserve);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnWeaponAmmoChanged, int32, CurrentMag, int32, Reserve);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnFireModeChanged, ESHFireMode, NewMode);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnWeaponStateChanged, ESHWeaponState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponFired);
@@ -76,6 +77,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
 	TObjectPtr<USHWeaponAnimSystem> WeaponAnimSystem;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
+	TObjectPtr<USHWeaponAttachmentSystem> AttachmentSystem;
 
 	/* --- Input Actions --- */
 
@@ -160,10 +164,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetAmmo(int32 MagAmmo, int32 InReserve);
 
+	/**
+	 * Set the weapon mesh's resting relative transform (its attach-pose offset).
+	 * The procedural animation system (recoil, sway, bob, breathing) composes its
+	 * per-frame offset on top of this rest pose. Call this from the holder when
+	 * positioning the weapon instead of moving the mesh directly, so procedural
+	 * motion doesn't clobber the placement.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetRestRelativeTransform(const FTransform& InRest);
+
 	/* --- Delegates --- */
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
-	FSHOnAmmoChanged OnAmmoChanged;
+	FSHOnWeaponAmmoChanged OnAmmoChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
 	FSHOnFireModeChanged OnFireModeChanged;
@@ -321,6 +335,11 @@ protected:
 	/* --- Overheat lockout --- */
 
 	bool bIsOverheated = false;
+
+	/* --- Procedural animation --- */
+
+	/** Resting relative transform of the weapon mesh; procedural offsets compose on top. */
+	FTransform RestRelativeTransform = FTransform::Identity;
 
 	/* --- Replication --- */
 

@@ -71,11 +71,12 @@ void USHPrimordiaSimulon::UpdateThreatModel(AActor* Target)
 	Obs->PositionHistory.Add(CurrentPos);
 	Obs->TimestampHistory.Add(CurrentTime);
 
-	// Cap history size
+	// Cap history size. History is small (PositionHistorySize, ~10) so this is
+	// not a perf concern; keep the allocation to avoid per-tick realloc churn.
 	while (Obs->PositionHistory.Num() > PositionHistorySize)
 	{
-		Obs->PositionHistory.RemoveAt(0);
-		Obs->TimestampHistory.RemoveAt(0);
+		Obs->PositionHistory.RemoveAt(0, 1, EAllowShrinking::No);
+		Obs->TimestampHistory.RemoveAt(0, 1, EAllowShrinking::No);
 	}
 
 	// Update velocity from recent positions

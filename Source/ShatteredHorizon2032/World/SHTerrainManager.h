@@ -7,8 +7,6 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "SHTerrainManager.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSH_Terrain, Log, All);
-
 class USoundBase;
 class UNiagaraSystem;
 class UMaterialInterface;

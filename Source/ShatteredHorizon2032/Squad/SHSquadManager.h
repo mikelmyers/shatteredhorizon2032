@@ -233,6 +233,11 @@ private:
 	UPROPERTY()
 	TArray<ASHSquadMember*> SquadMembers;
 
+	/** Deliver an order to a member, applying comms-jamming disruption (the
+	 *  player's USHCommsDisruption): heavy jamming can delay or lose the order
+	 *  entirely. Centralizes the player-radio chokepoint for all issue paths. */
+	void DispatchOrderTo(ASHSquadMember* Member, const FSHSquadOrder& Order);
+
 	/* ── Internal Tick Helpers ──────────────────────────────── */
 	void UpdateCohesion();
 	void UpdateSquadMorale();

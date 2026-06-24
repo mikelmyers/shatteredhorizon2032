@@ -4,6 +4,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/DemoNetDriver.h"
 #include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
+#include "HAL/PlatformFile.h"
 #include "Misc/Paths.h"
 #include "Misc/DateTime.h"
 #include "HAL/PlatformFileManager.h"
