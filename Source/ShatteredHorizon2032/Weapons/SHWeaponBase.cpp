@@ -72,6 +72,12 @@ void ASHWeaponBase::Tick(float DeltaTime)
 
 	TimeSinceLastShot += DeltaTime;
 
+	// Sprint-to-fire lockout decays once the owner stops sprinting.
+	if (!bOwnerSprinting && SprintFireLockout > 0.0f)
+	{
+		SprintFireLockout = FMath::Max(0.0f, SprintFireLockout - DeltaTime);
+	}
+
 	// Continuous fire logic
 	if (bWantsToFire && CanFire())
 	{
@@ -288,6 +294,17 @@ void ASHWeaponBase::SetAmmo(int32 MagAmmo, int32 InReserve)
 		CurrentMagAmmo = FMath::Clamp(MagAmmo, 0, WeaponData->MagazineCapacity);
 		ReserveAmmo    = FMath::Clamp(InReserve, 0, WeaponData->MaxReserveAmmo);
 		OnAmmoChanged.Broadcast(CurrentMagAmmo, ReserveAmmo);
+	}
+}
+
+void ASHWeaponBase::SetSprinting(bool bSprinting)
+{
+	bOwnerSprinting = bSprinting;
+	if (bSprinting)
+	{
+		// Keep the lockout charged while sprinting; it counts down once the
+		// owner stops, so the first shot can't land the instant sprint ends.
+		SprintFireLockout = SprintToFireDelay;
 	}
 }
 
@@ -1024,6 +1041,12 @@ bool ASHWeaponBase::CanFire() const
 	}
 
 	if (bIsOverheated)
+	{
+		return false;
+	}
+
+	// Sprint-to-fire delay: can't fire until the lockout from sprinting clears.
+	if (SprintFireLockout > 0.0f)
 	{
 		return false;
 	}

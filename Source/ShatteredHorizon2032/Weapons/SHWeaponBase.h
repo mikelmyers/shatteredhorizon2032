@@ -148,6 +148,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetIsMoving(bool bMoving) { bIsMoving = bMoving; }
 
+	/** Tell the weapon whether the owner is sprinting (drives sprint-to-fire delay). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetSprinting(bool bSprinting);
+
 	/** Set suppression level 0-1. */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetSuppressionLevel(float Level) { SuppressionLevel = FMath::Clamp(Level, 0.0f, 1.0f); }
@@ -359,4 +363,16 @@ protected:
 	FName ShellEjectSocketName = FName(TEXT("ShellEject"));
 
 	bool bIsMoving = false;
+
+	/* --- Sprint-to-fire delay --- */
+
+	/** Seconds after sprinting ends before the weapon can fire again. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Handling")
+	float SprintToFireDelay = 0.25f;
+
+	/** Remaining sprint-to-fire lockout; counts down once sprinting stops. */
+	float SprintFireLockout = 0.f;
+
+	/** Whether the owner is currently sprinting. */
+	bool bOwnerSprinting = false;
 };

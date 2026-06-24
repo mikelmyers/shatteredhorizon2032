@@ -123,6 +123,19 @@ void USHCameraSystem::ApplyScreenPunch(const FVector& DamageDirection, float Int
 	PunchVelocity += FRotator(PunchPitch, PunchYaw, 0.f) * PunchRecoverySpeed;
 }
 
+void USHCameraSystem::ApplyLandingDip(float Intensity)
+{
+	Intensity = FMath::Clamp(Intensity, 0.f, 1.f);
+	if (Intensity <= 0.f)
+	{
+		return;
+	}
+
+	// Inject a downward pitch impulse into the screen-punch spring, which then
+	// recovers via TickScreenPunch — a quick dip-and-settle on impact.
+	PunchVelocity += FRotator(-MaxPunchAngle * Intensity, 0.f, 0.f) * PunchRecoverySpeed;
+}
+
 // =========================================================================
 //  Tick helpers
 // =========================================================================
@@ -170,6 +183,12 @@ void USHCameraSystem::TickFOVTransition(float DeltaTime)
 	if (TargetFOV <= 0.f)
 	{
 		TargetFOV = DefaultHipFOV;
+	}
+
+	// Widen FOV while sprinting (hip only) to convey speed. Suppressed by ADS.
+	if (Context.bIsSprinting && !Context.bIsADS)
+	{
+		TargetFOV += SprintFOVBoost;
 	}
 
 	// Smooth FOV transition.

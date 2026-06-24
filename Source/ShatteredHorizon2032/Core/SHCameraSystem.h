@@ -81,6 +81,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void ApplyScreenPunch(const FVector& DamageDirection, float Intensity = 1.f);
 
+	/** Downward camera dip on landing, scaled by impact intensity (0-1). */
+	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
+	void ApplyLandingDip(float Intensity);
+
 	/** Update the camera context from character state each frame. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void SetCameraContext(const FSHCameraContext& InContext);
@@ -124,6 +128,10 @@ protected:
 	/** FOV lerp speed (degrees per second). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|FOV")
 	float FOVInterpSpeed = 12.f;
+
+	/** Extra FOV (degrees) added while sprinting (hip only) — sells speed. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|FOV")
+	float SprintFOVBoost = 8.f;
 
 	// --- Head bob ---
 

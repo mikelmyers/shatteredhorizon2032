@@ -96,6 +96,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 		AController* EventInstigator, AActor* DamageCauser) override;
+	virtual void Landed(const FHitResult& Hit) override;
 
 	// ------------------------------------------------------------------
 	//  Movement actions (called from controller)
@@ -391,6 +392,11 @@ private:
 	float CurrentWeight = 10.f; // base weight of the character's gear in kg
 
 	bool bIsSprinting = false;
+
+	/** Most recent downward velocity while falling (cm/s), used to scale the
+	 *  landing camera dip — captured each tick because Landed() arrives after
+	 *  the movement component has zeroed vertical velocity. */
+	float LastFallingZSpeed = 0.f;
 	bool bIsFiring = false;
 	bool bIsADS = false;
 	bool bIsDead = false;

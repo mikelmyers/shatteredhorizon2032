@@ -180,6 +180,16 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
+	// Track downward speed while airborne so Landed() can scale the impact dip
+	// (vertical velocity is zeroed by the time Landed fires).
+	if (const UCharacterMovementComponent* CMCFall = GetCharacterMovement())
+	{
+		if (CMCFall->IsFalling())
+		{
+			LastFallingZSpeed = GetVelocity().Z;
+		}
+	}
+
 	TickStamina(DeltaSeconds);
 	TickSuppression(DeltaSeconds);
 	TickBleeding(DeltaSeconds);
@@ -214,6 +224,7 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		EquippedWeapon->SetStance(CurrentStance);
 		EquippedWeapon->SetSuppressionLevel(SuppressionLevel);
 		EquippedWeapon->SetIsMoving(GetVelocity().Size2D() > 10.f);
+		EquippedWeapon->SetSprinting(bIsSprinting);
 		if (FatigueSystem)
 		{
 			EquippedWeapon->SetFatigueLevel(1.f - FatigueSystem->GetStaminaPercent());
@@ -345,6 +356,24 @@ float ASHPlayerCharacter::TakeDamage(float DamageAmount, const FDamageEvent& Dam
 	}
 
 	return FinalDamage;
+}
+
+void ASHPlayerCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	// Scale a downward camera dip by how hard we hit: nothing below ~300 cm/s
+	// (a step or small hop), full dip by ~1000 cm/s (a real drop).
+	const float ImpactSpeed = FMath::Abs(LastFallingZSpeed);
+	const float Intensity = FMath::GetMappedRangeValueClamped(
+		FVector2D(300.f, 1000.f), FVector2D(0.f, 1.f), ImpactSpeed);
+
+	if (CameraSystem && Intensity > 0.f)
+	{
+		CameraSystem->ApplyLandingDip(Intensity);
+	}
+
+	LastFallingZSpeed = 0.f;
 }
 
 void ASHPlayerCharacter::ApplyLimbDamage(ESHLimb Limb, float Damage)
