@@ -103,12 +103,6 @@ struct FSHDestructibleState
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int32 ExplosiveHitCount = 0;
 
-	/** Localized damage map — tracks damage concentration per surface region.
-	 *  Key: region index (octant), Value: accumulated damage in that region.
-	 *  When a region exceeds threshold, it creates a breach (new sightline). */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TMap<int32, float> RegionalDamage;
-
 	/** Whether this object has a breach (hole large enough for sightlines/traversal). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	bool bHasBreach = false;
