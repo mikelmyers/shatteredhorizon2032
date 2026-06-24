@@ -508,6 +508,21 @@ float ASHEnemyAIController::GetCombatEffectiveness() const
 	return PrimordiaAstraea ? PrimordiaAstraea->GetCombatEffectiveness() : 1.f;
 }
 
+float ASHEnemyAIController::GetTargetLeadConfidence(AActor* Target) const
+{
+	if (!PrimordiaSimulon || !Target)
+	{
+		return 0.f;
+	}
+
+	FSHThreatModel Model;
+	if (PrimordiaSimulon->GetThreatModelForActor(Target, Model))
+	{
+		return Model.Confidence;
+	}
+	return 0.f;
+}
+
 // -----------------------------------------------------------------------
 //  Target Management
 // -----------------------------------------------------------------------

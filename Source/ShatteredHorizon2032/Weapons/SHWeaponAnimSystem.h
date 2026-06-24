@@ -70,6 +70,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Animation")
 	void SetFatigueLevel(float Level);
 
+	/** Feed the owner's current aim (control) rotation so the weapon can lag
+	 *  behind fast turns and settle — adds perceived weight. Call each frame. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Animation")
+	void SetAimRotation(FRotator InAimRotation);
+
 	/** Called when a reload begins. */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Animation")
 	void OnReloadStarted();
@@ -216,6 +221,22 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|IdleSway", meta = (ClampMin = "0"))
 	float IdleSwayRotationDegrees = 0.6f;
 
+	/* =================================================================
+	 *  Configuration — Weapon Turn Inertia (look lag)
+	 * =============================================================== */
+
+	/** Max weapon lag offset from turning (degrees). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|TurnLag", meta = (ClampMin = "0"))
+	float WeaponLagMaxDegrees = 4.0f;
+
+	/** Lag (degrees) produced per degree/second of turn rate, before clamping. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|TurnLag", meta = (ClampMin = "0"))
+	float WeaponLagScale = 0.02f;
+
+	/** How quickly the lag offset chases the turn and settles back (per second). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|TurnLag", meta = (ClampMin = "0"))
+	float WeaponLagInterpSpeed = 10.0f;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -229,6 +250,7 @@ private:
 	void TickReloadMotion(float DeltaTime);
 	void TickBreathingSway(float DeltaTime);
 	void TickIdleSway(float DeltaTime);
+	void TickWeaponLag(float DeltaTime);
 
 	/* --- Helpers --- */
 
@@ -297,6 +319,15 @@ private:
 	bool bIsSprinting = false;
 	ESHStance CurrentStance = ESHStance::Standing;
 	float FatigueLevel = 0.0f;
+
+	/* --- Weapon Turn Lag State --- */
+
+	FRotator CurrentAimRotation = FRotator::ZeroRotator;
+	FRotator LastAimRotation = FRotator::ZeroRotator;
+	bool bHasAimRotation = false;
+
+	/** Current lag offset: X = pitch, Y = yaw (degrees). */
+	FVector2D WeaponLagOffset = FVector2D::ZeroVector;
 
 	/* --- Cached Output Transforms --- */
 

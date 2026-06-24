@@ -172,6 +172,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SH|AI|Primordia")
 	float GetCombatEffectiveness() const;
 
+	/**
+	 * Simulon's prediction confidence (0-1) for a tracked target. The fire
+	 * logic uses this to "lead" moving targets — a well-tracked target's
+	 * motion can be anticipated, recovering accuracy otherwise lost to its
+	 * lateral movement. Returns 0 when the target isn't modelled.
+	 */
+	UFUNCTION(BlueprintPure, Category = "SH|AI|Primordia")
+	float GetTargetLeadConfidence(AActor* Target) const;
+
 	// ------------------------------------------------------------------
 	//  Combat behaviors
 	// ------------------------------------------------------------------

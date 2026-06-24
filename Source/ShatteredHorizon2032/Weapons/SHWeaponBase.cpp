@@ -121,6 +121,10 @@ void ASHWeaponBase::Tick(float DeltaTime)
 			bIsMoving, CurrentStance);
 		WeaponAnimSystem->SetADSAlpha(ADSAlpha);
 		WeaponAnimSystem->SetFatigueLevel(FatigueLevel);
+		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+		{
+			WeaponAnimSystem->SetAimRotation(OwnerPawn->GetControlRotation());
+		}
 
 		// Display the computed procedural motion (recoil kick, sway, bob,
 		// breathing) by composing it on top of the resting attach pose.

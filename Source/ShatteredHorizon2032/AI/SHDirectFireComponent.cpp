@@ -145,15 +145,42 @@ void USHDirectFireComponent::FireRound()
 	// Astraea combat effectiveness) misses more. Only enemy AI carries an
 	// Astraea model — friendly squad falls back to 1.0 (unmodified).
 	float Effectiveness = 1.f;
+	const ASHEnemyAIController* AICon = nullptr;
 	if (const APawn* OwnerPawn = Cast<APawn>(GetOwner()))
 	{
-		if (const ASHEnemyAIController* AICon = Cast<ASHEnemyAIController>(OwnerPawn->GetController()))
+		AICon = Cast<ASHEnemyAIController>(OwnerPawn->GetController());
+		if (AICon)
 		{
 			Effectiveness = AICon->GetCombatEffectiveness();
 		}
 	}
 
-	const bool bHit = FMath::FRand() < BaseHitChance * RangeFactor * Effectiveness;
+	// A target's lateral movement defeats aim — dodging works. Enemy AI that
+	// tracks the target (Simulon) can lead it, recovering accuracy in
+	// proportion to its prediction confidence. (This is where Simulon's
+	// predictive model finally influences the live fire path.)
+	float MovementFactor = 1.f;
+	const FVector TargetVel = Target->GetVelocity();
+	const float TargetSpeed = TargetVel.Size2D();
+	if (TargetSpeed > 50.f)
+	{
+		const FVector ShotDir2D = (TargetPos - Muzzle).GetSafeNormal2D();
+		const FVector VelDir2D = TargetVel.GetSafeNormal2D();
+		const float Along = FMath::Abs(FVector::DotProduct(ShotDir2D, VelDir2D));
+		const float LateralSpeed = TargetSpeed * FMath::Sqrt(FMath::Max(0.f, 1.f - Along * Along));
+
+		// 0 lateral -> full accuracy; ~600 cm/s lateral (a sprint) -> half.
+		MovementFactor = FMath::GetMappedRangeValueClamped(
+			FVector2D(0.f, 600.f), FVector2D(1.f, 0.5f), LateralSpeed);
+
+		if (AICon)
+		{
+			const float LeadConfidence = AICon->GetTargetLeadConfidence(Target);
+			MovementFactor = FMath::Lerp(MovementFactor, 1.f, LeadConfidence * 0.7f);
+		}
+	}
+
+	const bool bHit = FMath::FRand() < BaseHitChance * RangeFactor * Effectiveness * MovementFactor;
 
 	if (bHit)
 	{
