@@ -21,15 +21,28 @@ void ASHSimpleHUD::DrawHUD()
 	const float CY = Canvas->ClipY * 0.5f;
 	const FLinearColor HudGreen(0.65f, 0.85f, 0.65f, 0.85f);
 
-	// --- Crosshair ---
-	static const float Gap = 5.f;
-	static const float Arm = 9.f;
+	const ASHPlayerCharacter* Player = Cast<ASHPlayerCharacter>(GetOwningPawn());
+
+	// --- Dynamic crosshair: gap widens with movement / suppression / firing,
+	//     tightens when aiming down sights. ---
+	float Gap = 5.f;
+	const float Arm = 9.f;
+	if (Player)
+	{
+		float Bloom = FMath::Min(Player->GetVelocity().Size2D() / 600.f, 1.f) * 8.f;
+		Bloom += Player->GetSuppressionLevel() * 10.f;
+		if (const ASHWeaponBase* CW = Player->GetEquippedWeapon())
+		{
+			if (CW->GetWeaponState() == ESHWeaponState::Firing) { Bloom += 6.f; }
+			if (CW->IsADS()) { Bloom *= 0.35f; }
+		}
+		Gap += Bloom;
+	}
 	DrawLine(CX - Gap - Arm, CY, CX - Gap, CY, HudGreen, 1.5f);
 	DrawLine(CX + Gap, CY, CX + Gap + Arm, CY, HudGreen, 1.5f);
 	DrawLine(CX, CY - Gap - Arm, CX, CY - Gap, HudGreen, 1.5f);
 	DrawLine(CX, CY + Gap, CX, CY + Gap + Arm, HudGreen, 1.5f);
 
-	const ASHPlayerCharacter* Player = Cast<ASHPlayerCharacter>(GetOwningPawn());
 	if (!Player)
 	{
 		return;
@@ -55,6 +68,16 @@ void ASHSimpleHUD::DrawHUD()
 		const FString AmmoStr = FString::Printf(TEXT("%d / %d"),
 			Weapon->GetCurrentMagAmmo(), Weapon->GetReserveAmmo());
 		DrawText(AmmoStr, HudGreen, Canvas->ClipX - 170.f, Canvas->ClipY - 80.f, Font, 1.6f);
+
+		// Fire-mode indicator under the ammo count.
+		const TCHAR* ModeStr = TEXT("SEMI");
+		switch (Weapon->GetCurrentFireMode())
+		{
+		case ESHFireMode::Burst: ModeStr = TEXT("BURST"); break;
+		case ESHFireMode::Auto:  ModeStr = TEXT("AUTO");  break;
+		default:                 ModeStr = TEXT("SEMI");  break;
+		}
+		DrawText(ModeStr, HudGreen, Canvas->ClipX - 170.f, Canvas->ClipY - 54.f, Font, 1.1f);
 	}
 
 	// --- Compass heading (top-center) ---
