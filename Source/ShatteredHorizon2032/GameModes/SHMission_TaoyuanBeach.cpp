@@ -265,7 +265,7 @@ void USHMission_TaoyuanBeach::BuildPhase_PreInvasion(USHMissionDefinition* Def)
 		TEXT("Darkness. The sound of waves on sand. Your squad is dug into a trench line "
 			 "facing the Taiwan Strait. The pre-dawn air is warm and humid. Someone is breathing too fast. "
 			 "Nobody speaks for a long time."));
-	Phase.Duration = 210.f; // 3.5 minutes — longer, to let the silence work
+	Phase.Duration = 25.f; // Short hold so the assault starts quickly (was 210s cinematic)
 	Phase.AmbientWeather = ESHWeatherType::Overcast;
 	Phase.TimeOfDayStart = 4.5f;
 	Phase.AdvanceCondition = ESHPhaseAdvanceCondition::TimerExpired;

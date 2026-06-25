@@ -168,6 +168,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetAmmo(int32 MagAmmo, int32 InReserve);
 
+	/** Assign the weapon's data asset at runtime and (re)initialize from it.
+	 *  Lets the loadout system drive one chassis Blueprint as any weapon. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Data")
+	void SetWeaponData(USHWeaponDataAsset* InWeaponData);
+
 	/**
 	 * Set the weapon mesh's resting relative transform (its attach-pose offset).
 	 * The procedural animation system (recoil, sway, bob, breathing) composes its
@@ -200,6 +205,9 @@ public:
 
 protected:
 	/* --- Internal Fire Logic --- */
+
+	/** Initialize runtime state (ammo, fire mode, recoil pattern, mesh) from WeaponData. */
+	void InitializeFromWeaponData();
 
 	/** Execute a single shot (hitscan or projectile). */
 	virtual void FireShot();

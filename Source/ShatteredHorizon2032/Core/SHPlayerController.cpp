@@ -6,6 +6,11 @@
 #include "Weapons/SHWeaponBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "InputModifiers.h"
+#include "InputCoreTypes.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
@@ -14,6 +19,125 @@
 ASHPlayerController::ASHPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Provide default Enhanced Input assets in C++ so movement/look/fire work even
+	// when a Blueprint subclass (BP_SHPlayerController) doesn't wire them. A BP that
+	// assigns these overrides the C++ default. Without this, every BindAction and the
+	// AddMappingContext call silently no-op and the player can't move, look, or shoot.
+	{
+		static ConstructorHelpers::FObjectFinder<UInputMappingContext> IMCFinder(
+			TEXT("/Game/SH/Input/IMC_Default.IMC_Default"));
+		if (IMCFinder.Succeeded()) { DefaultMappingContext = IMCFinder.Object; }
+	}
+
+#define SH_BIND_DEFAULT_IA(Prop) \
+	{ static ConstructorHelpers::FObjectFinder<UInputAction> Finder( \
+		TEXT("/Game/SH/Input/Actions/" #Prop "." #Prop)); \
+	  if (Finder.Succeeded()) { Prop = Finder.Object; } }
+
+	SH_BIND_DEFAULT_IA(IA_Move);
+	SH_BIND_DEFAULT_IA(IA_Look);
+	SH_BIND_DEFAULT_IA(IA_Fire);
+	SH_BIND_DEFAULT_IA(IA_ADS);
+	SH_BIND_DEFAULT_IA(IA_Reload);
+	SH_BIND_DEFAULT_IA(IA_Sprint);
+	SH_BIND_DEFAULT_IA(IA_Crouch);
+	SH_BIND_DEFAULT_IA(IA_Prone);
+	SH_BIND_DEFAULT_IA(IA_Jump);
+	SH_BIND_DEFAULT_IA(IA_LeanLeft);
+	SH_BIND_DEFAULT_IA(IA_LeanRight);
+	SH_BIND_DEFAULT_IA(IA_Interact);
+	SH_BIND_DEFAULT_IA(IA_SquadMenu);
+	SH_BIND_DEFAULT_IA(IA_CycleFireMode);
+	SH_BIND_DEFAULT_IA(IA_PrimaryWeapon);
+	SH_BIND_DEFAULT_IA(IA_Sidearm);
+	SH_BIND_DEFAULT_IA(IA_Grenade);
+	SH_BIND_DEFAULT_IA(IA_DroneToggle);
+	SH_BIND_DEFAULT_IA(IA_Binoculars);
+	SH_BIND_DEFAULT_IA(IA_Radio);
+
+#undef SH_BIND_DEFAULT_IA
+}
+
+void ASHPlayerController::EnsureInputAssetsLoaded()
+{
+	// Runtime fallback for any unset input asset. The constructor sets these on the
+	// CDO, but Live Coding (Ctrl+Alt+F11) does NOT re-run constructors, so a hot-reload
+	// would otherwise leave them null. Loading here runs on every play/possess, so
+	// input works regardless of how the editor was rebuilt.
+	if (!DefaultMappingContext)
+	{
+		DefaultMappingContext = LoadObject<UInputMappingContext>(nullptr, TEXT("/Game/SH/Input/IMC_Default.IMC_Default"));
+	}
+
+#define SH_LOAD_IA(Prop) \
+	if (!Prop) { Prop = LoadObject<UInputAction>(nullptr, TEXT("/Game/SH/Input/Actions/" #Prop "." #Prop)); }
+
+	SH_LOAD_IA(IA_Move);   SH_LOAD_IA(IA_Look);   SH_LOAD_IA(IA_Fire);   SH_LOAD_IA(IA_ADS);
+	SH_LOAD_IA(IA_Reload); SH_LOAD_IA(IA_Sprint); SH_LOAD_IA(IA_Crouch); SH_LOAD_IA(IA_Prone);
+	SH_LOAD_IA(IA_Jump);   SH_LOAD_IA(IA_LeanLeft); SH_LOAD_IA(IA_LeanRight); SH_LOAD_IA(IA_Interact);
+	SH_LOAD_IA(IA_SquadMenu); SH_LOAD_IA(IA_CycleFireMode); SH_LOAD_IA(IA_PrimaryWeapon);
+	SH_LOAD_IA(IA_Sidearm); SH_LOAD_IA(IA_Grenade); SH_LOAD_IA(IA_DroneToggle);
+	SH_LOAD_IA(IA_Binoculars); SH_LOAD_IA(IA_Radio);
+
+#undef SH_LOAD_IA
+
+	// If the mapping context has NO key bindings, the IMC_Default asset was created as
+	// an empty stub and never authored (DefaultInput.ini says these are "created in-editor").
+	// An empty context binds nothing -> pressing keys does nothing even though everything
+	// is wired. Build the standard FPS bindings in code. Guarded on Num()==0 so a properly
+	// authored asset is never double-mapped.
+	if (DefaultMappingContext && DefaultMappingContext->GetMappings().Num() == 0)
+	{
+		auto MakeSwizzleYXZ = [this]() -> UInputModifierSwizzleAxis*
+		{
+			UInputModifierSwizzleAxis* M = NewObject<UInputModifierSwizzleAxis>(DefaultMappingContext);
+			M->Order = EInputAxisSwizzle::YXZ;
+			return M;
+		};
+		auto MakeNegate = [this]() -> UInputModifierNegate*
+		{
+			return NewObject<UInputModifierNegate>(DefaultMappingContext);
+		};
+
+		if (IA_Move)
+		{
+			// IA_Move is Axis2D: X = right(+)/left(-), Y = forward(+)/back(-).
+			DefaultMappingContext->MapKey(IA_Move, EKeys::D);                          // +X right
+			DefaultMappingContext->MapKey(IA_Move, EKeys::A).Modifiers.Add(MakeNegate());   // -X left
+			DefaultMappingContext->MapKey(IA_Move, EKeys::W).Modifiers.Add(MakeSwizzleYXZ()); // +Y forward
+			FEnhancedActionKeyMapping& Back = DefaultMappingContext->MapKey(IA_Move, EKeys::S);
+			Back.Modifiers.Add(MakeSwizzleYXZ());
+			Back.Modifiers.Add(MakeNegate());                                          // -Y back
+		}
+		if (IA_Look)          { DefaultMappingContext->MapKey(IA_Look, EKeys::Mouse2D); }
+		if (IA_Fire)          { DefaultMappingContext->MapKey(IA_Fire, EKeys::LeftMouseButton); }
+		if (IA_ADS)           { DefaultMappingContext->MapKey(IA_ADS, EKeys::RightMouseButton); }
+		if (IA_Reload)        { DefaultMappingContext->MapKey(IA_Reload, EKeys::R); }
+		if (IA_Sprint)        { DefaultMappingContext->MapKey(IA_Sprint, EKeys::LeftShift); }
+		if (IA_Crouch)        { DefaultMappingContext->MapKey(IA_Crouch, EKeys::LeftControl); }
+		if (IA_Prone)         { DefaultMappingContext->MapKey(IA_Prone, EKeys::Z); }
+		if (IA_Jump)          { DefaultMappingContext->MapKey(IA_Jump, EKeys::SpaceBar); }
+		if (IA_Interact)      { DefaultMappingContext->MapKey(IA_Interact, EKeys::F); }
+		if (IA_CycleFireMode) { DefaultMappingContext->MapKey(IA_CycleFireMode, EKeys::B); }
+		if (IA_LeanLeft)      { DefaultMappingContext->MapKey(IA_LeanLeft, EKeys::Q); }
+		if (IA_LeanRight)     { DefaultMappingContext->MapKey(IA_LeanRight, EKeys::E); }
+		if (IA_SquadMenu)     { DefaultMappingContext->MapKey(IA_SquadMenu, EKeys::T); }
+		if (IA_PrimaryWeapon) { DefaultMappingContext->MapKey(IA_PrimaryWeapon, EKeys::One); }
+		if (IA_Sidearm)       { DefaultMappingContext->MapKey(IA_Sidearm, EKeys::Two); }
+		if (IA_Grenade)       { DefaultMappingContext->MapKey(IA_Grenade, EKeys::G); }
+		if (IA_DroneToggle)   { DefaultMappingContext->MapKey(IA_DroneToggle, EKeys::V); }
+		if (IA_Binoculars)    { DefaultMappingContext->MapKey(IA_Binoculars, EKeys::X); }
+		if (IA_Radio)         { DefaultMappingContext->MapKey(IA_Radio, EKeys::C); }
+
+		UE_LOG(LogTemp, Warning, TEXT("[SHPlayerController] IMC was EMPTY — built %d in-code key mappings"),
+			DefaultMappingContext->GetMappings().Num());
+	}
+	else if (DefaultMappingContext)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHPlayerController] IMC has %d authored mappings"),
+			DefaultMappingContext->GetMappings().Num());
+	}
 }
 
 // =======================================================================
@@ -24,6 +148,8 @@ void ASHPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	EnsureInputAssetsLoaded();
+
 	// Register the default mapping context with the Enhanced Input subsystem.
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
 		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
@@ -31,13 +157,26 @@ void ASHPlayerController::BeginPlay()
 		if (DefaultMappingContext)
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerController] INPUT OK — added mapping context '%s'"),
+				*DefaultMappingContext->GetName());
 		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[SHPlayerController] INPUT DEAD — DefaultMappingContext is NULL"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[SHPlayerController] INPUT DEAD — no EnhancedInput subsystem (LocalPlayer null?)"));
 	}
 }
 
 void ASHPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+
+	// Ensure the action assets exist before binding (defeats Live Coding staleness).
+	EnsureInputAssetsLoaded();
 
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!EIC)

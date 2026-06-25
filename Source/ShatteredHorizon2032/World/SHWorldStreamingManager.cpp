@@ -302,7 +302,7 @@ void USHWorldStreamingManager::UpdatePerformanceBudget(float DeltaTime)
 
 		if (FPSHistory.Num() >= FPSHistorySize)
 		{
-			FPSHistory.RemoveAt(0, 1, false);
+			FPSHistory.RemoveAt(0, 1, EAllowShrinking::No);
 		}
 		FPSHistory.Add(InstantFPS);
 

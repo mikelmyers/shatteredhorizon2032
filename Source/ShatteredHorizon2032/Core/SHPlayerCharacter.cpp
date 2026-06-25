@@ -7,6 +7,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Animation/AnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/DamageEvents.h"
@@ -106,13 +107,43 @@ void ASHPlayerCharacter::BeginPlay()
 	Stamina = MaxStamina;
 	RecalculateWeight();
 
-	// Apply the configured first-person arms mesh if none has been assigned.
-	if (FirstPersonArms && !FirstPersonArms->GetSkeletalMeshAsset() && !DefaultArmsMesh.IsNull())
+	// Apply first-person arms mesh + AnimBP as a matched pair. If config didn't supply
+	// an AnimBP (e.g. DefaultGame.ini not reloaded after a Live Coding rebuild), fall back
+	// to the Epic FirstPerson pack set in code — posed hands beat an unposed bind-pose
+	// mesh that reads as a floating weapon with no hands.
+	if (FirstPersonArms)
 	{
-		if (USkeletalMesh* ArmsMesh = DefaultArmsMesh.LoadSynchronous())
+		USkeletalMesh* ArmsMesh = DefaultArmsMesh.IsNull() ? nullptr : DefaultArmsMesh.LoadSynchronous();
+		UClass* ArmsAnim = DefaultArmsAnimClass.IsNull() ? nullptr : DefaultArmsAnimClass.LoadSynchronous();
+
+		if (!ArmsAnim)
+		{
+			ArmsMesh = LoadObject<USkeletalMesh>(nullptr,
+				TEXT("/Game/CT_Components/Demos/EpicContents/FirstPersonPack/FirstPersonArms/Character/Mesh/SK_Mannequin_Arms.SK_Mannequin_Arms"));
+			ArmsAnim = LoadClass<UAnimInstance>(nullptr,
+				TEXT("/Game/CT_Components/Demos/EpicContents/FirstPersonPack/FirstPersonArms/Animations/FirstPerson_AnimBP.FirstPerson_AnimBP_C"));
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms: using hardcoded FirstPerson-pack fallback"));
+		}
+
+		if (ArmsMesh)
 		{
 			FirstPersonArms->SetSkeletalMesh(ArmsMesh);
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms mesh applied: %s"), *ArmsMesh->GetName());
 		}
+		if (ArmsAnim)
+		{
+			FirstPersonArms->SetAnimInstanceClass(ArmsAnim);
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms AnimBP applied: %s"), *ArmsAnim->GetName());
+		}
+
+		// Position the arms in front of the camera. SK_Mannequin_Arms is rooted at the
+		// body origin, so attached at the camera the hands render ~150cm too high (out of
+		// view) — drop the mesh so the hands sit at eye level in front. TUNABLE: if the
+		// hands look too low/high or offset, adjust this Z / X.
+		FirstPersonArms->SetRelativeLocationAndRotation(
+			FVector(-30.f, 0.f, -150.f), FRotator(0.f, 0.f, 0.f));
+		FirstPersonArms->SetVisibility(true, true);
+		FirstPersonArms->SetOnlyOwnerSee(true);
 	}
 
 	// Deferred fixup after possession + loadout auto-apply.
@@ -150,9 +181,13 @@ void ASHPlayerCharacter::FinalizeMissionSpawn()
 	if (EquippedWeapon && FirstPersonArms)
 	{
 		const bool bHasSocket = FirstPersonArms->DoesSocketExist(TEXT("WeaponSocket"));
+		// The weapon mesh's barrel points along +Y (screen-right) by default, so it reads
+		// as "pointing 90° to the right." Rotate yaw -90 to face it forward (+X). Applied
+		// in code so it doesn't depend on a DefaultGame.ini reload.
+		const FRotator CorrectedRot(WeaponViewRotation.Pitch, WeaponViewRotation.Yaw - 90.f, WeaponViewRotation.Roll);
 		const FTransform RestPose = bHasSocket
 			? FTransform::Identity
-			: FTransform(WeaponViewRotation, WeaponViewLocation);
+			: FTransform(CorrectedRot, WeaponViewLocation);
 		EquippedWeapon->SetRestRelativeTransform(RestPose);
 	}
 }
