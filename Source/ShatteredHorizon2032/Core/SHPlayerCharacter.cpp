@@ -107,23 +107,34 @@ void ASHPlayerCharacter::BeginPlay()
 	Stamina = MaxStamina;
 	RecalculateWeight();
 
-	// Apply the configured first-person arms mesh if none has been assigned.
-	if (FirstPersonArms && !FirstPersonArms->GetSkeletalMeshAsset() && !DefaultArmsMesh.IsNull())
+	// Apply the configured first-person arms mesh + AnimBP as a matched pair. Forced
+	// (not just when empty) so a stale Blueprint mesh without an AnimBP can't leave the
+	// arms in bind pose at the camera (the "floating weapon, no hands" symptom).
+	if (FirstPersonArms && !DefaultArmsMesh.IsNull())
 	{
 		if (USkeletalMesh* ArmsMesh = DefaultArmsMesh.LoadSynchronous())
 		{
 			FirstPersonArms->SetSkeletalMesh(ArmsMesh);
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms mesh applied: %s"), *ArmsMesh->GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[SHPlayerCharacter] FP arms mesh FAILED to load: %s"),
+				*DefaultArmsMesh.ToString());
 		}
 	}
 
-	// Apply the first-person arms AnimBP so the arms are posed (holding the weapon)
-	// rather than rendering in bind pose at the camera — which is why the weapon can
-	// look like it's floating with no hands.
-	if (FirstPersonArms && !FirstPersonArms->GetAnimInstance() && !DefaultArmsAnimClass.IsNull())
+	if (FirstPersonArms && !DefaultArmsAnimClass.IsNull())
 	{
 		if (UClass* ArmsAnim = DefaultArmsAnimClass.LoadSynchronous())
 		{
 			FirstPersonArms->SetAnimInstanceClass(ArmsAnim);
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms AnimBP applied: %s"), *ArmsAnim->GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[SHPlayerCharacter] FP arms AnimBP FAILED to load: %s"),
+				*DefaultArmsAnimClass.ToString());
 		}
 	}
 

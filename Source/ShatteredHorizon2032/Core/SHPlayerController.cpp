@@ -72,7 +72,17 @@ void ASHPlayerController::BeginPlay()
 		if (DefaultMappingContext)
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerController] INPUT OK — added mapping context '%s'"),
+				*DefaultMappingContext->GetName());
 		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[SHPlayerController] INPUT DEAD — DefaultMappingContext is NULL"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[SHPlayerController] INPUT DEAD — no EnhancedInput subsystem (LocalPlayer null?)"));
 	}
 }
 
