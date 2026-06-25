@@ -296,6 +296,22 @@ protected:
 	 *  BeginPlay (Live-Coding-proof) and the constructor (packaged builds). */
 	void ApplyMovementTuning();
 
+	/** Dev-only automated playtest driver: walks, then faces the nearest enemy and
+	 *  fires bursts so the combat-feel systems (recoil, fire kick, hit markers, ADS)
+	 *  can be exercised and screenshotted without a human at the controls. Config-gated
+	 *  by bAutoPlaytest; never runs in normal play. */
+	void TickAutoPlaytest(float DeltaSeconds);
+
+	/** Find the nearest living enemy to the player (for the auto-playtest driver). */
+	AActor* FindNearestEnemy() const;
+
+	/** Enable the dev auto-playtest driver (set via -ini:Game override for QA runs). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Dev")
+	bool bAutoPlaytest = false;
+
+	/** Seconds elapsed since the auto-playtest began. */
+	float AutoPlaytestTime = 0.f;
+
 	/** Perform a vault trace and execute if geometry permits. */
 	bool CanVault() const;
 	void ExecuteVault();

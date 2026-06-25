@@ -533,6 +533,14 @@ void ASHWeaponBase::ReportHitFeedback(AActor* HitActor, const FHitResult& Hit, c
 	Result.HitZone = Info.HitZone;
 
 	HitFeedback->OnDamageDealt(Info, Result);
+
+	// Kill confirmation (also proves the full shooter-feedback pipeline:
+	// trace -> enemy hit -> lethality -> kill marker). Log-level, low volume.
+	if (Result.bIsLethal)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SHWeapon] Kill confirmed on %s (%s)"),
+			*Enemy->GetName(), Info.HitZone == ESHHitZone::Head ? TEXT("head") : TEXT("body"));
+	}
 }
 
 void ASHWeaponBase::SpawnProjectile(const FVector& MuzzleLocation, const FVector& ShotDirection)

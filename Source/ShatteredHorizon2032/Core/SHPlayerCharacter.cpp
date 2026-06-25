@@ -25,6 +25,8 @@
 #include "Squad/SHSquadMember.h"
 #include "Engine/SkeletalMesh.h"
 #include "Kismet/GameplayStatics.h"
+#include "EngineUtils.h"
+#include "AI/SHEnemyCharacter.h"
 
 ASHPlayerCharacter::ASHPlayerCharacter()
 {
@@ -226,6 +228,8 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+
+	TickAutoPlaytest(DeltaSeconds);
 
 	// Track downward speed while airborne so Landed() can scale the impact dip
 	// (vertical velocity is zeroed by the time Landed fires).
@@ -514,6 +518,83 @@ void ASHPlayerCharacter::ApplyMovementTuning()
 	CMC->bUseFlatBaseForFloorChecks = true;
 	// Keep horizontal speed when stepping off ledges rather than dead-dropping.
 	CMC->bMaintainHorizontalGroundVelocity = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] Movement tuning applied: AirControl=%.2f MaxAccel=%.0f BrakeDecel=%.0f StepHeight=%.0f"),
+		CMC->AirControl, CMC->MaxAcceleration, CMC->BrakingDecelerationWalking, CMC->MaxStepHeight);
+}
+
+void ASHPlayerCharacter::TickAutoPlaytest(float DeltaSeconds)
+{
+	if (!bAutoPlaytest)
+	{
+		return;
+	}
+
+	AutoPlaytestTime += DeltaSeconds;
+	AController* Ctrl = GetController();
+
+	// Phase 1 (first 3s): walk forward to exercise movement feel.
+	if (AutoPlaytestTime < 3.f)
+	{
+		AddMovementInput(GetActorForwardVector(), 1.f);
+		return;
+	}
+
+	// Phase 2: face the nearest enemy, aim down sights, and fire in bursts.
+	AActor* Enemy = FindNearestEnemy();
+	if (!Enemy || !Ctrl)
+	{
+		if (bIsFiring) { StopFire(); }
+		return;
+	}
+
+	const FVector EyeLoc = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation();
+	const FVector AimDir = ((Enemy->GetActorLocation() + FVector(0.f, 0.f, 40.f)) - EyeLoc).GetSafeNormal();
+	const FRotator NewRot = FMath::RInterpTo(Ctrl->GetControlRotation(), AimDir.Rotation(), DeltaSeconds, 6.f);
+	Ctrl->SetControlRotation(NewRot);
+
+	if (!bIsADS)
+	{
+		StartADS();
+	}
+
+	// Burst pattern: ~0.7s firing, ~0.5s pause.
+	const bool bShouldFire = FMath::Fmod(AutoPlaytestTime, 1.2f) < 0.7f;
+	if (bShouldFire && !bIsFiring)
+	{
+		const float DistM = FVector::Dist(GetActorLocation(), Enemy->GetActorLocation()) / 100.f;
+		UE_LOG(LogTemp, Warning, TEXT("[Playtest] firing burst at %s (%.0f m), ADS=%d"),
+			*Enemy->GetName(), DistM, bIsADS ? 1 : 0);
+		StartFire();
+	}
+	else if (!bShouldFire && bIsFiring)
+	{
+		StopFire();
+	}
+}
+
+AActor* ASHPlayerCharacter::FindNearestEnemy() const
+{
+	AActor* Best = nullptr;
+	float BestDistSq = TNumericLimits<float>::Max();
+	const FVector MyLoc = GetActorLocation();
+
+	for (TActorIterator<ASHEnemyCharacter> It(GetWorld()); It; ++It)
+	{
+		ASHEnemyCharacter* Enemy = *It;
+		if (!Enemy || Enemy->IsDead())
+		{
+			continue;
+		}
+		const float DistSq = FVector::DistSquared(MyLoc, Enemy->GetActorLocation());
+		if (DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			Best = Enemy;
+		}
+	}
+
+	return Best;
 }
 
 void ASHPlayerCharacter::StartSprint()

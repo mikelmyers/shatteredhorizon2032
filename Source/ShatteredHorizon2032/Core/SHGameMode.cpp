@@ -49,7 +49,9 @@ void ASHGameMode::StartPlay()
 		GetWorldTimerManager().SetTimer(SoakScreenshotTimerHandle,
 			FTimerDelegate::CreateLambda([]()
 			{
-				FScreenshotRequest::RequestScreenshot(false);
+				// Include the UI so QA frames validate the HUD (crosshair, ammo,
+				// hit markers, directional damage indicators), not just the world.
+				FScreenshotRequest::RequestScreenshot(true);
 			}), FMath::Max(2.f, SoakScreenshotInterval), true, 6.f);
 	}
 
