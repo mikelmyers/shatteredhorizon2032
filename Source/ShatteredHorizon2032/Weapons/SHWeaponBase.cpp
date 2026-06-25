@@ -1228,15 +1228,17 @@ void ASHWeaponBase::PlayFireSound()
 
 	USoundBase* SoundToPlay = WeaponData->SoundProfile.FireSound.LoadSynchronous();
 
-	// Fallback: if the weapon data has no fire sound assigned, use one of the
-	// synthesized CC0 fire variants (cycled for variety) so the gun isn't silent.
+	// Fallback: if the weapon data has no fire sound assigned, use a real rifle
+	// shot from the in-project FreeGunSounds pack (cycled for variety) so the gun
+	// isn't silent. (Replaces the earlier synthesized placeholder.)
 	if (!SoundToPlay)
 	{
 		static const TCHAR* FireVariants[] = {
-			TEXT("/Game/SH/Audio/Weapons/sh_wpn_fire_01.sh_wpn_fire_01"),
-			TEXT("/Game/SH/Audio/Weapons/sh_wpn_fire_02.sh_wpn_fire_02"),
-			TEXT("/Game/SH/Audio/Weapons/sh_wpn_fire_03.sh_wpn_fire_03") };
-		const int32 Idx = FMath::Abs(TotalRoundsFired) % 3;
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot01.WAV_Rifle_shot01"),
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot02.WAV_Rifle_shot02"),
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot03.WAV_Rifle_shot03"),
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot04.WAV_Rifle_shot04") };
+		const int32 Idx = FMath::Abs(TotalRoundsFired) % 4;
 		SoundToPlay = LoadObject<USoundBase>(nullptr, FireVariants[Idx]);
 	}
 
