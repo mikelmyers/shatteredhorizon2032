@@ -219,8 +219,10 @@ protected:
 	/** Execute a single shot (hitscan or projectile). */
 	virtual void FireShot();
 
-	/** Perform a hitscan trace for close-range fire. */
-	void ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection);
+	/** Perform a hitscan trace for close-range fire, applying damage + feedback on a
+	 *  hit. Returns true if something was hit within hitscan range (so the caller can
+	 *  fall back to a projectile only when nothing was hit). */
+	bool ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection);
 
 	/** Spawn a projectile actor for distance fire. */
 	void SpawnProjectile(const FVector& MuzzleLocation, const FVector& ShotDirection);

@@ -391,27 +391,14 @@ void ASHWeaponBase::FireShot()
 	{
 		const FVector ShotDir = ApplySpread(MuzzleFwd);
 
-		// Hitscan for close range, projectile for distance
+		// Hitscan for close range, projectile for distance. ExecuteHitscan does the
+		// single trace and reports whether it hit; only spawn a projectile when it
+		// didn't (avoids a redundant identical trace per pellet).
 		if (WeaponData->HitscanRangeCm > 0.0f)
 		{
-			// Do a short hitscan trace first
-			FHitResult HitResult;
-			const FVector TraceEnd = MuzzleLoc + ShotDir * WeaponData->HitscanRangeCm;
-
-			FCollisionQueryParams QueryParams;
-			QueryParams.AddIgnoredActor(this);
-			QueryParams.AddIgnoredActor(GetOwner());
-			QueryParams.bReturnPhysicalMaterial = true;
-
-			if (GetWorld()->LineTraceSingleByChannel(HitResult, MuzzleLoc, TraceEnd,
-				ECC_GameTraceChannel1, QueryParams))
+			if (!ExecuteHitscan(MuzzleLoc, ShotDir))
 			{
-				// Hit something within hitscan range — apply damage directly
-				ExecuteHitscan(MuzzleLoc, ShotDir);
-			}
-			else
-			{
-				// Nothing hit in hitscan range — spawn projectile from hitscan endpoint
+				// Nothing hit in hitscan range — continue as a projectile.
 				SpawnProjectile(MuzzleLoc, ShotDir);
 			}
 		}
@@ -455,11 +442,11 @@ void ASHWeaponBase::FireShot()
 	}
 }
 
-void ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection)
+bool ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection)
 {
 	if (!WeaponData)
 	{
-		return;
+		return false;
 	}
 
 	FHitResult HitResult;
@@ -503,7 +490,11 @@ void ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector&
 			// Shooter feedback: hit marker + target flinch (kill state read after damage).
 			ReportHitFeedback(HitActor, HitResult, ShotDirection);
 		}
+
+		return true;
 	}
+
+	return false;
 }
 
 void ASHWeaponBase::ReportHitFeedback(AActor* HitActor, const FHitResult& Hit, const FVector& ShotDirection)
