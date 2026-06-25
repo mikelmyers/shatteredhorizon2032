@@ -20,7 +20,7 @@ bool USHWeaponAttachmentSystem::EquipAttachment(const FSHWeaponAttachment& Attac
 	return true;
 }
 
-bool USHWeaponAttachmentSystem::RemoveAttachment(ESHAttachmentSlot Slot)
+bool USHWeaponAttachmentSystem::RemoveAttachment(ESHWeaponAttachmentSlot Slot)
 {
 	if (EquippedAttachments.Remove(Slot) > 0)
 	{
@@ -37,12 +37,12 @@ void USHWeaponAttachmentSystem::RemoveAllAttachments()
 	RecalculateModifiers();
 }
 
-bool USHWeaponAttachmentSystem::HasAttachment(ESHAttachmentSlot Slot) const
+bool USHWeaponAttachmentSystem::HasAttachment(ESHWeaponAttachmentSlot Slot) const
 {
 	return EquippedAttachments.Contains(Slot);
 }
 
-bool USHWeaponAttachmentSystem::GetAttachment(ESHAttachmentSlot Slot, FSHWeaponAttachment& OutAttachment) const
+bool USHWeaponAttachmentSystem::GetAttachment(ESHWeaponAttachmentSlot Slot, FSHWeaponAttachment& OutAttachment) const
 {
 	if (const FSHWeaponAttachment* Found = EquippedAttachments.Find(Slot))
 	{
@@ -63,7 +63,7 @@ FSHAttachmentModifiers USHWeaponAttachmentSystem::GetAggregateModifiers() const
 
 bool USHWeaponAttachmentSystem::IsSuppressed() const
 {
-	if (const FSHWeaponAttachment* Muzzle = EquippedAttachments.Find(ESHAttachmentSlot::Muzzle))
+	if (const FSHWeaponAttachment* Muzzle = EquippedAttachments.Find(ESHWeaponAttachmentSlot::Muzzle))
 	{
 		return Muzzle->SoundVolumeMultiplier < 0.5f; // Anything that cuts volume by more than half.
 	}
@@ -72,12 +72,12 @@ bool USHWeaponAttachmentSystem::IsSuppressed() const
 
 bool USHWeaponAttachmentSystem::HasBipod() const
 {
-	return EquippedAttachments.Contains(ESHAttachmentSlot::Bipod);
+	return EquippedAttachments.Contains(ESHWeaponAttachmentSlot::Bipod);
 }
 
 float USHWeaponAttachmentSystem::GetOpticMagnification() const
 {
-	if (const FSHWeaponAttachment* Optic = EquippedAttachments.Find(ESHAttachmentSlot::Optic))
+	if (const FSHWeaponAttachment* Optic = EquippedAttachments.Find(ESHWeaponAttachmentSlot::Optic))
 	{
 		return Optic->Magnification;
 	}
@@ -125,7 +125,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_ACOG_4x()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("ACOG_4x"));
 	A.DisplayName = FText::FromString(TEXT("Trijicon ACOG 4x32"));
-	A.Slot = ESHAttachmentSlot::Optic;
+	A.Slot = ESHWeaponAttachmentSlot::Optic;
 	A.WeightKg = 0.30f;
 	A.Magnification = 4.0f;
 	A.OpticFOV = 36.8f; // ACOG: 36.8 degree FOV
@@ -139,7 +139,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_LPVO_1_8x()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("LPVO_1_8x"));
 	A.DisplayName = FText::FromString(TEXT("Vortex Razor Gen III 1-8x"));
-	A.Slot = ESHAttachmentSlot::Optic;
+	A.Slot = ESHWeaponAttachmentSlot::Optic;
 	A.WeightKg = 0.62f; // Heavier than ACOG
 	A.Magnification = 8.0f;
 	A.OpticFOV = 14.0f; // At 8x
@@ -153,7 +153,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_Leupold_10x()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("Leupold_10x"));
 	A.DisplayName = FText::FromString(TEXT("Leupold Mark 4 10x"));
-	A.Slot = ESHAttachmentSlot::Optic;
+	A.Slot = ESHWeaponAttachmentSlot::Optic;
 	A.WeightKg = 0.66f;
 	A.Magnification = 10.0f;
 	A.OpticFOV = 11.1f;
@@ -167,7 +167,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_RedDot_Aimpoint()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("Aimpoint_CompM5"));
 	A.DisplayName = FText::FromString(TEXT("Aimpoint CompM5"));
-	A.Slot = ESHAttachmentSlot::Optic;
+	A.Slot = ESHWeaponAttachmentSlot::Optic;
 	A.WeightKg = 0.15f;
 	A.Magnification = 1.0f;
 	A.OpticFOV = 0.0f; // 1x = no FOV change
@@ -182,7 +182,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_Holographic_EOTech()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("EOTech_EXPS3"));
 	A.DisplayName = FText::FromString(TEXT("EOTech EXPS3-0"));
-	A.Slot = ESHAttachmentSlot::Optic;
+	A.Slot = ESHWeaponAttachmentSlot::Optic;
 	A.WeightKg = 0.32f;
 	A.Magnification = 1.0f;
 	A.OpticFOV = 0.0f;
@@ -197,7 +197,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_Suppressor_556()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("Suppressor_556"));
 	A.DisplayName = FText::FromString(TEXT("KAC QDC 5.56mm Suppressor"));
-	A.Slot = ESHAttachmentSlot::Muzzle;
+	A.Slot = ESHWeaponAttachmentSlot::Muzzle;
 	A.WeightKg = 0.52f;
 	A.SoundVolumeMultiplier = 0.15f;        // ~85% sound reduction
 	A.SoundDetectionRangeMultiplier = 0.20f; // AI hears at 20% normal range
@@ -213,7 +213,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_Suppressor_762()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("Suppressor_762"));
 	A.DisplayName = FText::FromString(TEXT("KAC QDC 7.62mm Suppressor"));
-	A.Slot = ESHAttachmentSlot::Muzzle;
+	A.Slot = ESHWeaponAttachmentSlot::Muzzle;
 	A.WeightKg = 0.68f;
 	A.SoundVolumeMultiplier = 0.18f;
 	A.SoundDetectionRangeMultiplier = 0.25f;
@@ -229,7 +229,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_FlashHider()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("FlashHider"));
 	A.DisplayName = FText::FromString(TEXT("A2 Flash Hider"));
-	A.Slot = ESHAttachmentSlot::Muzzle;
+	A.Slot = ESHWeaponAttachmentSlot::Muzzle;
 	A.WeightKg = 0.07f;
 	A.SoundVolumeMultiplier = 0.95f; // Minimal sound reduction
 	A.MountSocket = FName(TEXT("MuzzleMount"));
@@ -241,7 +241,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_MuzzleBrake()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("MuzzleBrake"));
 	A.DisplayName = FText::FromString(TEXT("Precision Armament M4-72 Brake"));
-	A.Slot = ESHAttachmentSlot::Muzzle;
+	A.Slot = ESHWeaponAttachmentSlot::Muzzle;
 	A.WeightKg = 0.10f;
 	A.VerticalRecoilMultiplier = 0.65f;     // Significant recoil reduction
 	A.HorizontalRecoilMultiplier = 0.70f;
@@ -256,7 +256,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_VerticalGrip()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("VertGrip"));
 	A.DisplayName = FText::FromString(TEXT("Tango Down Vertical Grip"));
-	A.Slot = ESHAttachmentSlot::Underbarrel;
+	A.Slot = ESHWeaponAttachmentSlot::Underbarrel;
 	A.WeightKg = 0.12f;
 	A.VerticalRecoilMultiplier = 0.82f;     // Good vertical control
 	A.HorizontalRecoilMultiplier = 0.90f;
@@ -270,7 +270,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_AngledGrip()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("AngledGrip"));
 	A.DisplayName = FText::FromString(TEXT("Magpul AFG-2 Angled Grip"));
-	A.Slot = ESHAttachmentSlot::Underbarrel;
+	A.Slot = ESHWeaponAttachmentSlot::Underbarrel;
 	A.WeightKg = 0.08f;
 	A.HorizontalRecoilMultiplier = 0.75f;   // Better horizontal control than vert grip
 	A.VerticalRecoilMultiplier = 0.92f;     // But less vertical help
@@ -284,7 +284,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_Bipod()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("HarrisBipod"));
 	A.DisplayName = FText::FromString(TEXT("Harris S-BRM Bipod"));
-	A.Slot = ESHAttachmentSlot::Bipod;
+	A.Slot = ESHWeaponAttachmentSlot::Bipod;
 	A.WeightKg = 0.31f;
 	// Bipod bonuses only apply when deployed (handled by weapon system),
 	// but the attachment still has baseline ADS penalty from weight.
@@ -298,7 +298,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_PEQ15_LaserIR()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("PEQ15"));
 	A.DisplayName = FText::FromString(TEXT("AN/PEQ-15 ATPIAL"));
-	A.Slot = ESHAttachmentSlot::Rail;
+	A.Slot = ESHWeaponAttachmentSlot::Rail;
 	A.WeightKg = 0.21f;
 	// Laser/IR illuminator — visual aid, no direct stat change.
 	// Gameplay effect handled by NVG/optics integration.
@@ -311,7 +311,7 @@ FSHWeaponAttachment USHAttachmentDatabase::Create_Flashlight()
 	FSHWeaponAttachment A;
 	A.AttachmentID = FName(TEXT("SureFire_M600"));
 	A.DisplayName = FText::FromString(TEXT("SureFire M600 Scout Light"));
-	A.Slot = ESHAttachmentSlot::Rail;
+	A.Slot = ESHWeaponAttachmentSlot::Rail;
 	A.WeightKg = 0.16f;
 	// Flashlight illuminates but increases visual signature.
 	A.MountSocket = FName(TEXT("RailMount_Side"));

@@ -37,7 +37,7 @@ enum class ESHWoundState : uint8
 };
 
 UENUM(BlueprintType)
-enum class ESHSuppressionLevel : uint8
+enum class ESHSquadSuppressionLevel : uint8
 {
 	None		UMETA(DisplayName = "None"),
 	Light		UMETA(DisplayName = "Light"),
@@ -97,7 +97,7 @@ struct SHATTEREDHORIZON2032_API FSHPersonalityTraits
 /* ───────────────────────────────────────────────────────────── */
 
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHAmmoState
+struct SHATTEREDHORIZON2032_API FSHSquadAmmoState
 {
 	GENERATED_BODY()
 
@@ -185,7 +185,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnContactSpotted, ASHSquadMember
 /*  ASHSquadMember — Individual Squad Member Character          */
 /* ───────────────────────────────────────────────────────────── */
 
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, Config = Game)
 class SHATTEREDHORIZON2032_API ASHSquadMember : public ACharacter
 {
 	GENERATED_BODY()
@@ -193,7 +193,41 @@ class SHATTEREDHORIZON2032_API ASHSquadMember : public ACharacter
 public:
 	ASHSquadMember();
 
+	/* ── Visual defaults (config-driven fallbacks) ──────────── */
+
+	/** Body mesh applied at BeginPlay if the mesh component has none. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Squad|Visual")
+	TSoftObjectPtr<USkeletalMesh> DefaultBodyMesh;
+
+	/** Animation class applied with the default body mesh. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Squad|Visual")
+	FSoftClassPath DefaultAnimClass;
+
+	/** Held-weapon visual (static mesh attached to WeaponAttachBone). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Squad|Visual")
+	TSoftObjectPtr<UStaticMesh> DefaultWeaponMesh;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Squad|Visual")
+	FName WeaponAttachBone = TEXT("hand_r");
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Squad|Visual")
+	FVector WeaponAttachLocation = FVector::ZeroVector;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Squad|Visual")
+	FRotator WeaponAttachRotation = FRotator::ZeroRotator;
+
+	/** Spawned weapon visual component (runtime only). */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> WeaponVisualComp;
+
+	/** Autonomous small-arms fire (no behavior tree required). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Squad|Combat")
+	TObjectPtr<class USHDirectFireComponent> DirectFire;
+
 protected:
+	/** Apply the config-driven visual fallbacks. */
+	void ApplyDefaultVisuals();
+
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
@@ -216,7 +250,7 @@ public:
 	FName Callsign;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Squad|Identity")
-	ESHSquadRole Role = ESHSquadRole::Rifleman;
+	ESHSquadRole SquadRole = ESHSquadRole::Rifleman;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Squad|Identity")
 	ESHBuddyTeam BuddyTeam = ESHBuddyTeam::Alpha;
@@ -235,7 +269,7 @@ public:
 	float Morale = 80.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Squad|Morale")
-	ESHSuppressionLevel SuppressionLevel = ESHSuppressionLevel::None;
+	ESHSquadSuppressionLevel SuppressionLevel = ESHSquadSuppressionLevel::None;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Squad|Morale")
 	ESHCombatStress CombatStress = ESHCombatStress::Calm;
@@ -300,7 +334,7 @@ public:
 	/* ── Ammunition ─────────────────────────────────────────── */
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Squad|Ammo")
-	FSHAmmoState AmmoState;
+	FSHSquadAmmoState AmmoState;
 
 	/** When ammo fraction falls below this, AI conserves rounds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Squad|Ammo")

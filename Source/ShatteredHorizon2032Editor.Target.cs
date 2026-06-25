@@ -8,8 +8,9 @@ public class ShatteredHorizon2032EditorTarget : TargetRules
 	public ShatteredHorizon2032EditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
-		DefaultBuildSettings = BuildSettingsVersion.V4;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_4;
+		bOverrideBuildEnvironment = true;
+		DefaultBuildSettings = BuildSettingsVersion.V6;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_7;
 
 		ExtraModuleNames.AddRange(new string[]
 		{

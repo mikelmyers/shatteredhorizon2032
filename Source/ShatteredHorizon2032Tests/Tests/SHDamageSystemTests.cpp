@@ -4,12 +4,30 @@
 //
 // Verifies the damage model: hit zones, armor interaction, head graze
 // mechanic, bleedout, and damage calculation. The head graze was previously
-// missing — these tests ensure it stays correct.
+// missing -- these tests ensure it stays correct.
 
 #include "Misc/AutomationTest.h"
 #include "Combat/SHDamageSystem.h"
+#include "Core/SHPlayerCharacter.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_AUTOMATION_TESTS
+
+// ========================================================================
+//  Reflection helper -- read a protected UPROPERTY float from a CDO
+// ========================================================================
+
+namespace SHDamageTestHelpers
+{
+	static float GetFloatProperty(const UObject* Obj, FName PropName)
+	{
+		if (const FFloatProperty* Prop = CastField<FFloatProperty>(Obj->GetClass()->FindPropertyByName(PropName)))
+		{
+			return Prop->GetPropertyValue_InContainer(Obj);
+		}
+		return 0.f;
+	}
+}
 
 // ========================================================================
 //  Hit zone coverage: all body regions must be defined
@@ -37,7 +55,7 @@ bool FDamage_HeadGraze::RunTest(const FString&)
 {
 	// The damage result struct must have the bIsHeadGraze field.
 	// This was previously missing (all headshots were instant kills).
-	// This is a compile-time verification — if the field doesn't exist, it won't build.
+	// This is a compile-time verification -- if the field doesn't exist, it won't build.
 	FSHDamageResult Result;
 	Result.bIsHeadGraze = true;
 	TestTrue(TEXT("Head graze field accessible"), Result.bIsHeadGraze);
@@ -99,9 +117,9 @@ bool FDamage_ArmorReduction::RunTest(const FString&)
 	// Armor should have integrity (degrades over hits)
 	// Verify the concept exists in the struct
 	FSHDamageResult Result;
-	// ArmorAbsorbed field should exist and be writable
-	Result.ArmorAbsorbed = 50.f;
-	TestTrue(TEXT("Armor absorbed field exists"), Result.ArmorAbsorbed > 0.f);
+	// DamageAbsorbed field should exist and be writable
+	Result.DamageAbsorbed = 50.f;
+	TestTrue(TEXT("Damage absorbed field exists"), Result.DamageAbsorbed > 0.f);
 
 	return true;
 }
@@ -116,9 +134,9 @@ bool FDamage_BleedoutLethality::RunTest(const FString&)
 {
 	// The player character has a bleed damage rate.
 	// An untreated torso wound should be lethal within ~30-90 seconds.
-	ASHPlayerCharacter* DefaultChar = GetMutableDefault<ASHPlayerCharacter>();
+	const ASHPlayerCharacter* DefaultChar = GetDefault<ASHPlayerCharacter>();
 
-	const float BleedDPS = DefaultChar->BleedDamagePerSecond;
+	const float BleedDPS = SHDamageTestHelpers::GetFloatProperty(DefaultChar, TEXT("BleedDamagePerSecond"));
 	const float MaxHP = DefaultChar->GetMaxHealth();
 
 	// Time to bleed out from a single wound
@@ -143,13 +161,10 @@ bool FSuppression_CaliberScaling::RunTest(const FString&)
 	// We can verify the concept by checking that the suppression system
 	// header defines the caliber types we expect.
 
-	// These are compile-time checks — ensures the enum values exist.
-	// The actual suppression impulse values would be tested in an
-	// integration test with the full suppression component.
-
 	// At minimum, verify the player character accepts suppression input
-	ASHPlayerCharacter* DefaultChar = GetMutableDefault<ASHPlayerCharacter>();
-	TestTrue(TEXT("Max suppression is normalized"), DefaultChar->MaxSuppression == 1.f);
+	const ASHPlayerCharacter* DefaultChar = GetDefault<ASHPlayerCharacter>();
+	const float MaxSup = SHDamageTestHelpers::GetFloatProperty(DefaultChar, TEXT("MaxSuppression"));
+	TestTrue(TEXT("Max suppression is normalized"), MaxSup == 1.f);
 
 	return true;
 }

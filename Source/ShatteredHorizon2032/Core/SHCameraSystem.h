@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/CameraShakeBase.h"
 #include "Components/ActorComponent.h"
 #include "SHCameraSystem.generated.h"
 
@@ -80,9 +81,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void ApplyScreenPunch(const FVector& DamageDirection, float Intensity = 1.f);
 
+	/** Downward camera dip on landing, scaled by impact intensity (0-1). */
+	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
+	void ApplyLandingDip(float Intensity);
+
 	/** Update the camera context from character state each frame. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void SetCameraContext(const FSHCameraContext& InContext);
+
+	/**
+	 * Feed the current lean offset so the camera system can compose it with head
+	 * bob and screen punch into a single relative-transform write. Call every
+	 * frame. The holder must NOT write the camera transform directly, or the two
+	 * writers fight (bob overwrites lean and vice versa).
+	 * @param InLeanOffsetY  Lateral camera offset (cm), right-positive.
+	 * @param InLeanRoll      Camera roll (degrees).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
+	void SetLeanOffset(float InLeanOffsetY, float InLeanRoll);
 
 	// ------------------------------------------------------------------
 	//  Queries
@@ -112,6 +128,10 @@ protected:
 	/** FOV lerp speed (degrees per second). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|FOV")
 	float FOVInterpSpeed = 12.f;
+
+	/** Extra FOV (degrees) added while sprinting (hip only) — sells speed. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|FOV")
+	float SprintFOVBoost = 8.f;
 
 	// --- Head bob ---
 
@@ -192,6 +212,14 @@ private:
 	// --- Suppression FX state ---
 	float CurrentVignetteIntensity = 0.f;
 	float CurrentDesaturation = 0.f;
+
+	/** True while a suppression shake instance is active, so we start it once
+	 *  (on the rising edge) instead of restarting it every frame. */
+	bool bSuppressionShakeActive = false;
+
+	// --- Lean state (fed by the owning character each frame) ---
+	float LeanOffsetY = 0.f;
+	float LeanRoll = 0.f;
 
 	// --- Screen punch state ---
 	FRotator PunchRotation = FRotator::ZeroRotator;

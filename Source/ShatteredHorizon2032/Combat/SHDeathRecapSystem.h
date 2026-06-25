@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameFramework/Controller.h"
 #include "SHDeathRecapSystem.generated.h"
 
 // -----------------------------------------------------------------------

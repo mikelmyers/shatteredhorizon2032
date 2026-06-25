@@ -10,7 +10,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSH_Difficulty, Log, All);
 //  Static fallback config (Hardened defaults)
 // -----------------------------------------------------------------------
 
-const FSHDifficultyConfig USHDifficultySettings::FallbackConfig = FSHDifficultyConfig();
+const FSHRuntimeDifficultyConfig USHDifficultySettings::FallbackConfig = FSHRuntimeDifficultyConfig();
 
 // -----------------------------------------------------------------------
 //  Constructor
@@ -53,9 +53,9 @@ FText USHDifficultySettings::GetSectionDescription() const
 //  Tier lookup
 // -----------------------------------------------------------------------
 
-const FSHDifficultyConfig& USHDifficultySettings::GetConfigForTier(ESHDifficultyTier Tier) const
+const FSHRuntimeDifficultyConfig& USHDifficultySettings::GetConfigForTier(ESHRuntimeDifficultyTier Tier) const
 {
-	const FSHDifficultyConfig* Found = DifficultyConfigs.Find(Tier);
+	const FSHRuntimeDifficultyConfig* Found = DifficultyConfigs.Find(Tier);
 	if (Found)
 	{
 		return *Found;
@@ -67,7 +67,7 @@ const FSHDifficultyConfig& USHDifficultySettings::GetConfigForTier(ESHDifficulty
 	return FallbackConfig;
 }
 
-const FSHDifficultyConfig& USHDifficultySettings::GetCurrentConfig() const
+const FSHRuntimeDifficultyConfig& USHDifficultySettings::GetCurrentConfig() const
 {
 	return GetConfigForTier(ActiveDifficulty);
 }
@@ -76,14 +76,14 @@ const FSHDifficultyConfig& USHDifficultySettings::GetCurrentConfig() const
 //  Active difficulty
 // -----------------------------------------------------------------------
 
-void USHDifficultySettings::SetActiveDifficulty(ESHDifficultyTier NewTier)
+void USHDifficultySettings::SetActiveDifficulty(ESHRuntimeDifficultyTier NewTier)
 {
 	if (ActiveDifficulty == NewTier)
 	{
 		return;
 	}
 
-	const ESHDifficultyTier PreviousTier = ActiveDifficulty;
+	const ESHRuntimeDifficultyTier PreviousTier = ActiveDifficulty;
 	ActiveDifficulty = NewTier;
 
 	UE_LOG(LogSH_Difficulty, Log,
@@ -106,7 +106,7 @@ void USHDifficultySettings::ApplyDifficultyToAI(ASHEnemyAIController* AIControll
 		return;
 	}
 
-	const FSHDifficultyConfig& Config = GetCurrentConfig();
+	const FSHRuntimeDifficultyConfig& Config = GetCurrentConfig();
 
 	// -- Perception -------------------------------------------------------
 	// The AI controller exposes config properties that are read by the
@@ -165,7 +165,7 @@ void USHDifficultySettings::ApplyDifficultyToPlayer(ASHPlayerCharacter* PlayerCh
 		return;
 	}
 
-	const FSHDifficultyConfig& Config = GetCurrentConfig();
+	const FSHRuntimeDifficultyConfig& Config = GetCurrentConfig();
 
 	// DamageReceivedMultiplier, StaminaDrainMultiplier, and BleedRateMultiplier
 	// are consumed by the player's damage, fatigue, and injury systems
@@ -200,7 +200,7 @@ void USHDifficultySettings::InitializeDefaultConfigs()
 	//  RECRUIT — Thinker & Mnemonic disabled; reactive only
 	// =================================================================
 	{
-		FSHDifficultyConfig& C = DifficultyConfigs.Add(ESHDifficultyTier::Recruit);
+		FSHRuntimeDifficultyConfig& C = DifficultyConfigs.Add(ESHRuntimeDifficultyTier::Recruit);
 
 		// Perception
 		C.SightRangeMultiplier      = 0.6f;
@@ -246,7 +246,7 @@ void USHDifficultySettings::InitializeDefaultConfigs()
 	//  REGULAR — Thinker limited; short-term memory; basic coordination
 	// =================================================================
 	{
-		FSHDifficultyConfig& C = DifficultyConfigs.Add(ESHDifficultyTier::Regular);
+		FSHRuntimeDifficultyConfig& C = DifficultyConfigs.Add(ESHRuntimeDifficultyTier::Regular);
 
 		// Perception
 		C.SightRangeMultiplier      = 0.8f;
@@ -292,7 +292,7 @@ void USHDifficultySettings::InitializeDefaultConfigs()
 	//  HARDENED — Thinker active; full session memory; basic commander AI
 	// =================================================================
 	{
-		FSHDifficultyConfig& C = DifficultyConfigs.Add(ESHDifficultyTier::Hardened);
+		FSHRuntimeDifficultyConfig& C = DifficultyConfigs.Add(ESHRuntimeDifficultyTier::Hardened);
 
 		// Perception
 		C.SightRangeMultiplier      = 1.0f;
@@ -338,7 +338,7 @@ void USHDifficultySettings::InitializeDefaultConfigs()
 	//  VETERAN — Full stack; predictive movement; full commander AI
 	// =================================================================
 	{
-		FSHDifficultyConfig& C = DifficultyConfigs.Add(ESHDifficultyTier::Veteran);
+		FSHRuntimeDifficultyConfig& C = DifficultyConfigs.Add(ESHRuntimeDifficultyTier::Veteran);
 
 		// Perception
 		C.SightRangeMultiplier      = 1.0f;
@@ -384,7 +384,7 @@ void USHDifficultySettings::InitializeDefaultConfigs()
 	//  PRIMORDIA UNLEASHED — All subsystems at maximum cognitive depth
 	// =================================================================
 	{
-		FSHDifficultyConfig& C = DifficultyConfigs.Add(ESHDifficultyTier::PrimordiaUnleashed);
+		FSHRuntimeDifficultyConfig& C = DifficultyConfigs.Add(ESHRuntimeDifficultyTier::PrimordiaUnleashed);
 
 		// Perception
 		C.SightRangeMultiplier      = 1.2f;

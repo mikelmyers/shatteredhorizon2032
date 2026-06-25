@@ -1,6 +1,7 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
 #include "SHBallisticsSystem.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/DamageType.h"
@@ -575,7 +576,7 @@ void USHBallisticsSystem::SpawnFragmentation(
 
 			Pair.Key->TakeDamage(
 				Pair.Value,
-				FDamageEvent(DamageEvent.GetTypeID()),
+				DamageEvent,
 				Instigator,
 				DamageCauser);
 		}

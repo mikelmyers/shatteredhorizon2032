@@ -18,7 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSHSquadPersonality, Log, All);
 
 /** Archetype personality trait that drives voice line selection and behaviour flavour. */
 UENUM(BlueprintType)
-enum class ESHPersonalityTrait : uint8
+enum class ESHSquadPersonalityTrait : uint8
 {
 	Calm		UMETA(DisplayName = "Calm"),
 	Aggressive	UMETA(DisplayName = "Aggressive"),
@@ -51,7 +51,7 @@ struct SHATTEREDHORIZON2032_API FSHPersonalityProfile
 
 	/** Core personality archetype. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Personality")
-	ESHPersonalityTrait PersonalityTrait = ESHPersonalityTrait::Calm;
+	ESHSquadPersonalityTrait PersonalityTrait = ESHSquadPersonalityTrait::Calm;
 
 	/** Index into personality-specific voice set arrays. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Personality")
@@ -64,6 +64,16 @@ struct SHATTEREDHORIZON2032_API FSHPersonalityProfile
 	/** Relationship score with the player [0..1]. 0 = hostile, 1 = deep trust. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Personality", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float RelationshipScore = 0.5f;
+};
+
+/** Reflection-friendly wrapper for a set of voice lines in one context. */
+USTRUCT(BlueprintType)
+struct SHATTEREDHORIZON2032_API FSHVoiceLineSet
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Personality")
+	TArray<TSoftObjectPtr<USoundBase>> Lines;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -211,7 +221,7 @@ public:
 	 * Reloading, Suppressed, ManDown, etc.).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Personality|Voice")
-	TMap<ESHVoiceLineContext, TArray<TSoftObjectPtr<USoundBase>>> VoiceLineSets;
+	TMap<ESHVoiceLineContext, FSHVoiceLineSet> VoiceLineSets;
 
 	/** Minimum cooldown between voice lines (seconds). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Personality|Voice", meta = (ClampMin = "0.0"))

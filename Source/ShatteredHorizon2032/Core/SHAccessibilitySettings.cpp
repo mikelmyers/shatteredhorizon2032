@@ -4,8 +4,10 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Engine/World.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSH_Accessibility, Log, All);
 

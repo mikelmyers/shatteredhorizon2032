@@ -2,6 +2,7 @@
 
 #include "SHLoadoutWidget.h"
 #include "Weapons/SHWeaponData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 
@@ -29,7 +30,7 @@ void USHLoadoutWidget::NativeOnDeactivated()
 //  Public API
 // ------------------------------------------------------------------
 
-void USHLoadoutWidget::SetLoadout(const FSHLoadout& InLoadout)
+void USHLoadoutWidget::SetLoadout(const FSHUILoadout& InLoadout)
 {
 	CurrentLoadout = InLoadout;
 	OriginalLoadout = InLoadout;
@@ -182,15 +183,15 @@ void USHLoadoutWidget::SetAttachment(bool bPrimary, const FSHAttachmentEntry& At
 	}
 }
 
-void USHLoadoutWidget::RemoveAttachment(bool bPrimary, ESHAttachmentSlot Slot)
+void USHLoadoutWidget::RemoveAttachment(bool bPrimary, ESHLoadoutAttachmentSlot AttachmentSlot)
 {
 	TArray<FSHAttachmentEntry>& Attachments = bPrimary
 		? CurrentLoadout.PrimaryAttachments
 		: CurrentLoadout.SecondaryAttachments;
 
-	Attachments.RemoveAll([Slot](const FSHAttachmentEntry& Entry)
+	Attachments.RemoveAll([AttachmentSlot](const FSHAttachmentEntry& Entry)
 	{
-		return Entry.Slot == Slot;
+		return Entry.Slot == AttachmentSlot;
 	});
 }
 
@@ -214,11 +215,11 @@ void USHLoadoutWidget::SetEquipment(const FSHEquipmentEntry& Entry)
 	}
 }
 
-void USHLoadoutWidget::RemoveEquipment(ESHEquipmentSlot Slot)
+void USHLoadoutWidget::RemoveEquipment(ESHLoadoutEquipmentSlot EquipmentSlot)
 {
-	CurrentLoadout.Equipment.RemoveAll([Slot](const FSHEquipmentEntry& Entry)
+	CurrentLoadout.Equipment.RemoveAll([EquipmentSlot](const FSHEquipmentEntry& Entry)
 	{
-		return Entry.Slot == Slot;
+		return Entry.Slot == EquipmentSlot;
 	});
 }
 

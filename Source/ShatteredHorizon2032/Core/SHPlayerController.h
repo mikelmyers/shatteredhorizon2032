@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/SHGameplayTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
 #include "SHPlayerController.generated.h"
@@ -10,24 +11,6 @@
 class UInputMappingContext;
 class UInputAction;
 class ASHPlayerCharacter;
-
-/** Fire mode for the current weapon. */
-UENUM(BlueprintType)
-enum class ESHFireMode : uint8
-{
-	Semi        UMETA(DisplayName = "Semi-Auto"),
-	Burst       UMETA(DisplayName = "Burst"),
-	FullAuto    UMETA(DisplayName = "Full Auto")
-};
-
-/** Lean direction. */
-UENUM(BlueprintType)
-enum class ESHLeanState : uint8
-{
-	None,
-	Left,
-	Right
-};
 
 /** Squad command issued through the radial menu. */
 UENUM(BlueprintType)
@@ -49,7 +32,7 @@ enum class ESHSquadCommand : uint8
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnSquadCommandIssued, ESHSquadCommand, Command);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnFireModeChanged, ESHFireMode, NewMode);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHPlayerControllerOnFireModeChanged, ESHFireMode, NewMode);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnLeanStateChanged, ESHLeanState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnDroneControlToggled, bool, bActive);
 
@@ -115,7 +98,7 @@ public:
 	ESHFireMode GetCurrentFireMode() const { return CurrentFireMode; }
 
 	UPROPERTY(BlueprintAssignable, Category = "SH|Weapon")
-	FSHOnFireModeChanged OnFireModeChanged;
+	FSHPlayerControllerOnFireModeChanged OnFireModeChanged;
 
 	// ------------------------------------------------------------------
 	//  Lean mechanics
@@ -204,6 +187,9 @@ protected:
 
 	/** Perform a line trace for squad command world-position targeting. */
 	bool PerformSquadCommandTrace(FVector& OutLocation) const;
+
+	/** Refresh the cached fire mode from the currently equipped weapon. */
+	void RefreshCurrentFireMode();
 
 	// ------------------------------------------------------------------
 	//  Input assets (set in editor or via code)

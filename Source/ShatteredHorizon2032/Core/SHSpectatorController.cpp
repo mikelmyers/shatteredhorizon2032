@@ -10,6 +10,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "Camera/CameraComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -177,11 +178,11 @@ void ASHSpectatorController::SwitchMode(ESHSpectatorMode NewMode)
 			OverheadCurrentHeight = OverheadDefaultHeight;
 
 			// Position camera above the current location looking down
-			if (APawn* SpectatorPawn = GetPawn())
+			if (APawn* ControlledPawn = GetPawn())
 			{
-				FVector CurrentLoc = SpectatorPawn->GetActorLocation();
+				FVector CurrentLoc = ControlledPawn->GetActorLocation();
 				CurrentLoc.Z = OverheadCurrentHeight;
-				SpectatorPawn->SetActorLocation(CurrentLoc);
+				ControlledPawn->SetActorLocation(CurrentLoc);
 				SetControlRotation(FRotator(-90.0f, 0.0f, 0.0f));
 			}
 		}
@@ -296,8 +297,8 @@ void ASHSpectatorController::Input_ToggleOverlay(const FInputActionValue& Value)
 
 void ASHSpectatorController::TickFreeCamera(float DeltaSeconds)
 {
-	APawn* SpectatorPawn = GetPawn();
-	if (!SpectatorPawn)
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
 	{
 		return;
 	}
@@ -326,7 +327,7 @@ void ASHSpectatorController::TickFreeCamera(float DeltaSeconds)
 			Right * PendingMoveInput.Y * Speed +
 			Up * PendingMoveInput.Z * Speed;
 
-		SpectatorPawn->AddActorWorldOffset(Movement, true);
+		ControlledPawn->AddActorWorldOffset(Movement, true);
 	}
 }
 
@@ -347,14 +348,14 @@ void ASHSpectatorController::TickFirstPerson(float DeltaSeconds)
 	APawn* TargetPawn = Cast<APawn>(CurrentTarget);
 	if (TargetPawn)
 	{
-		if (APawn* SpectatorPawn = GetPawn())
+		if (APawn* ControlledPawn = GetPawn())
 		{
 			// Position at the target's eye location
 			FVector ViewLocation;
 			FRotator ViewRotation;
 			TargetPawn->GetActorEyesViewPoint(ViewLocation, ViewRotation);
 
-			SpectatorPawn->SetActorLocation(ViewLocation);
+			ControlledPawn->SetActorLocation(ViewLocation);
 			SetControlRotation(ViewRotation);
 		}
 	}
@@ -362,8 +363,8 @@ void ASHSpectatorController::TickFirstPerson(float DeltaSeconds)
 
 void ASHSpectatorController::TickTacticalOverhead(float DeltaSeconds)
 {
-	APawn* SpectatorPawn = GetPawn();
-	if (!SpectatorPawn)
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
 	{
 		return;
 	}
@@ -379,13 +380,13 @@ void ASHSpectatorController::TickTacticalOverhead(float DeltaSeconds)
 			PendingMoveInput.Y * Speed,
 			0.0f);
 
-		SpectatorPawn->AddActorWorldOffset(Movement, true);
+		ControlledPawn->AddActorWorldOffset(Movement, true);
 	}
 
 	// Maintain overhead height
-	FVector Loc = SpectatorPawn->GetActorLocation();
+	FVector Loc = ControlledPawn->GetActorLocation();
 	Loc.Z = OverheadCurrentHeight;
-	SpectatorPawn->SetActorLocation(Loc);
+	ControlledPawn->SetActorLocation(Loc);
 
 	// Always look straight down
 	SetControlRotation(FRotator(-90.0f, 0.0f, 0.0f));
@@ -464,8 +465,8 @@ void ASHSpectatorController::AttachToTarget()
 void ASHSpectatorController::DetachFromTarget()
 {
 	// Restore view to own pawn
-	if (APawn* SpectatorPawn = GetPawn())
+	if (APawn* ControlledPawn = GetPawn())
 	{
-		SetViewTarget(SpectatorPawn);
+		SetViewTarget(ControlledPawn);
 	}
 }

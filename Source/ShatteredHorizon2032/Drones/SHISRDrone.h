@@ -299,6 +299,9 @@ protected:
 	float WaypointDwellTimer = 0.f;
 	bool bDwellingAtWaypoint = false;
 
+	/** Racetrack patrol direction (per-instance — must NOT be a function-local static). */
+	bool bRacetrackForward = true;
+
 	/** Orbit state. */
 	FVector OrbitCenter = FVector::ZeroVector;
 	float CurrentOrbitAngle = 0.f;

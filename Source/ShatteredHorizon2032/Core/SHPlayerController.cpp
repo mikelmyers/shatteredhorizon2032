@@ -3,10 +3,13 @@
 #include "SHPlayerController.h"
 #include "SHPlayerCharacter.h"
 #include "SHInteractable.h"
+#include "Weapons/SHWeaponBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/World.h"
+#include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/WorldSettings.h"
 
 ASHPlayerController::ASHPlayerController()
 {
@@ -117,17 +120,12 @@ void ASHPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 	SHCharacter = Cast<ASHPlayerCharacter>(InPawn);
+	RefreshCurrentFireMode();
 }
 
 void ASHPlayerController::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	// Continuous fire logic for automatic weapons.
-	if (bIsFiring && SHCharacter && CurrentFireMode == ESHFireMode::FullAuto)
-	{
-		SHCharacter->StartFire();
-	}
 }
 
 // =======================================================================
@@ -197,19 +195,15 @@ void ASHPlayerController::IssueSquadCommandAtLocation(ESHSquadCommand Command, F
 
 void ASHPlayerController::CycleFireMode()
 {
-	switch (CurrentFireMode)
+	if (SHCharacter)
 	{
-	case ESHFireMode::Semi:
-		CurrentFireMode = ESHFireMode::Burst;
-		break;
-	case ESHFireMode::Burst:
-		CurrentFireMode = ESHFireMode::FullAuto;
-		break;
-	case ESHFireMode::FullAuto:
-		CurrentFireMode = ESHFireMode::Semi;
-		break;
+		if (ASHWeaponBase* EquippedWeapon = SHCharacter->GetEquippedWeapon())
+		{
+			EquippedWeapon->CycleFireMode();
+		}
 	}
 
+	RefreshCurrentFireMode();
 	OnFireModeChanged.Broadcast(CurrentFireMode);
 	UE_LOG(LogTemp, Log, TEXT("[SHPlayerController] Fire mode: %d"), static_cast<int32>(CurrentFireMode));
 }
@@ -219,6 +213,7 @@ void ASHPlayerController::SwitchToPrimaryWeapon()
 	if (SHCharacter)
 	{
 		SHCharacter->EquipSlot(0);
+		RefreshCurrentFireMode();
 	}
 }
 
@@ -227,6 +222,7 @@ void ASHPlayerController::SwitchToSidearm()
 	if (SHCharacter)
 	{
 		SHCharacter->EquipSlot(1);
+		RefreshCurrentFireMode();
 	}
 }
 
@@ -235,6 +231,7 @@ void ASHPlayerController::SwitchToGrenade()
 	if (SHCharacter)
 	{
 		SHCharacter->EquipSlot(2);
+		RefreshCurrentFireMode();
 	}
 }
 
@@ -333,6 +330,21 @@ bool ASHPlayerController::PerformSquadCommandTrace(FVector& OutLocation) const
 	}
 
 	return false;
+}
+
+void ASHPlayerController::RefreshCurrentFireMode()
+{
+	CurrentFireMode = ESHFireMode::Semi;
+
+	if (!SHCharacter)
+	{
+		return;
+	}
+
+	if (ASHWeaponBase* EquippedWeapon = SHCharacter->GetEquippedWeapon())
+	{
+		CurrentFireMode = EquippedWeapon->GetCurrentFireMode();
+	}
 }
 
 // =======================================================================

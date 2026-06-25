@@ -4,9 +4,12 @@
 #include "ShatteredHorizon2032/Core/SHCameraSystem.h"
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimInstance.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "Kismet/KismetMathLibrary.h"
 

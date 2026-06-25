@@ -1,15 +1,16 @@
 // Copyright 2026 Shattered Horizon Studios. All Rights Reserved.
 
 #include "SHDestructionSystem.h"
+#include "Audio/SHAudioSystem.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
-
-DEFINE_LOG_CATEGORY(LogSH_Destruction);
 
 // ======================================================================
 //  Construction
@@ -327,6 +328,8 @@ void USHDestructionSystem::TriggerBuildingCollapse(int32 BuildingID)
 		BuildingID, Building->GetIntegrity());
 
 	// Destroy all non-destroyed elements of this building
+	FVector CollapseLocation = FVector::ZeroVector;
+	bool bHaveCollapseLocation = false;
 	for (auto& Pair : Destructibles)
 	{
 		FSHDestructibleState& State = Pair.Value;
@@ -339,6 +342,7 @@ void USHDestructionSystem::TriggerBuildingCollapse(int32 BuildingID)
 		if (State.Actor.IsValid())
 		{
 			FVector Loc = State.Actor->GetActorLocation();
+			if (!bHaveCollapseLocation) { CollapseLocation = Loc; bHaveCollapseLocation = true; }
 			ActivateChaosDestruction(State.Actor.Get(), ESHDestructionLevel::Destroyed, Loc, FVector::DownVector);
 			SpawnDebrisForDestructible(State, Loc);
 		}
@@ -347,6 +351,19 @@ void USHDestructionSystem::TriggerBuildingCollapse(int32 BuildingID)
 	}
 
 	OnBuildingCollapse.Broadcast(BuildingID);
+
+	// A building collapse is a major combat event — drive the dynamic audio mix
+	// (combat-intensity ducking/tension) so the moment isn't silent to the mixer.
+	if (bHaveCollapseLocation)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (USHAudioSystem* Audio = World->GetSubsystem<USHAudioSystem>())
+			{
+				Audio->RegisterCombatEvent(CollapseLocation, 1.0f);
+			}
+		}
+	}
 }
 
 // ======================================================================
@@ -383,7 +400,7 @@ void USHDestructionSystem::ActivateChaosDestruction(AActor* Actor, ESHDestructio
 		{
 			// Apply internal strain — Chaos will fracture based on pre-authored break patterns
 			FVector Impulse = ImpactDirection * StrainValue;
-			GeoComp->ApplyExternalStrain(0, FVector::ZeroVector, StrainValue, 0, 0.f, Impulse);
+			GeoComp->ApplyExternalStrain(0, ImpactPoint, 0.f, 0, 1.f, StrainValue);
 
 			UE_LOG(LogSH_Destruction, Verbose, TEXT("Chaos strain %.0f applied to %s at %s"),
 				StrainValue, *Actor->GetName(), *ImpactPoint.ToString());

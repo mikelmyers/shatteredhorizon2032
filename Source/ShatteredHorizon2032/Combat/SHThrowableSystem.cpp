@@ -2,11 +2,14 @@
 
 #include "SHThrowableSystem.h"
 #include "SHSuppressionSystem.h"
-#include "SHBallisticsSystem.h"
+#include "Weapons/SHBallisticsSystem.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
 #include "Engine/DamageEvents.h"
+#include "Engine/OverlapResult.h"
+#include "GameFramework/DamageType.h"
 
 // =====================================================================
 //  ASHThrowableProjectile
@@ -162,7 +165,7 @@ void ASHThrowableProjectile::Detonate()
 	// Play detonation VFX and sound.
 	if (DetonationVFX)
 	{
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DetonationVFX, Origin, FRotator::ZeroRotator, FVector(1.0f), true);
+		UGameplayStatics::SpawnEmitterAtLocation(this, DetonationVFX, Origin, FRotator::ZeroRotator, FVector(1.0f), true);
 	}
 	if (DetonationSound)
 	{
@@ -261,7 +264,7 @@ void ASHThrowableProjectile::ApplyBlastDamage(const FVector& Origin)
 	IgnoreActors.Add(this);
 
 	UGameplayStatics::ApplyRadialDamageWithFalloff(
-		World,
+		this,
 		ThrowableData.BlastDamage,
 		ThrowableData.BlastDamage * 0.05f,
 		Origin,
@@ -279,7 +282,7 @@ void ASHThrowableProjectile::SpawnSmokeCloud(const FVector& Origin)
 	if (SmokeVFX)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(), SmokeVFX, Origin, FRotator::ZeroRotator,
+			this, SmokeVFX, Origin, FRotator::ZeroRotator,
 			FVector(ThrowableData.SmokeRadiusCm / 800.0f), // Scale relative to default
 			true);
 	}
@@ -298,7 +301,7 @@ void ASHThrowableProjectile::ApplyFlashbangEffect(const FVector& Origin)
 
 	if (FlashVFX)
 	{
-		UGameplayStatics::SpawnEmitterAtLocation(World, FlashVFX, Origin, FRotator::ZeroRotator, FVector(1.0f), true);
+		UGameplayStatics::SpawnEmitterAtLocation(this, FlashVFX, Origin, FRotator::ZeroRotator, FVector(1.0f), true);
 	}
 
 	// Find all characters within flash radius.
@@ -350,7 +353,7 @@ void ASHThrowableProjectile::SpawnFireZone(const FVector& Origin)
 	if (FireVFX)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(), FireVFX, Origin, FRotator::ZeroRotator,
+			this, FireVFX, Origin, FRotator::ZeroRotator,
 			FVector(ThrowableData.FireRadiusCm / 400.0f),
 			true);
 	}

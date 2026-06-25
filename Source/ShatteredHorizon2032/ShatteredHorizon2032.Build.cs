@@ -1,6 +1,7 @@
 // Copyright 2026. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class ShatteredHorizon2032 : ModuleRules
 {
@@ -9,6 +10,8 @@ public class ShatteredHorizon2032 : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		IWYUSupport = IWYUSupport.Full;
 		CppStandard = CppStandardVersion.Cpp20;
+		PublicIncludePaths.Add(ModuleDirectory);
+		PrivateIncludePaths.Add(ModuleDirectory);
 
 		// Precompiled header
 		PrivatePCHHeaderFile = "ShatteredHorizon2032.h";
@@ -56,7 +59,7 @@ public class ShatteredHorizon2032 : ModuleRules
 			// Animation
 			"AnimGraphRuntime",
 			"MotionWarping",
-			"AnimationWarping",
+			"AnimationWarpingRuntime",
 			"ContextualAnimation",
 
 			// VFX & Audio
@@ -73,6 +76,7 @@ public class ShatteredHorizon2032 : ModuleRules
 			"Water",
 			"PCG",
 			"GeometryCore",
+			"GeometryCollectionEngine",
 
 			// Networking
 			"OnlineSubsystem",
@@ -81,13 +85,11 @@ public class ShatteredHorizon2032 : ModuleRules
 
 			// UI
 			"CommonUI",
-			"CommonGame",
 			"CommonInput",
 
 			// Modular Gameplay
 			"ModularGameplay",
 			"GameFeatures",
-			"ModularGameplayActors",
 
 			// Utilities
 			"DeveloperSettings",
@@ -95,7 +97,8 @@ public class ShatteredHorizon2032 : ModuleRules
 			"StructUtils",
 			"Json",
 			"JsonUtilities",
-			"HTTP"
+			"HTTP",
+			"WebSockets"
 		});
 
 		// Editor-only modules

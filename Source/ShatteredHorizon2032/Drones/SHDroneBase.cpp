@@ -481,9 +481,9 @@ void ASHDroneBase::TickDroneBehavior(float DeltaSeconds)
 	// Base implementation — override in subclasses for drone-type-specific behavior.
 }
 
-void ASHDroneBase::OnBatteryDepleted()
+void ASHDroneBase::HandleBatteryDepleted()
 {
-	OnBatteryDepleted.Broadcast(this);
+	OnBatteryDepletedEvent.Broadcast(this);
 
 	// Force return if possible, otherwise crash
 	if (CurrentState != ESHDroneState::Destroyed && CurrentState != ESHDroneState::Returning)
@@ -553,7 +553,7 @@ void ASHDroneBase::TickBattery(float DeltaSeconds)
 	if (CurrentBatterySeconds <= 0.f)
 	{
 		CurrentBatterySeconds = 0.f;
-		OnBatteryDepleted();
+		HandleBatteryDepleted();
 	}
 	else if (!HasSufficientBattery() && CurrentState != ESHDroneState::Returning)
 	{

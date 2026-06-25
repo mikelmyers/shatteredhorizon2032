@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/CameraShakeBase.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SHSuppressionSystem.generated.h"
 

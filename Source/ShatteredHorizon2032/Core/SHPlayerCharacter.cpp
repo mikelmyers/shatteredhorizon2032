@@ -9,6 +9,8 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/DamageEvents.h"
+#include "TimerManager.h"
 #include "Engine/World.h"
 #include "Combat/SHHitFeedback.h"
 #include "Combat/SHDeathSystem.h"
@@ -16,16 +18,23 @@
 #include "Combat/SHFatigueSystem.h"
 #include "Audio/SHReverbZoneManager.h"
 #include "Audio/SHAmbientSoundscape.h"
+#include "EW/SHCommsDisruption.h"
+#include "Progression/SHLoadoutSystem.h"
+#include "Squad/SHSquadManager.h"
+#include "Squad/SHSquadMember.h"
+#include "Engine/SkeletalMesh.h"
+#include "Kismet/GameplayStatics.h"
 
 ASHPlayerCharacter::ASHPlayerCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// First-person camera attached to the head socket area.
+	// Attach the gameplay camera to the capsule so runtime remains valid
+	// even when a character skeletal mesh has not been assigned yet.
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	FirstPersonCamera->SetupAttachment(GetMesh(), FName(TEXT("head")));
+	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCamera->bUsePawnControlRotation = true;
-	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
+	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f));
 
 	// First-person arms mesh (visible only to the owning player).
 	FirstPersonArms = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonArms"));
@@ -60,6 +69,16 @@ ASHPlayerCharacter::ASHPlayerCharacter()
 	// Audio: ambient soundscape layers.
 	AmbientSoundscape = CreateDefaultSubobject<USHAmbientSoundscape>(TEXT("AmbientSoundscape"));
 
+	// EW: comms disruption (order delay/garble/loss, compass drift, radio static
+	// while inside enemy jamming zones).
+	CommsDisruption = CreateDefaultSubobject<USHCommsDisruption>(TEXT("CommsDisruption"));
+
+	// Loadout (weapon registry + auto-equip for direct mission launch).
+	LoadoutSystem = CreateDefaultSubobject<USHLoadoutSystem>(TEXT("LoadoutSystem"));
+
+	// Squad command and roster management.
+	SquadManager = CreateDefaultSubobject<USHSquadManager>(TEXT("SquadManager"));
+
 	// Configure movement defaults.
 	UCharacterMovementComponent* CMC = GetCharacterMovement();
 	if (CMC)
@@ -86,6 +105,56 @@ void ASHPlayerCharacter::BeginPlay()
 	CurrentHealth = MaxHealth;
 	Stamina = MaxStamina;
 	RecalculateWeight();
+
+	// Apply the configured first-person arms mesh if none has been assigned.
+	if (FirstPersonArms && !FirstPersonArms->GetSkeletalMeshAsset() && !DefaultArmsMesh.IsNull())
+	{
+		if (USkeletalMesh* ArmsMesh = DefaultArmsMesh.LoadSynchronous())
+		{
+			FirstPersonArms->SetSkeletalMesh(ArmsMesh);
+		}
+	}
+
+	// Deferred fixup after possession + loadout auto-apply.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(MissionSpawnTimerHandle, this,
+			&ASHPlayerCharacter::FinalizeMissionSpawn, 0.8f, false);
+	}
+}
+
+void ASHPlayerCharacter::FinalizeMissionSpawn()
+{
+	// Register pre-placed squad members with the squad manager.
+	if (SquadManager)
+	{
+		TArray<AActor*> FoundMembers;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASHSquadMember::StaticClass(), FoundMembers);
+		for (AActor* MemberActor : FoundMembers)
+		{
+			if (ASHSquadMember* Member = Cast<ASHSquadMember>(MemberActor))
+			{
+				SquadManager->AddSquadMember(Member);
+			}
+		}
+		if (FoundMembers.Num() > 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SHPlayerCharacter] Registered %d pre-placed squad members."), FoundMembers.Num());
+		}
+	}
+
+	// Establish the weapon's resting pose. Procedural weapon animation (recoil,
+	// sway, bob, breathing) composes on top of this rest transform each frame,
+	// so we route placement through SetRestRelativeTransform rather than moving
+	// the mesh directly (which the per-frame animation would otherwise clobber).
+	if (EquippedWeapon && FirstPersonArms)
+	{
+		const bool bHasSocket = FirstPersonArms->DoesSocketExist(TEXT("WeaponSocket"));
+		const FTransform RestPose = bHasSocket
+			? FTransform::Identity
+			: FTransform(WeaponViewRotation, WeaponViewLocation);
+		EquippedWeapon->SetRestRelativeTransform(RestPose);
+	}
 }
 
 void ASHPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -109,6 +178,16 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 	if (bIsDead)
 	{
 		return;
+	}
+
+	// Track downward speed while airborne so Landed() can scale the impact dip
+	// (vertical velocity is zeroed by the time Landed fires).
+	if (const UCharacterMovementComponent* CMCFall = GetCharacterMovement())
+	{
+		if (CMCFall->IsFalling())
+		{
+			LastFallingZSpeed = GetVelocity().Z;
+		}
 	}
 
 	TickStamina(DeltaSeconds);
@@ -145,6 +224,7 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		EquippedWeapon->SetStance(CurrentStance);
 		EquippedWeapon->SetSuppressionLevel(SuppressionLevel);
 		EquippedWeapon->SetIsMoving(GetVelocity().Size2D() > 10.f);
+		EquippedWeapon->SetSprinting(bIsSprinting);
 		if (FatigueSystem)
 		{
 			EquippedWeapon->SetFatigueLevel(1.f - FatigueSystem->GetStaminaPercent());
@@ -276,6 +356,24 @@ float ASHPlayerCharacter::TakeDamage(float DamageAmount, const FDamageEvent& Dam
 	}
 
 	return FinalDamage;
+}
+
+void ASHPlayerCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	// Scale a downward camera dip by how hard we hit: nothing below ~300 cm/s
+	// (a step or small hop), full dip by ~1000 cm/s (a real drop).
+	const float ImpactSpeed = FMath::Abs(LastFallingZSpeed);
+	const float Intensity = FMath::GetMappedRangeValueClamped(
+		FVector2D(300.f, 1000.f), FVector2D(0.f, 1.f), ImpactSpeed);
+
+	if (CameraSystem && Intensity > 0.f)
+	{
+		CameraSystem->ApplyLandingDip(Intensity);
+	}
+
+	LastFallingZSpeed = 0.f;
 }
 
 void ASHPlayerCharacter::ApplyLimbDamage(ESHLimb Limb, float Damage)
@@ -724,11 +822,6 @@ void ASHPlayerCharacter::TickSuppression(float DeltaSeconds)
 		SuppressionLevel = FMath::Max(0.f, SuppressionLevel - SuppressionDecayRate * DeltaSeconds);
 
 		// Feed suppression to camera system for vignette, desaturation, and shake.
-		if (CameraSystem)
-		{
-			CameraSystem->SetSuppressionLevel(SuppressionLevel);
-		}
-
 		// At high suppression, apply camera shake proportional to intensity.
 		if (SuppressionLevel > 0.5f && FirstPersonCamera)
 		{
@@ -786,19 +879,14 @@ void ASHPlayerCharacter::TickLean(float DeltaSeconds)
 
 	CurrentLeanAlpha = FMath::FInterpTo(CurrentLeanAlpha, TargetAlpha, DeltaSeconds, LeanInterpSpeed);
 
-	if (FirstPersonCamera && !FMath::IsNearlyZero(CurrentLeanAlpha, 0.01f))
+	// Feed lean into the camera system so it composes lean with head bob and
+	// screen punch in a single relative-transform write. Writing the camera
+	// directly here would fight CameraSystem's PostPhysics write (bob would
+	// overwrite the lean offset every frame).
+	if (CameraSystem)
 	{
-		// Apply lean offset and rotation to the camera.
-		const FVector LeanOffset = FVector(0.f, CurrentLeanAlpha * LeanOffsetDistance, 0.f);
-		FirstPersonCamera->SetRelativeLocation(LeanOffset);
-
-		const FRotator LeanRotation = FRotator(0.f, 0.f, CurrentLeanAlpha * LeanAngleDeg);
-		FirstPersonCamera->SetRelativeRotation(LeanRotation);
-	}
-	else if (FirstPersonCamera)
-	{
-		FirstPersonCamera->SetRelativeLocation(FVector::ZeroVector);
-		FirstPersonCamera->SetRelativeRotation(FRotator::ZeroRotator);
+		CameraSystem->SetLeanOffset(CurrentLeanAlpha * LeanOffsetDistance,
+									CurrentLeanAlpha * LeanAngleDeg);
 	}
 }
 

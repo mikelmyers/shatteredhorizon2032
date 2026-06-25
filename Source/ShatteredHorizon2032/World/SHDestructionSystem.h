@@ -4,14 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Sound/SoundBase.h"
 #include "SHDestructionSystem.generated.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogSH_Destruction, Log, All);
 
 class UGeometryCollectionComponent;
 class UStaticMeshComponent;
 class UNiagaraSystem;
-class USoundBase;
 
 /** Destructible object category — determines fracture behavior. */
 UENUM(BlueprintType)
@@ -104,12 +102,6 @@ struct FSHDestructibleState
 	/** Number of explosive hits received. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int32 ExplosiveHitCount = 0;
-
-	/** Localized damage map — tracks damage concentration per surface region.
-	 *  Key: region index (octant), Value: accumulated damage in that region.
-	 *  When a region exceeds threshold, it creates a breach (new sightline). */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TMap<int32, float> RegionalDamage;
 
 	/** Whether this object has a breach (hole large enough for sightlines/traversal). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)

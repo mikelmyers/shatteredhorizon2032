@@ -8,7 +8,9 @@
 #include "Serialization/JsonSerializer.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "UObject/Package.h"
+#include "Misc/PackageName.h"
 
 // Forward reference — the weapon data asset header lives in the Weapons module.
 #include "Weapons/SHWeaponData.h"

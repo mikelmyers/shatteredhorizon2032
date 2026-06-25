@@ -86,7 +86,7 @@ public:
 
 	/** Attempt to breach with a given method. Returns true if breach began. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Breach")
-	bool AttemptBreach(ESHBreachMethod Method, AController* Instigator);
+	bool AttemptBreach(ESHBreachMethod Method, AController* BreachCauser);
 
 	/** Get current door state. */
 	UFUNCTION(BlueprintPure, Category = "SH|Breach")

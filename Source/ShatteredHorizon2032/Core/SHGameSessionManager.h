@@ -15,7 +15,7 @@ class USHPauseMenuWidget;
 class USHProgressionSystem;
 class UCommonActivatableWidget;
 class UCommonActivatableWidgetContainerBase;
-struct FSHEngagementRecord;
+struct FSHPlayerEngagementRecord;
 struct FSHXPBreakdown;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSH_Session, Log, All);
@@ -344,7 +344,7 @@ private:
 	void PerformInterMissionCleanup();
 
 	/** Gather engagement stats from the local player state and compute XP. */
-	FSHXPBreakdown ComputeXPAward(const FSHEngagementRecord& Record, bool bVictory) const;
+	FSHXPBreakdown ComputeXPAward(const FSHPlayerEngagementRecord& Record, bool bVictory) const;
 
 	/** Get the XP multiplier for the current difficulty. */
 	float GetDifficultyMultiplier() const;

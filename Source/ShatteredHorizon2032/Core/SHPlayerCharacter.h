@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/SHGameplayTypes.h"
 #include "GameFramework/Character.h"
-#include "SHPlayerController.h"
 #include "SHPlayerCharacter.generated.h"
 
 class UCameraComponent;
@@ -17,19 +17,8 @@ class USHDamageSystem;
 class USHFatigueSystem;
 class USHReverbZoneManager;
 class USHAmbientSoundscape;
+class USHCommsDisruption;
 class ASHWeaponBase;
-
-// Forward declare the lean enum from the controller.
-enum class ESHLeanState : uint8;
-
-/** Player stance. */
-UENUM(BlueprintType)
-enum class ESHStance : uint8
-{
-	Standing,
-	Crouching,
-	Prone
-};
 
 /** Limb identifiers for the injury system. */
 UENUM(BlueprintType)
@@ -91,7 +80,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnPlayerDeath);
  * stamina/fatigue, non-regenerating health, limb-based injury,
  * weight-dependent mobility, suppression response, and equipment slots.
  */
-UCLASS()
+class USHLoadoutSystem;
+class USHSquadManager;
+
+UCLASS(Config = Game)
 class SHATTEREDHORIZON2032_API ASHPlayerCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -104,6 +96,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 		AController* EventInstigator, AActor* DamageCauser) override;
+	virtual void Landed(const FHitResult& Hit) override;
 
 	// ------------------------------------------------------------------
 	//  Movement actions (called from controller)
@@ -238,6 +231,39 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
 	TObjectPtr<USHAmbientSoundscape> AmbientSoundscape;
 
+	/** Comms disruption — EW jamming effects on orders, compass drift, radio static. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHCommsDisruption> CommsDisruption;
+
+	/** Loadout selection/application (weapon registry + auto-equip for direct mission launch). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHLoadoutSystem> LoadoutSystem;
+
+	/** Squad manager — owns the fireteam roster and command interface. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHSquadManager> SquadManager;
+
+	/** First-person arms mesh applied at BeginPlay if none set (config-driven). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
+	TSoftObjectPtr<USkeletalMesh> DefaultArmsMesh;
+
+	/** Relative placement applied to the equipped weapon when the arms mesh has no
+	 *  'WeaponSocket' (keeps the viewmodel believable without authored sockets). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
+	FVector WeaponViewLocation = FVector(35.f, 16.f, -14.f);
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
+	FRotator WeaponViewRotation = FRotator(0.f, 0.f, 0.f);
+
+protected:
+	/** Deferred mission-spawn fixup: register pre-placed squad members with the
+	 *  squad manager and settle the first-person weapon view transform. */
+	void FinalizeMissionSpawn();
+
+	FTimerHandle MissionSpawnTimerHandle;
+
+public:
+
 	/** Currently equipped weapon actor. Set via EquipWeapon(). */
 	UPROPERTY(BlueprintReadOnly, Category = "SH|Weapon")
 	TObjectPtr<ASHWeaponBase> EquippedWeapon;
@@ -366,6 +392,11 @@ private:
 	float CurrentWeight = 10.f; // base weight of the character's gear in kg
 
 	bool bIsSprinting = false;
+
+	/** Most recent downward velocity while falling (cm/s), used to scale the
+	 *  landing camera dip — captured each tick because Landed() arrives after
+	 *  the movement component has zeroed vertical velocity. */
+	float LastFallingZSpeed = 0.f;
 	bool bIsFiring = false;
 	bool bIsADS = false;
 	bool bIsDead = false;

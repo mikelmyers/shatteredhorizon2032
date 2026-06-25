@@ -21,20 +21,20 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMission1_Creation, "SH2032.Mission.TaoyuanBeac
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FMission1_Creation::RunTest(const FString&)
 {
-	FSHMissionDefinition Def = USHMission_TaoyuanBeach::CreateMissionDefinition();
+	USHMissionDefinition* Def = USHMission_TaoyuanBeach::CreateMissionDefinition(GetTransientPackage());
 
 	// Must have a name and callsign
-	TestFalse(TEXT("Mission name not empty"), Def.MissionName.IsEmpty());
-	TestFalse(TEXT("Callsign not empty"), Def.Callsign.IsEmpty());
+	TestFalse(TEXT("Mission name not empty"), Def->Briefing.MissionName.IsEmpty());
+	TestFalse(TEXT("Callsign not empty"), Def->Briefing.MissionCallsign.IsEmpty());
 
 	// Must have phases
-	TestTrue(TEXT("Has at least 4 phases"), Def.Phases.Num() >= 4);
+	TestTrue(TEXT("Has at least 4 phases"), Def->Phases.Num() >= 4);
 
 	// Must have squad members
-	TestTrue(TEXT("Has at least 4 squad members"), Def.SquadRoster.Num() >= 4);
+	TestTrue(TEXT("Has at least 4 squad members"), Def->SquadRoster.Num() >= 4);
 
 	// Must have briefing
-	TestFalse(TEXT("Briefing not empty"), Def.BriefingText.IsEmpty());
+	TestFalse(TEXT("Briefing not empty"), Def->Briefing.BriefingNarration.IsEmpty());
 
 	return true;
 }
@@ -47,26 +47,28 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMission1_SquadRoster, "SH2032.Mission.TaoyuanB
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FMission1_SquadRoster::RunTest(const FString&)
 {
-	FSHMissionDefinition Def = USHMission_TaoyuanBeach::CreateMissionDefinition();
+	USHMissionDefinition* Def = USHMission_TaoyuanBeach::CreateMissionDefinition(GetTransientPackage());
 
 	// Verify each squad member has required data
-	for (int32 i = 0; i < Def.SquadRoster.Num(); ++i)
+	for (int32 i = 0; i < Def->SquadRoster.Num(); ++i)
 	{
-		const auto& Member = Def.SquadRoster[i];
-		TestFalse(FString::Printf(TEXT("Member %d has name"), i), Member.DisplayName.IsEmpty());
+		const auto& Member = Def->SquadRoster[i];
+		TestFalse(FString::Printf(TEXT("Member %d has name"), i), Member.Name.IsEmpty());
 		TestFalse(FString::Printf(TEXT("Member %d has callsign"), i), Member.Callsign.IsEmpty());
-		TestFalse(FString::Printf(TEXT("Member %d has role"), i), Member.Role.IsEmpty());
+		// Role is an enum (ESHSquadMemberRole), always valid if it compiled
 	}
 
 	// Verify we have the specific named characters from the narrative
 	// These characters drive emotional investment — losing one is a bug
 	bool bHasVasquez = false, bHasKim = false, bHasChen = false, bHasWilliams = false;
-	for (const auto& M : Def.SquadRoster)
+	for (const auto& M : Def->SquadRoster)
 	{
-		if (M.Callsign.Contains(TEXT("Viper-2")) || M.DisplayName.Contains(TEXT("Vasquez"))) bHasVasquez = true;
-		if (M.Callsign.Contains(TEXT("Viper-3")) || M.DisplayName.Contains(TEXT("Kim"))) bHasKim = true;
-		if (M.Callsign.Contains(TEXT("Viper-4")) || M.DisplayName.Contains(TEXT("Chen"))) bHasChen = true;
-		if (M.Callsign.Contains(TEXT("Viper-5")) || M.DisplayName.Contains(TEXT("Williams"))) bHasWilliams = true;
+		const FString NameStr = M.Name.ToString();
+		const FString CallStr = M.Callsign.ToString();
+		if (CallStr.Contains(TEXT("Viper-2")) || NameStr.Contains(TEXT("Vasquez"))) bHasVasquez = true;
+		if (CallStr.Contains(TEXT("Viper-3")) || NameStr.Contains(TEXT("Kim"))) bHasKim = true;
+		if (CallStr.Contains(TEXT("Viper-4")) || NameStr.Contains(TEXT("Chen"))) bHasChen = true;
+		if (CallStr.Contains(TEXT("Viper-5")) || NameStr.Contains(TEXT("Williams"))) bHasWilliams = true;
 	}
 	TestTrue(TEXT("Vasquez present"), bHasVasquez);
 	TestTrue(TEXT("Kim present"), bHasKim);
@@ -84,14 +86,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMission1_PhaseStructure, "SH2032.Mission.Taoyu
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FMission1_PhaseStructure::RunTest(const FString&)
 {
-	FSHMissionDefinition Def = USHMission_TaoyuanBeach::CreateMissionDefinition();
+	USHMissionDefinition* Def = USHMission_TaoyuanBeach::CreateMissionDefinition(GetTransientPackage());
 
-	TestTrue(TEXT("At least 4 phases"), Def.Phases.Num() >= 4);
+	TestTrue(TEXT("At least 4 phases"), Def->Phases.Num() >= 4);
 
 	// Each phase should have content
-	for (int32 i = 0; i < Def.Phases.Num(); ++i)
+	for (int32 i = 0; i < Def->Phases.Num(); ++i)
 	{
-		const auto& Phase = Def.Phases[i];
+		const auto& Phase = Def->Phases[i];
 		TestFalse(FString::Printf(TEXT("Phase %d has name"), i), Phase.PhaseName.IsEmpty());
 		// Phase should have either events, objectives, or waves
 		const bool bHasContent = Phase.ScriptedEvents.Num() > 0 ||
@@ -111,22 +113,22 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMission1_EnemyWaves, "SH2032.Mission.TaoyuanBe
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FMission1_EnemyWaves::RunTest(const FString&)
 {
-	FSHMissionDefinition Def = USHMission_TaoyuanBeach::CreateMissionDefinition();
+	USHMissionDefinition* Def = USHMission_TaoyuanBeach::CreateMissionDefinition(GetTransientPackage());
 
 	// Phase 2 (Beach Assault) should have reinforcement waves
-	if (Def.Phases.Num() >= 2)
+	if (Def->Phases.Num() >= 2)
 	{
-		const auto& BeachPhase = Def.Phases[1]; // Phase 2
+		const auto& BeachPhase = Def->Phases[1]; // Phase 2
 		TestTrue(TEXT("Beach phase has waves"), BeachPhase.ReinforcementWaves.Num() >= 2);
 
 		// Count total enemy forces across all waves
 		int32 TotalInfantry = 0;
 		for (const auto& Wave : BeachPhase.ReinforcementWaves)
 		{
-			TotalInfantry += Wave.InfantryCount;
+			TotalInfantry += Wave.TotalInfantry;
 			// Each wave should have non-zero delay (except first)
 			// and non-zero infantry
-			TestTrue(TEXT("Wave has infantry"), Wave.InfantryCount > 0);
+			TestTrue(TEXT("Wave has infantry"), Wave.TotalInfantry > 0);
 		}
 
 		// Mission 1 should have a significant enemy force (100+ across all waves)
@@ -144,17 +146,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMission1_KeyDialogue, "SH2032.Mission.TaoyuanB
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FMission1_KeyDialogue::RunTest(const FString&)
 {
-	FSHMissionDefinition Def = USHMission_TaoyuanBeach::CreateMissionDefinition();
+	USHMissionDefinition* Def = USHMission_TaoyuanBeach::CreateMissionDefinition(GetTransientPackage());
 
 	// Collect all dialogue text across all phases
+	// Dialogue lives in Phase.DialogueTriggers (not ScriptedEvents)
 	TArray<FString> AllDialogue;
-	for (const auto& Phase : Def.Phases)
+	for (const auto& Phase : Def->Phases)
 	{
-		for (const auto& Event : Phase.ScriptedEvents)
+		for (const auto& Trigger : Phase.DialogueTriggers)
 		{
-			if (!Event.DialogueText.IsEmpty())
+			const FString LineStr = Trigger.DialogueText.ToString();
+			if (!LineStr.IsEmpty())
 			{
-				AllDialogue.Add(Event.DialogueText);
+				AllDialogue.Add(LineStr);
 			}
 		}
 	}

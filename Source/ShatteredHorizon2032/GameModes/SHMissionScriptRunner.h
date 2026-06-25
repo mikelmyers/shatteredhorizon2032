@@ -4,11 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/DataAsset.h"
 #include "ShatteredHorizon2032/Core/SHGameMode.h"
 #include "ShatteredHorizon2032/GameModes/SHObjectiveSystem.h"
 #include "SHMissionScriptRunner.generated.h"
 
-class USHMissionDefinition;
+class USHScriptedMissionDefinition;
 class USHObjectiveSystem;
 class USHDialogueSystem;
 class USHWeatherSystem;
@@ -27,7 +28,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSH_MissionScript, Log, All);
 // =====================================================================
 
 UENUM(BlueprintType)
-enum class ESHPhaseAdvanceCondition : uint8
+enum class ESHScriptedPhaseAdvanceCondition : uint8
 {
 	/** All critical (Primary) objectives in this phase must be completed. */
 	AllObjectivesComplete	UMETA(DisplayName = "All Objectives Complete"),
@@ -47,7 +48,7 @@ enum class ESHPhaseAdvanceCondition : uint8
 // =====================================================================
 
 UENUM(BlueprintType)
-enum class ESHScriptedEventType : uint8
+enum class ESHMissionScriptedEventType : uint8
 {
 	ArtilleryBarrage	UMETA(DisplayName = "Artillery Barrage"),
 	DroneSwarm			UMETA(DisplayName = "Drone Swarm"),
@@ -63,7 +64,7 @@ enum class ESHScriptedEventType : uint8
 
 /** Enemy wave definition from a mission script. */
 USTRUCT(BlueprintType)
-struct FSHWaveDefinition
+struct FSHScriptedWaveDefinition
 {
 	GENERATED_BODY()
 
@@ -98,7 +99,7 @@ struct FSHWaveDefinition
 
 /** Scripted event definition embedded in a mission phase. */
 USTRUCT(BlueprintType)
-struct FSHScriptedEventDefinition
+struct FSHMissionScriptedEventDefinition
 {
 	GENERATED_BODY()
 
@@ -108,7 +109,7 @@ struct FSHScriptedEventDefinition
 
 	/** Type of scripted event. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
-	ESHScriptedEventType EventType = ESHScriptedEventType::ArtilleryBarrage;
+	ESHMissionScriptedEventType EventType = ESHMissionScriptedEventType::ArtilleryBarrage;
 
 	/** Delay in seconds from phase start before this event triggers. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
@@ -149,7 +150,7 @@ struct FSHScriptedEventDefinition
 
 /** Dialogue trigger embedded in a mission phase. */
 USTRUCT(BlueprintType)
-struct FSHDialogueTrigger
+struct FSHMissionDialogueTrigger
 {
 	GENERATED_BODY()
 
@@ -220,7 +221,7 @@ struct FSHPhaseAdvanceRule
 
 	/** Condition type. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
-	ESHPhaseAdvanceCondition Condition = ESHPhaseAdvanceCondition::AllObjectivesComplete;
+	ESHScriptedPhaseAdvanceCondition Condition = ESHScriptedPhaseAdvanceCondition::AllObjectivesComplete;
 
 	/** Threshold value for ratio-based conditions (0-1). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission", meta = (ClampMin = "0", ClampMax = "1"))
@@ -233,7 +234,7 @@ struct FSHPhaseAdvanceRule
 
 /** Complete definition for a single mission phase. */
 USTRUCT(BlueprintType)
-struct FSHPhaseDefinition
+struct FSHMissionScriptPhaseDefinition
 {
 	GENERATED_BODY()
 
@@ -251,15 +252,15 @@ struct FSHPhaseDefinition
 
 	/** Enemy waves spawned during this phase. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
-	TArray<FSHWaveDefinition> Waves;
+	TArray<FSHScriptedWaveDefinition> Waves;
 
 	/** Scripted events triggered during this phase. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
-	TArray<FSHScriptedEventDefinition> ScriptedEvents;
+	TArray<FSHMissionScriptedEventDefinition> ScriptedEvents;
 
 	/** Dialogue lines triggered during this phase. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
-	TArray<FSHDialogueTrigger> DialogueTriggers;
+	TArray<FSHMissionDialogueTrigger> DialogueTriggers;
 
 	/** Conditions under which this phase advances to the next. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
@@ -287,7 +288,7 @@ struct FSHPhaseDefinition
  * the mission experience.
  */
 UCLASS(BlueprintType)
-class SHATTEREDHORIZON2032_API USHMissionDefinition : public UDataAsset
+class SHATTEREDHORIZON2032_API USHScriptedMissionDefinition : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -302,7 +303,7 @@ public:
 
 	/** Ordered list of phase definitions. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
-	TArray<FSHPhaseDefinition> Phases;
+	TArray<FSHMissionScriptPhaseDefinition> Phases;
 
 	/** Brief description shown in briefing screens. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SH|Mission")
@@ -367,7 +368,7 @@ public:
 	 * Must be called before StartMission().
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SH|MissionScript")
-	void LoadMission(USHMissionDefinition* Definition);
+	void LoadMission(USHScriptedMissionDefinition* Definition);
 
 	/** Begin the mission from phase 0. LoadMission() must have been called. */
 	UFUNCTION(BlueprintCallable, Category = "SH|MissionScript")
@@ -399,7 +400,7 @@ public:
 
 	/** Return the loaded mission definition, or nullptr. */
 	UFUNCTION(BlueprintPure, Category = "SH|MissionScript")
-	USHMissionDefinition* GetActiveMission() const { return ActiveMission; }
+	USHScriptedMissionDefinition* GetActiveMission() const { return ActiveMission; }
 
 	/** Whether a mission is currently running. */
 	UFUNCTION(BlueprintPure, Category = "SH|MissionScript")
@@ -485,27 +486,27 @@ private:
 	//  Event execution
 	// ------------------------------------------------------------------
 
-	void ExecuteScriptedEvent(const FSHScriptedEventDefinition& Event);
-	void ExecuteArtilleryBarrage(const FSHScriptedEventDefinition& Event);
-	void ExecuteDroneSwarm(const FSHScriptedEventDefinition& Event);
-	void ExecuteEWJammingZone(const FSHScriptedEventDefinition& Event);
-	void ExecuteWeatherChange(const FSHScriptedEventDefinition& Event);
-	void ExecuteDialogue(const FSHScriptedEventDefinition& Event);
-	void ExecuteAirStrike(const FSHScriptedEventDefinition& Event);
+	void ExecuteScriptedEvent(const FSHMissionScriptedEventDefinition& Event);
+	void ExecuteArtilleryBarrage(const FSHMissionScriptedEventDefinition& Event);
+	void ExecuteDroneSwarm(const FSHMissionScriptedEventDefinition& Event);
+	void ExecuteEWJammingZone(const FSHMissionScriptedEventDefinition& Event);
+	void ExecuteWeatherChange(const FSHMissionScriptedEventDefinition& Event);
+	void ExecuteDialogue(const FSHMissionScriptedEventDefinition& Event);
+	void ExecuteAirStrike(const FSHMissionScriptedEventDefinition& Event);
 
 	// ------------------------------------------------------------------
 	//  Wave spawning
 	// ------------------------------------------------------------------
 
 	/** Convert FSHWaveDefinition to FSHReinforcementWave and feed to game mode. */
-	void SpawnWave(const FSHWaveDefinition& WaveDef);
+	void SpawnWave(const FSHScriptedWaveDefinition& WaveDef);
 
 	// ------------------------------------------------------------------
 	//  Objective management
 	// ------------------------------------------------------------------
 
 	/** Create objectives from phase definitions via the ObjectiveSystem. */
-	void ActivatePhaseObjectives(const FSHPhaseDefinition& PhaseDef);
+	void ActivatePhaseObjectives(const FSHMissionScriptPhaseDefinition& PhaseDef);
 
 	/** Deactivate all objectives tracked in ActiveObjectiveIds. */
 	void DeactivatePhaseObjectives();
@@ -543,7 +544,7 @@ private:
 
 	/** The loaded mission definition. */
 	UPROPERTY()
-	TObjectPtr<USHMissionDefinition> ActiveMission = nullptr;
+	TObjectPtr<USHScriptedMissionDefinition> ActiveMission = nullptr;
 
 	/** Whether the mission is actively running. */
 	bool bMissionRunning = false;
@@ -561,13 +562,13 @@ private:
 	float MissionElapsedTime = 0.f;
 
 	/** Waves not yet spawned for the current phase, sorted by delay ascending. */
-	TArray<FSHWaveDefinition> PendingWaves;
+	TArray<FSHScriptedWaveDefinition> PendingWaves;
 
 	/** Scripted events not yet triggered for the current phase. */
-	TArray<FSHScriptedEventDefinition> PendingEvents;
+	TArray<FSHMissionScriptedEventDefinition> PendingEvents;
 
 	/** Dialogue triggers not yet played for the current phase. */
-	TArray<FSHDialogueTrigger> PendingDialogue;
+	TArray<FSHMissionDialogueTrigger> PendingDialogue;
 
 	/** GUIDs of objectives created for the current phase. */
 	TArray<FGuid> ActiveObjectiveIds;

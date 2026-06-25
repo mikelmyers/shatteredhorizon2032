@@ -2,6 +2,7 @@
 
 #include "SHPlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/GameInstance.h"
 #include "Progression/SHProgressionSystem.h"
 
 ASHPlayerState::ASHPlayerState()

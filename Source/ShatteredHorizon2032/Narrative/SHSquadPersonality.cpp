@@ -5,6 +5,7 @@
 #include "Components/AudioComponent.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
+#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
@@ -137,17 +138,17 @@ bool USHSquadPersonality::PlayContextualVoiceLine(ESHVoiceLineContext Context)
 
 TArray<TSoftObjectPtr<USoundBase>> USHSquadPersonality::GetVoiceLinesForContext(ESHVoiceLineContext Context) const
 {
-	if (const TArray<TSoftObjectPtr<USoundBase>>* Lines = VoiceLineSets.Find(Context))
+	if (const FSHVoiceLineSet* Lines = VoiceLineSets.Find(Context))
 	{
-		return *Lines;
+		return Lines->Lines;
 	}
 	return TArray<TSoftObjectPtr<USoundBase>>();
 }
 
 TSoftObjectPtr<USoundBase> USHSquadPersonality::SelectVoiceLine(ESHVoiceLineContext Context) const
 {
-	const TArray<TSoftObjectPtr<USoundBase>>* Lines = VoiceLineSets.Find(Context);
-	if (!Lines || Lines->Num() == 0)
+	const FSHVoiceLineSet* VoiceSet = VoiceLineSets.Find(Context);
+	if (!VoiceSet || VoiceSet->Lines.Num() == 0)
 	{
 		return TSoftObjectPtr<USoundBase>();
 	}
@@ -159,19 +160,19 @@ TSoftObjectPtr<USoundBase> USHSquadPersonality::SelectVoiceLine(ESHVoiceLineCont
 	// - Veteran: weighted toward the middle (experienced, matter-of-fact).
 	// This convention assumes designers order lines from calm -> intense within each array.
 
-	const int32 LineCount = Lines->Num();
+	const int32 LineCount = VoiceSet->Lines.Num();
 
 	if (LineCount == 1)
 	{
-		return (*Lines)[0];
+		return VoiceSet->Lines[0];
 	}
 
 	int32 SelectedIndex = 0;
 
 	switch (Profile.PersonalityTrait)
 	{
-	case ESHPersonalityTrait::Calm:
-	case ESHPersonalityTrait::Cautious:
+	case ESHSquadPersonalityTrait::Calm:
+	case ESHSquadPersonalityTrait::Cautious:
 	{
 		// Bias toward the first half.
 		const int32 HalfCount = FMath::Max(1, LineCount / 2);
@@ -179,7 +180,7 @@ TSoftObjectPtr<USoundBase> USHSquadPersonality::SelectVoiceLine(ESHVoiceLineCont
 		break;
 	}
 
-	case ESHPersonalityTrait::Aggressive:
+	case ESHSquadPersonalityTrait::Aggressive:
 	{
 		// Bias toward the second half.
 		const int32 MidPoint = LineCount / 2;
@@ -187,14 +188,14 @@ TSoftObjectPtr<USoundBase> USHSquadPersonality::SelectVoiceLine(ESHVoiceLineCont
 		break;
 	}
 
-	case ESHPersonalityTrait::Joker:
+	case ESHSquadPersonalityTrait::Joker:
 	{
 		// Fully random.
 		SelectedIndex = FMath::RandRange(0, LineCount - 1);
 		break;
 	}
 
-	case ESHPersonalityTrait::Veteran:
+	case ESHSquadPersonalityTrait::Veteran:
 	{
 		// Weighted toward the center.
 		const int32 QuarterCount = FMath::Max(1, LineCount / 4);
@@ -209,7 +210,7 @@ TSoftObjectPtr<USoundBase> USHSquadPersonality::SelectVoiceLine(ESHVoiceLineCont
 		break;
 	}
 
-	return (*Lines)[SelectedIndex];
+	return VoiceSet->Lines[SelectedIndex];
 }
 
 // -----------------------------------------------------------------------

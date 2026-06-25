@@ -12,7 +12,7 @@
 // -----------------------------------------------------------------------
 
 UENUM(BlueprintType)
-enum class ESHAttachmentSlot : uint8
+enum class ESHWeaponAttachmentSlot : uint8
 {
 	Optic           UMETA(DisplayName = "Optic / Sight"),
 	Muzzle          UMETA(DisplayName = "Muzzle Device"),
@@ -46,7 +46,7 @@ struct FSHWeaponAttachment
 
 	/** Which slot this occupies. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
-	ESHAttachmentSlot Slot = ESHAttachmentSlot::Optic;
+	ESHWeaponAttachmentSlot Slot = ESHWeaponAttachmentSlot::Optic;
 
 	/** Weight added to the weapon (kg). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment|Stats", meta = (ClampMin = "0"))
@@ -148,7 +148,7 @@ struct FSHAttachmentModifiers
 //  Delegates
 // -----------------------------------------------------------------------
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAttachmentChanged, ESHAttachmentSlot, Slot, FName, AttachmentID);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAttachmentChanged, ESHWeaponAttachmentSlot, Slot, FName, AttachmentID);
 
 // -----------------------------------------------------------------------
 //  USHWeaponAttachmentSystem
@@ -181,7 +181,7 @@ public:
 
 	/** Remove the attachment from a slot. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Weapon|Attachments")
-	bool RemoveAttachment(ESHAttachmentSlot Slot);
+	bool RemoveAttachment(ESHWeaponAttachmentSlot Slot);
 
 	/** Remove all attachments. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Weapon|Attachments")
@@ -189,11 +189,11 @@ public:
 
 	/** Check if a slot has an attachment. */
 	UFUNCTION(BlueprintPure, Category = "SH|Weapon|Attachments")
-	bool HasAttachment(ESHAttachmentSlot Slot) const;
+	bool HasAttachment(ESHWeaponAttachmentSlot Slot) const;
 
 	/** Get the attachment in a slot (returns false if empty). */
 	UFUNCTION(BlueprintPure, Category = "SH|Weapon|Attachments")
-	bool GetAttachment(ESHAttachmentSlot Slot, FSHWeaponAttachment& OutAttachment) const;
+	bool GetAttachment(ESHWeaponAttachmentSlot Slot, FSHWeaponAttachment& OutAttachment) const;
 
 	// ------------------------------------------------------------------
 	//  Modifier queries (used by weapon systems)
@@ -228,7 +228,7 @@ private:
 
 	/** Equipped attachments by slot. */
 	UPROPERTY()
-	TMap<ESHAttachmentSlot, FSHWeaponAttachment> EquippedAttachments;
+	TMap<ESHWeaponAttachmentSlot, FSHWeaponAttachment> EquippedAttachments;
 
 	/** Cached aggregate modifiers. */
 	FSHAttachmentModifiers CachedModifiers;

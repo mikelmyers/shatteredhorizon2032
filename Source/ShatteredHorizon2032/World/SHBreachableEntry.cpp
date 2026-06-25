@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 
 ASHBreachableEntry::ASHBreachableEntry()
@@ -107,7 +108,7 @@ bool ASHBreachableEntry::CanInteract_Implementation(APlayerController* Interacto
 //  Breach interface
 // =====================================================================
 
-bool ASHBreachableEntry::AttemptBreach(ESHBreachMethod Method, AController* Instigator)
+bool ASHBreachableEntry::AttemptBreach(ESHBreachMethod Method, AController* BreachCauser)
 {
 	if (bBreachInProgress || DoorState == ESHDoorState::Breached || DoorState == ESHDoorState::Open)
 	{
@@ -125,7 +126,7 @@ bool ASHBreachableEntry::AttemptBreach(ESHBreachMethod Method, AController* Inst
 	}
 
 	ActiveBreachMethod = Method;
-	BreachInstigator = Instigator;
+	BreachInstigator = BreachCauser;
 	bBreachInProgress = true;
 	BreachTimer = 0.0f;
 

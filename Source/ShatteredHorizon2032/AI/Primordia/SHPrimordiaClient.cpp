@@ -526,8 +526,8 @@ FString USHPrimordiaClient::ComputeStateDelta(const FString& FullStateJson)
 			{
 				// Serialize both values to string and compare — simple but effective for delta.
 				FString NewValStr, OldValStr;
-				TSharedRef<TJsonWriter<TCondensedJsonPrintPolicy<TCHAR>>> NewWriter = TJsonWriterFactory<TCondensedJsonPrintPolicy<TCHAR>>::Create(&NewValStr);
-				TSharedRef<TJsonWriter<TCondensedJsonPrintPolicy<TCHAR>>> OldWriter = TJsonWriterFactory<TCondensedJsonPrintPolicy<TCHAR>>::Create(&OldValStr);
+				TSharedRef<TJsonWriter<>> NewWriter = TJsonWriterFactory<>::Create(&NewValStr);
+				TSharedRef<TJsonWriter<>> OldWriter = TJsonWriterFactory<>::Create(&OldValStr);
 
 				FJsonSerializer::Serialize(Pair.Value, Pair.Key, NewWriter);
 				FJsonSerializer::Serialize(OldObj->Values[Pair.Key], Pair.Key, OldWriter);
@@ -600,7 +600,11 @@ bool USHPrimordiaClient::ParseDirectiveBatch(const FString& Json, FSHPrimordiaDi
 			Directive.SecondaryLocation.Z = (*LocObj)->GetNumberField(TEXT("z"));
 		}
 
-		Obj->TryGetStringField(TEXT("sector"), Directive.SectorTag);
+		FString SectorTagString;
+		if (Obj->TryGetStringField(TEXT("sector"), SectorTagString))
+		{
+			Directive.SectorTag = FName(*SectorTagString);
+		}
 
 		// Assigned squads
 		const TArray<TSharedPtr<FJsonValue>>* SquadArr = nullptr;

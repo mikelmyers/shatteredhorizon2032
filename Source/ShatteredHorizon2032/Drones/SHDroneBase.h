@@ -7,6 +7,7 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/AudioComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SphereComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
@@ -198,7 +199,7 @@ public:
 	FSHOnSignalLinkChanged OnSignalLinkChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "SH|Drone|Events")
-	FSHOnBatteryDepleted OnBatteryDepleted;
+	FSHOnBatteryDepleted OnBatteryDepletedEvent;
 
 	// ------------------------------------------------------------------
 	//  Properties
@@ -403,7 +404,7 @@ protected:
 	virtual void TickDroneBehavior(float DeltaSeconds);
 
 	/** Called when the drone runs out of battery. */
-	virtual void OnBatteryDepleted();
+	virtual void HandleBatteryDepleted();
 
 	/** Called when signal link quality changes. */
 	virtual void OnSignalLinkQualityChanged(ESHSignalLinkQuality OldQuality, ESHSignalLinkQuality NewQuality);

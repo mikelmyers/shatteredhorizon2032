@@ -19,7 +19,7 @@ class ASHPlayerCharacter;
  * tightens enemy lethality while increasing pressure on the player.
  */
 UENUM(BlueprintType)
-enum class ESHDifficultyTier : uint8
+enum class ESHRuntimeDifficultyTier : uint8
 {
 	/** Thinker & Mnemonic disabled; reactive only. */
 	Recruit            UMETA(DisplayName = "Recruit"),
@@ -49,7 +49,7 @@ enum class ESHDifficultyTier : uint8
  * cognitive settings, and player-facing modifiers.
  */
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHDifficultyConfig
+struct SHATTEREDHORIZON2032_API FSHRuntimeDifficultyConfig
 {
 	GENERATED_BODY()
 
@@ -204,7 +204,7 @@ struct SHATTEREDHORIZON2032_API FSHDifficultyConfig
 //  Difficulty delegate
 // -----------------------------------------------------------------------
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnDifficultyChanged, ESHDifficultyTier, NewTier);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnDifficultyChanged, ESHRuntimeDifficultyTier, NewTier);
 
 // -----------------------------------------------------------------------
 //  USHDifficultySettings
@@ -259,7 +259,7 @@ public:
 	/** Per-tier difficulty configurations. Populated with defaults on construction. */
 	UPROPERTY(EditAnywhere, config, BlueprintReadOnly, Category = "Difficulty",
 		meta = (DisplayName = "Difficulty Configurations"))
-	TMap<ESHDifficultyTier, FSHDifficultyConfig> DifficultyConfigs;
+	TMap<ESHRuntimeDifficultyTier, FSHRuntimeDifficultyConfig> DifficultyConfigs;
 
 	// ------------------------------------------------------------------
 	//  Active difficulty
@@ -267,19 +267,19 @@ public:
 
 	/** Get the config for a specific tier. Falls back to Hardened if tier is missing. */
 	UFUNCTION(BlueprintPure, Category = "SH|Difficulty")
-	const FSHDifficultyConfig& GetConfigForTier(ESHDifficultyTier Tier) const;
+	const FSHRuntimeDifficultyConfig& GetConfigForTier(ESHRuntimeDifficultyTier Tier) const;
 
 	/** Get the config for the currently active difficulty tier. */
 	UFUNCTION(BlueprintPure, Category = "SH|Difficulty")
-	const FSHDifficultyConfig& GetCurrentConfig() const;
+	const FSHRuntimeDifficultyConfig& GetCurrentConfig() const;
 
 	/** Set the active difficulty tier. Broadcasts OnDifficultyChanged. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Difficulty")
-	void SetActiveDifficulty(ESHDifficultyTier NewTier);
+	void SetActiveDifficulty(ESHRuntimeDifficultyTier NewTier);
 
 	/** Get the currently active difficulty tier. */
 	UFUNCTION(BlueprintPure, Category = "SH|Difficulty")
-	ESHDifficultyTier GetActiveDifficulty() const { return ActiveDifficulty; }
+	ESHRuntimeDifficultyTier GetActiveDifficulty() const { return ActiveDifficulty; }
 
 	// ------------------------------------------------------------------
 	//  Application helpers
@@ -314,8 +314,8 @@ private:
 
 	/** The currently active difficulty tier. */
 	UPROPERTY(config)
-	ESHDifficultyTier ActiveDifficulty = ESHDifficultyTier::Hardened;
+	ESHRuntimeDifficultyTier ActiveDifficulty = ESHRuntimeDifficultyTier::Hardened;
 
 	/** Fallback config returned when a tier lookup fails. */
-	static const FSHDifficultyConfig FallbackConfig;
+	static const FSHRuntimeDifficultyConfig FallbackConfig;
 };

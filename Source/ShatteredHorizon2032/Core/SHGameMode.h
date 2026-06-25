@@ -11,6 +11,7 @@ class ASHPlayerController;
 class ASHPlayerCharacter;
 class ASHEnemyCharacter;
 class USHPrimordiaDecisionEngine;
+class USHMissionDefinition;
 
 /** Mission phases representing the arc of the Taoyuan Beach defense. */
 UENUM(BlueprintType)
@@ -88,6 +89,16 @@ struct FSHDynamicObjective
 	ESHMissionPhase RelevantPhase = ESHMissionPhase::BeachAssault;
 };
 
+/** Reflection-friendly wrapper for the waves configured for a mission phase. */
+USTRUCT(BlueprintType)
+struct FSHPhaseReinforcementPlan
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FSHReinforcementWave> Waves;
+};
+
 /**
  * ASHGameMode
  *
@@ -96,13 +107,27 @@ struct FSHDynamicObjective
  * dynamic objective generation, and interfaces with the Primordia AI
  * director to drive enemy grand strategy.
  */
-UCLASS()
+UCLASS(Config = Game)
 class SHATTEREDHORIZON2032_API ASHGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
 	ASHGameMode();
+
+	/** Dev/QA: when true, periodically writes screenshots during play
+	 *  (used by automated soak tests; off by default). */
+	UPROPERTY(Config)
+	bool bSoakScreenshots = false;
+
+	/** Interval between soak screenshots (s). */
+	UPROPERTY(Config)
+	float SoakScreenshotInterval = 12.f;
+
+protected:
+	FTimerHandle SoakScreenshotTimerHandle;
+
+public:
 
 	// ------------------------------------------------------------------
 	//  AGameModeBase overrides
@@ -187,6 +212,12 @@ protected:
 	/** Spawn units for a reinforcement wave. */
 	void ExecuteWaveSpawn(const FSHReinforcementWave& Wave);
 
+	/** Attempt to construct and validate the Taoyuan mission definition for runtime use. */
+	void InitializeMissionDefinition();
+
+	/** Return the next phase in the active mission definition order, or unset if none. */
+	TOptional<ESHMissionPhase> GetNextMissionPhase(ESHMissionPhase Phase) const;
+
 	/** Push updated objectives to the game state for replication. */
 	void ReplicateObjectivesToGameState();
 
@@ -208,11 +239,15 @@ protected:
 
 	/** Reinforcement wave definitions per phase. */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Reinforcements")
-	TMap<ESHMissionPhase, TArray<FSHReinforcementWave>> PhaseReinforcementTemplates;
+	TMap<ESHMissionPhase, FSHPhaseReinforcementPlan> PhaseReinforcementTemplates;
 
 	/** Primordia AI tick interval (seconds). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|AI")
 	float PrimordiaTickInterval = 5.f;
+
+	/** If true, runtime attempts to load the code-authored Taoyuan mission definition. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Mission")
+	bool bUseCodeAuthoredMissionDefinition = true;
 
 	/** In-game time at mission start (24 h format, e.g. 5.5 = 05:30). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Environment")
@@ -268,6 +303,10 @@ private:
 	/** Primordia decision engine instance for tactical order assignment. */
 	UPROPERTY()
 	TObjectPtr<USHPrimordiaDecisionEngine> PrimordiaDecisionEngine = nullptr;
+
+	/** Code-authored mission definition currently driving phase data when available. */
+	UPROPERTY(Transient)
+	TObjectPtr<USHMissionDefinition> ActiveMissionDefinition = nullptr;
 
 	/** Auto-incrementing squad ID for Primordia registration. */
 	int32 NextSquadId = 1;

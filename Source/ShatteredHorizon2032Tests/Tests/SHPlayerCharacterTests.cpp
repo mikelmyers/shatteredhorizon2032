@@ -6,12 +6,33 @@
 // weight calculation, movement penalties, injury effects, suppression
 // decay, and weapon integration. Designed to catch integration bugs
 // between the character, weapon, camera, and combat stress systems.
+//
+// NOTE: Several character config values (BaseWalkSpeed, SprintSpeedMultiplier,
+// etc.) are protected UPROPERTYs. We access them via UE reflection so that
+// tests compile without modifying the runtime header.
 
 #include "Misc/AutomationTest.h"
 #include "Core/SHPlayerCharacter.h"
 #include "Core/SHGameMode.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_AUTOMATION_TESTS
+
+// ========================================================================
+//  Reflection helper -- read a protected UPROPERTY float from a CDO
+// ========================================================================
+
+namespace SHTestHelpers
+{
+	static float GetFloatProperty(const UObject* Obj, FName PropName)
+	{
+		if (const FFloatProperty* Prop = CastField<FFloatProperty>(Obj->GetClass()->FindPropertyByName(PropName)))
+		{
+			return Prop->GetPropertyValue_InContainer(Obj);
+		}
+		return 0.f;
+	}
+}
 
 // ========================================================================
 //  Weight system: doctrine max carry weight is 45 kg
@@ -21,27 +42,31 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerChar_WeightConstants, "SH2032.Player.Wei
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FPlayerChar_WeightConstants::RunTest(const FString&)
 {
-	ASHPlayerCharacter* DefaultChar = GetMutableDefault<ASHPlayerCharacter>();
+	const ASHPlayerCharacter* DefaultChar = GetDefault<ASHPlayerCharacter>();
 
 	// Max carry weight per USMC doctrine: 45 kg
-	TestEqual(TEXT("Max carry weight is 45 kg"), DefaultChar->GetMaxCarryWeight(), 45.f);
+	const float MaxCarryWeight = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("MaxCarryWeight"));
+	TestEqual(TEXT("Max carry weight is 45 kg"), MaxCarryWeight, 45.f);
 
 	// Base walk speed should be reasonable (300-400 cm/s is ~3-4 m/s walking)
-	const float BaseSpeed = DefaultChar->BaseWalkSpeed;
+	const float BaseSpeed = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("BaseWalkSpeed"));
 	TestTrue(TEXT("Base walk speed >= 300"), BaseSpeed >= 300.f);
 	TestTrue(TEXT("Base walk speed <= 500"), BaseSpeed <= 500.f);
 
 	// Sprint should be 1.5-2.0x walk speed
-	TestTrue(TEXT("Sprint multiplier >= 1.5"), DefaultChar->SprintSpeedMultiplier >= 1.5f);
-	TestTrue(TEXT("Sprint multiplier <= 2.2"), DefaultChar->SprintSpeedMultiplier <= 2.2f);
+	const float SprintMult = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("SprintSpeedMultiplier"));
+	TestTrue(TEXT("Sprint multiplier >= 1.5"), SprintMult >= 1.5f);
+	TestTrue(TEXT("Sprint multiplier <= 2.2"), SprintMult <= 2.2f);
 
 	// Crouch should be 40-60% walk speed
-	TestTrue(TEXT("Crouch multiplier >= 0.3"), DefaultChar->CrouchSpeedMultiplier >= 0.3f);
-	TestTrue(TEXT("Crouch multiplier <= 0.7"), DefaultChar->CrouchSpeedMultiplier <= 0.7f);
+	const float CrouchMult = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("CrouchSpeedMultiplier"));
+	TestTrue(TEXT("Crouch multiplier >= 0.3"), CrouchMult >= 0.3f);
+	TestTrue(TEXT("Crouch multiplier <= 0.7"), CrouchMult <= 0.7f);
 
 	// Prone should be 15-35% walk speed
-	TestTrue(TEXT("Prone multiplier >= 0.15"), DefaultChar->ProneSpeedMultiplier >= 0.15f);
-	TestTrue(TEXT("Prone multiplier <= 0.35"), DefaultChar->ProneSpeedMultiplier <= 0.35f);
+	const float ProneMult = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("ProneSpeedMultiplier"));
+	TestTrue(TEXT("Prone multiplier >= 0.15"), ProneMult >= 0.15f);
+	TestTrue(TEXT("Prone multiplier <= 0.35"), ProneMult <= 0.35f);
 
 	return true;
 }
@@ -54,15 +79,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerChar_HealthSystem, "SH2032.Player.Health
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FPlayerChar_HealthSystem::RunTest(const FString&)
 {
-	ASHPlayerCharacter* DefaultChar = GetMutableDefault<ASHPlayerCharacter>();
+	const ASHPlayerCharacter* DefaultChar = GetDefault<ASHPlayerCharacter>();
 
 	// Max health should be standard (not inflated)
 	TestTrue(TEXT("Max health <= 200"), DefaultChar->GetMaxHealth() <= 200.f);
 	TestTrue(TEXT("Max health >= 50"), DefaultChar->GetMaxHealth() >= 50.f);
 
 	// Bleed damage should be meaningful (1-5 HP/s per limb)
-	TestTrue(TEXT("Bleed damage >= 1.0"), DefaultChar->BleedDamagePerSecond >= 1.f);
-	TestTrue(TEXT("Bleed damage <= 10.0"), DefaultChar->BleedDamagePerSecond <= 10.f);
+	const float BleedDPS = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("BleedDamagePerSecond"));
+	TestTrue(TEXT("Bleed damage >= 1.0"), BleedDPS >= 1.f);
+	TestTrue(TEXT("Bleed damage <= 10.0"), BleedDPS <= 10.f);
 
 	return true;
 }
@@ -105,18 +131,20 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerChar_Suppression, "SH2032.Player.Suppres
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FPlayerChar_Suppression::RunTest(const FString&)
 {
-	ASHPlayerCharacter* DefaultChar = GetMutableDefault<ASHPlayerCharacter>();
+	const ASHPlayerCharacter* DefaultChar = GetDefault<ASHPlayerCharacter>();
 
 	// Suppression should decay over time (not stay forever)
-	TestTrue(TEXT("Suppression decays"), DefaultChar->SuppressionDecayRate > 0.f);
+	const float DecayRate = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("SuppressionDecayRate"));
+	TestTrue(TEXT("Suppression decays"), DecayRate > 0.f);
 
 	// Max suppression should be 1.0 (normalized)
-	TestEqual(TEXT("Max suppression is 1.0"), DefaultChar->MaxSuppression, 1.f);
+	const float MaxSup = SHTestHelpers::GetFloatProperty(DefaultChar, TEXT("MaxSuppression"));
+	TestEqual(TEXT("Max suppression is 1.0"), MaxSup, 1.f);
 
 	// At full suppression decay rate, should clear in < 10 seconds
-	const float FullClearTime = DefaultChar->MaxSuppression / DefaultChar->SuppressionDecayRate;
+	const float FullClearTime = MaxSup / DecayRate;
 	TestTrue(TEXT("Suppression clears in < 15s"), FullClearTime < 15.f);
-	// But not too fast — should take at least 2 seconds
+	// But not too fast -- should take at least 2 seconds
 	TestTrue(TEXT("Suppression takes >= 2s to clear"), FullClearTime >= 2.f);
 
 	return true;

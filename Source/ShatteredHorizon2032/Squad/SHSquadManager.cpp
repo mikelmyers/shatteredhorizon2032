@@ -2,10 +2,12 @@
 
 #include "SHSquadManager.h"
 #include "SHSquadMember.h"
+#include "EW/SHCommsDisruption.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 #include "CollisionQueryParams.h"
 #include "DrawDebugHelpers.h"
 
@@ -142,9 +144,7 @@ void USHSquadManager::IssueSquadOrder(const FSHSquadOrder& Order)
 	{
 		if (M && M->CanExecuteOrders())
 		{
-			FSHSquadOrder MemberOrder = Order;
-			MemberOrder.Timestamp = GetWorld()->GetTimeSeconds();
-			M->ReceiveOrder(MemberOrder);
+			DispatchOrderTo(M, Order);
 		}
 	}
 }
@@ -153,9 +153,7 @@ void USHSquadManager::IssueOrderToMember(int32 MemberIndex, const FSHSquadOrder&
 {
 	if (SquadMembers.IsValidIndex(MemberIndex) && SquadMembers[MemberIndex])
 	{
-		FSHSquadOrder TimedOrder = Order;
-		TimedOrder.Timestamp = GetWorld()->GetTimeSeconds();
-		SquadMembers[MemberIndex]->ReceiveOrder(TimedOrder);
+		DispatchOrderTo(SquadMembers[MemberIndex], Order);
 	}
 }
 
@@ -166,11 +164,60 @@ void USHSquadManager::IssueOrderToBuddyTeam(ESHBuddyTeam Team, const FSHSquadOrd
 	{
 		if (M && M->CanExecuteOrders())
 		{
-			FSHSquadOrder TimedOrder = Order;
-			TimedOrder.Timestamp = GetWorld()->GetTimeSeconds();
-			M->ReceiveOrder(TimedOrder);
+			DispatchOrderTo(M, Order);
 		}
 	}
+}
+
+void USHSquadManager::DispatchOrderTo(ASHSquadMember* Member, const FSHSquadOrder& Order)
+{
+	if (!Member || !GetWorld())
+	{
+		return;
+	}
+
+	FSHSquadOrder TimedOrder = Order;
+	TimedOrder.Timestamp = GetWorld()->GetTimeSeconds();
+
+	// Apply communications jamming from the player's radio position. Only kicks
+	// in inside enemy EW zones; clear comms are an immediate no-op.
+	if (const AActor* Owner = GetOwner())
+	{
+		if (const USHCommsDisruption* Comms = Owner->FindComponentByClass<USHCommsDisruption>())
+		{
+			const FSHOrderDisruptionInfo Info = Comms->EvaluateOrderDisruption();
+
+			if (Info.bLost)
+			{
+				// Order never reaches the member under heavy jamming. Squad AI
+				// falls back to autonomous behavior.
+				UE_LOG(LogTemp, Log, TEXT("[SquadManager] Order to %s lost to comms jamming."),
+					*Member->GetName());
+				return;
+			}
+
+			if (Info.bDelayed && Info.DelaySeconds > 0.f)
+			{
+				TWeakObjectPtr<ASHSquadMember> WeakMember(Member);
+				FTimerHandle Handle;
+				FTimerDelegate Delegate;
+				Delegate.BindLambda([WeakMember, TimedOrder]()
+				{
+					if (ASHSquadMember* SM = WeakMember.Get())
+					{
+						if (SM->CanExecuteOrders())
+						{
+							SM->ReceiveOrder(TimedOrder);
+						}
+					}
+				});
+				GetWorld()->GetTimerManager().SetTimer(Handle, Delegate, Info.DelaySeconds, false);
+				return;
+			}
+		}
+	}
+
+	Member->ReceiveOrder(TimedOrder);
 }
 
 void USHSquadManager::OrderMoveTo(const FVector& Location)

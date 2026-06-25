@@ -10,6 +10,7 @@
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Damage.h"
+#include "Perception/AIPerceptionTypes.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
@@ -92,6 +93,12 @@ void ASHSquadAIController::OnPossess(APawn* InPawn)
 		BlackboardComp->InitializeBlackboard(*SquadMemberBT->BlackboardAsset);
 		BehaviorTreeComp->StartTree(*SquadMemberBT);
 	}
+	else
+	{
+		// No tree authored — drop the blackboard so guarded call sites no-op
+		// instead of spamming BlackboardAsset ensures.
+		BlackboardComp = nullptr;
+	}
 
 	SyncBlackboard();
 }
@@ -138,8 +145,11 @@ void ASHSquadAIController::OnPerceptionUpdated(const TArray<AActor*>& UpdatedAct
 	// Handled via OnTargetPerceptionInfoUpdated instead
 }
 
-void ASHSquadAIController::OnTargetPerceptionInfoUpdated(AActor* Actor, FAIStimulus Stimulus)
+void ASHSquadAIController::OnTargetPerceptionInfoUpdated(const FActorPerceptionUpdateInfo& UpdateInfo)
 {
+	AActor* Actor = UpdateInfo.Target.Get();
+	const FAIStimulus& Stimulus = UpdateInfo.Stimulus;
+
 	if (!Actor || !ControlledMember.IsValid()) return;
 
 	// Route by sense type
@@ -459,8 +469,8 @@ void ASHSquadAIController::RequestCoverPosition()
 
 	if (QueryInstance)
 	{
-		QueryInstance->GetOnQueryFinishedEvent().AddDynamic(this, &ASHSquadAIController::RequestCoverPosition);
-		// Note: in production we'd bind to a proper delegate. For now, use polling in Tick.
+		// EQS hookup is pending a proper wrapper callback for UE 5.7.
+		// Keep the manual cover search below as the authoritative fallback.
 	}
 
 	// Fallback: manual raycast cover search
@@ -960,7 +970,9 @@ void ASHSquadAIController::ApplyFieldTreatment(AActor* WoundedAlly)
 			*GetPawn()->GetName(), *WoundedAlly->GetName());
 	}
 
-	// Reset state.
+	// Reset state. Restore drag speed in case we dragged before treating
+	// (no-op if the penalty was never applied).
+	RestoreDragMovementSpeed();
 	bIsTreatingCasualty = false;
 	CurrentCasualty = nullptr;
 	TreatmentTimer = 0.f;
@@ -979,15 +991,8 @@ void ASHSquadAIController::BeginDragToSafety(AActor* WoundedAlly)
 	CurrentCasualty = WoundedAlly;
 	CombatState = ESHAICombatState::DraggingWounded;
 
-	// Move to cover with the wounded ally.
-	// Movement speed is reduced while dragging.
-	if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
-	{
-		if (UCharacterMovementComponent* CMC = MyChar->GetCharacterMovement())
-		{
-			CMC->MaxWalkSpeed *= 0.3f; // 30% speed while dragging.
-		}
-	}
+	// Move to cover with the wounded ally. Movement speed is reduced while dragging.
+	ApplyDragMovementSpeed();
 
 	MoveToTacticalPosition(BestCoverPosition);
 
@@ -1002,17 +1007,8 @@ void ASHSquadAIController::AbortCasualtyResponse()
 		return;
 	}
 
-	// Restore movement speed if was dragging.
-	if (CombatState == ESHAICombatState::DraggingWounded)
-	{
-		if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
-		{
-			if (UCharacterMovementComponent* CMC = MyChar->GetCharacterMovement())
-			{
-				CMC->MaxWalkSpeed /= 0.3f; // Restore original speed.
-			}
-		}
-	}
+	// Restore movement speed if it was reduced for dragging (no-op otherwise).
+	RestoreDragMovementSpeed();
 
 	bIsTreatingCasualty = false;
 	CurrentCasualty = nullptr;
@@ -1023,11 +1019,47 @@ void ASHSquadAIController::AbortCasualtyResponse()
 	TrySeekCover();
 }
 
+void ASHSquadAIController::ApplyDragMovementSpeed()
+{
+	if (bDragSpeedApplied)
+	{
+		return;
+	}
+
+	if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
+	{
+		if (UCharacterMovementComponent* CMC = MyChar->GetCharacterMovement())
+		{
+			PreDragWalkSpeed = CMC->MaxWalkSpeed;
+			CMC->MaxWalkSpeed *= 0.3f; // 30% speed while dragging.
+			bDragSpeedApplied = true;
+		}
+	}
+}
+
+void ASHSquadAIController::RestoreDragMovementSpeed()
+{
+	if (!bDragSpeedApplied)
+	{
+		return;
+	}
+
+	if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
+	{
+		if (UCharacterMovementComponent* CMC = MyChar->GetCharacterMovement())
+		{
+			CMC->MaxWalkSpeed = PreDragWalkSpeed; // Restore the exact pre-drag speed.
+		}
+	}
+
+	bDragSpeedApplied = false;
+}
+
 bool ASHSquadAIController::IsCorpsman() const
 {
 	if (const ASHSquadMember* Member = Cast<ASHSquadMember>(GetPawn()))
 	{
-		return Member->GetRole() == ESHSquadRole::Corpsman;
+		return Member->SquadRole == ESHSquadRole::TeamLeader;
 	}
 	return false;
 }

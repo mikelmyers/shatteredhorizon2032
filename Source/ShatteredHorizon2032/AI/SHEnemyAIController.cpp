@@ -8,6 +8,7 @@
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Perception/AIPerceptionComponent.h"
+#include "Perception/AIPerceptionTypes.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Damage.h"
@@ -22,6 +23,7 @@
 #include "Primordia/SHPrimordiaSimulon.h"
 #include "Primordia/SHPrimordiaAstraea.h"
 #include "Primordia/SHPrimordiaDebugOverlay.h"
+#include "World/SHWeatherSystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSHEnemyAI, Log, All);
 
@@ -65,12 +67,12 @@ void ASHEnemyAIController::OnPossess(APawn* InPawn)
 	}
 
 	// Cache perception config
-	PerceptionConfig = EnemyCharacter->FindComponentByClass<USHAIPerceptionConfig>();
+	PerceptionConfig = EnemyCharacter->PerceptionConfig;
 
 	// Setup perception senses
 	{
 		UAISenseConfig_Sight* SightCfg = NewObject<UAISenseConfig_Sight>(this);
-		const float BaseSightRange = PerceptionConfig ? PerceptionConfig->GetSightRange(GetCurrentVisibilityCondition()) : 6000.f;
+		const float BaseSightRange = PerceptionConfig ? PerceptionConfig->GetSightRange(GetCurrentVisibilityCondition()).MaxRange : 6000.f;
 		SightCfg->SightRadius = BaseSightRange;
 		SightCfg->LoseSightRadius = BaseSightRange * 1.25f;
 		SightCfg->PeripheralVisionAngleDegrees = 70.f;
@@ -82,7 +84,7 @@ void ASHEnemyAIController::OnPossess(APawn* InPawn)
 		AIPerceptionComp->ConfigureSense(*SightCfg);
 
 		UAISenseConfig_Hearing* HearCfg = NewObject<UAISenseConfig_Hearing>(this);
-		HearCfg->HearingRange = PerceptionConfig ? PerceptionConfig->GetHearingRange(ESHSoundType::Gunfire) : 8000.f;
+		HearCfg->HearingRange = PerceptionConfig ? PerceptionConfig->GetHearingRange(ESHSoundType::GunfireUnsuppressed).MaxRange : 8000.f;
 		HearCfg->SetMaxAge(10.f);
 		HearCfg->DetectionByAffiliation.bDetectEnemies = true;
 		HearCfg->DetectionByAffiliation.bDetectNeutrals = true;
@@ -104,6 +106,12 @@ void ASHEnemyAIController::OnPossess(APawn* InPawn)
 	{
 		BlackboardComp->InitializeBlackboard(*BehaviorTreeAsset->BlackboardAsset);
 		BehaviorTreeComp->StartTree(*BehaviorTreeAsset);
+	}
+	else
+	{
+		// No tree authored — drop the blackboard so the (guarded) call sites
+		// no-op instead of spamming BlackboardAsset ensures every frame.
+		BlackboardComp = nullptr;
 	}
 
 	AwarenessState = ESHAwarenessState::Unaware;
@@ -183,6 +191,14 @@ void ASHEnemyAIController::Tick(float DeltaSeconds)
 		}
 	}
 
+	// Feed the unit's live morale to Aletheia so its decision validator can veto
+	// offensive decisions (Attack/Advance/Flank) from broken units. Without this
+	// the validator's morale stays at its 1.0 default and the gate never fires.
+	if (PrimordiaAletheia && EnemyCharacter)
+	{
+		PrimordiaAletheia->SetCurrentMorale(EnemyCharacter->GetMoraleValue());
+	}
+
 	// Record AI decision for debug overlay.
 	if (PrimordiaDebugOverlay && PrimordiaDebugOverlay->IsOverlayVisible())
 	{
@@ -243,8 +259,11 @@ void ASHEnemyAIController::UpdateControlRotation(float DeltaTime, bool bUpdatePa
 //  Perception
 // -----------------------------------------------------------------------
 
-void ASHEnemyAIController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
+void ASHEnemyAIController::OnPerceptionUpdated(const FActorPerceptionUpdateInfo& UpdateInfo)
 {
+	AActor* Actor = UpdateInfo.Target.Get();
+	const FAIStimulus& Stimulus = UpdateInfo.Stimulus;
+
 	if (!Actor) return;
 
 	if (Stimulus.Type == UAISense::GetSenseID<UAISense_Sight>())
@@ -274,7 +293,7 @@ void ASHEnemyAIController::ProcessSightStimulus(AActor* Actor, const FAIStimulus
 	float& Accumulation = DetectionAccumulation.FindOrAdd(Actor, 0.f);
 
 	const float Distance = FVector::Dist(GetPawn()->GetActorLocation(), Actor->GetActorLocation());
-	const float MaxSight = AIPerceptionComp->GetMaxSightRange();
+	const float MaxSight = PerceptionConfig ? PerceptionConfig->GetSightRange(GetCurrentVisibilityCondition()).MaxRange : 6000.f;
 	const float DistanceFactor = FMath::Clamp(1.f - (Distance / FMath::Max(MaxSight, 1.f)), 0.1f, 1.f);
 
 	// Visibility conditions affect detection speed
@@ -285,8 +304,8 @@ void ASHEnemyAIController::ProcessSightStimulus(AActor* Actor, const FAIStimulus
 	case ESHVisibilityCondition::Night:       ConditionMultiplier = 0.3f; break;
 	case ESHVisibilityCondition::Fog:         ConditionMultiplier = 0.4f; break;
 	case ESHVisibilityCondition::Smoke:       ConditionMultiplier = 0.2f; break;
-	case ESHVisibilityCondition::Rain:        ConditionMultiplier = 0.6f; break;
-	case ESHVisibilityCondition::DawnDusk:    ConditionMultiplier = 0.7f; break;
+	case ESHVisibilityCondition::HeavyRain:   ConditionMultiplier = 0.6f; break;
+	case ESHVisibilityCondition::Dusk:        ConditionMultiplier = 0.7f; break;
 	default:                                  ConditionMultiplier = 1.f;  break;
 	}
 
@@ -430,9 +449,78 @@ void ASHEnemyAIController::UpdateAwarenessState(float DeltaSeconds)
 
 ESHVisibilityCondition ASHEnemyAIController::GetCurrentVisibilityCondition() const
 {
-	// Query from game state weather/time if available
-	// Fallback to clear daylight
-	return ESHVisibilityCondition::Daylight;
+	// Derive the perception condition from the live weather subsystem. The
+	// detection-accumulation logic in ProcessSightStimulus already applies the
+	// per-condition multipliers (Night/Fog/HeavyRain/Dusk/Smoke) — this just
+	// feeds it the real environmental state instead of a hardcoded ClearDay.
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return ESHVisibilityCondition::ClearDay;
+	}
+
+	const USHWeatherSystem* Weather = World->GetSubsystem<USHWeatherSystem>();
+	if (!Weather)
+	{
+		return ESHVisibilityCondition::ClearDay;
+	}
+
+	const FSHWeatherState State = Weather->GetWeatherState();
+
+	// Atmospheric obscurants dominate whenever present.
+	switch (State.WeatherType)
+	{
+	case ESHWeatherType::Fog:
+	case ESHWeatherType::DenseFog:
+		return ESHVisibilityCondition::Fog;
+	case ESHWeatherType::HeavyRain:
+	case ESHWeatherType::Storm:
+		return ESHVisibilityCondition::HeavyRain;
+	default:
+		break;
+	}
+
+	// Otherwise lighting is driven by time of day. Night/dawn/dusk meaningfully
+	// degrade detection (no NVG modelled here — that is per-unit equipment).
+	switch (State.TimeOfDay)
+	{
+	case ESHTimeOfDay::Night:
+		return ESHVisibilityCondition::Night;
+	case ESHTimeOfDay::Dawn:
+	case ESHTimeOfDay::Dusk:
+		return ESHVisibilityCondition::Dusk;
+	default:
+		break;
+	}
+
+	// Daytime overcast / light rain reduces clarity slightly.
+	if (State.WeatherType == ESHWeatherType::Overcast
+		|| State.WeatherType == ESHWeatherType::LightRain)
+	{
+		return ESHVisibilityCondition::Overcast;
+	}
+
+	return ESHVisibilityCondition::ClearDay;
+}
+
+float ASHEnemyAIController::GetCombatEffectiveness() const
+{
+	return PrimordiaAstraea ? PrimordiaAstraea->GetCombatEffectiveness() : 1.f;
+}
+
+float ASHEnemyAIController::GetTargetLeadConfidence(AActor* Target) const
+{
+	if (!PrimordiaSimulon || !Target)
+	{
+		return 0.f;
+	}
+
+	FSHThreatModel Model;
+	if (PrimordiaSimulon->GetThreatModelForActor(Target, Model))
+	{
+		return Model.Confidence;
+	}
+	return 0.f;
 }
 
 // -----------------------------------------------------------------------
@@ -480,7 +568,13 @@ AActor* ASHEnemyAIController::SelectBestTarget() const
 	// Primordia Aletheia validation — reject obviously bad target selections.
 	if (Best && PrimordiaAletheia)
 	{
-		if (!PrimordiaAletheia->ValidateTargetSelection(Best, BestScore))
+		FSHAIDecision Decision;
+		Decision.DecisionType = ESHAIDecisionType::Attack;
+		Decision.TargetLocation = Best->GetActorLocation();
+		Decision.Confidence = FMath::Clamp(BestScore / 100.f, 0.f, 1.f);
+		Decision.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+
+		if (!PrimordiaAletheia->IsDecisionValid(Decision))
 		{
 			UE_LOG(LogSHEnemyAI, Verbose, TEXT("Aletheia rejected target %s (score %.1f)"),
 				*Best->GetName(), BestScore);
@@ -634,7 +728,7 @@ ESHCombatBehavior ASHEnemyAIController::EvaluateBestBehavior() const
 	}
 
 	// Grenade opportunity
-	if (EvaluateGrenadeUsage())
+	if (const_cast<ASHEnemyAIController*>(this)->EvaluateGrenadeUsage())
 	{
 		return ESHCombatBehavior::ThrowingGrenade;
 	}
@@ -782,7 +876,7 @@ void ASHEnemyAIController::OrderSuppressiveFire(FVector TargetLocation, float Du
 	// Duration managed by behavior tree
 }
 
-bool ASHEnemyAIController::EvaluateGrenadeUsage()
+bool ASHEnemyAIController::EvaluateGrenadeUsage() const
 {
 	if (!GetPawn()) return false;
 

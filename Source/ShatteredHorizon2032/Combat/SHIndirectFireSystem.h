@@ -10,7 +10,7 @@
  * Ordnance type for indirect fire missions.
  */
 UENUM(BlueprintType)
-enum class ESHOrdnanceType : uint8
+enum class ESHIndirectOrdnanceType : uint8
 {
 	HE_60mm			UMETA(DisplayName = "60mm HE Mortar"),
 	HE_81mm			UMETA(DisplayName = "81mm HE Mortar"),
@@ -24,7 +24,7 @@ enum class ESHOrdnanceType : uint8
  * Fire mission request status.
  */
 UENUM(BlueprintType)
-enum class ESHFireMissionState : uint8
+enum class ESHIndirectFireMissionState : uint8
 {
 	/** Awaiting observer confirmation. */
 	Pending,
@@ -42,7 +42,7 @@ enum class ESHFireMissionState : uint8
  * A single fire mission request.
  */
 USTRUCT(BlueprintType)
-struct SHATTEREDHORIZON2032_API FSHFireMission
+struct SHATTEREDHORIZON2032_API FSHIndirectFireMission
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct SHATTEREDHORIZON2032_API FSHFireMission
 	FGuid MissionId;
 
 	UPROPERTY(BlueprintReadOnly)
-	ESHOrdnanceType Ordnance = ESHOrdnanceType::HE_81mm;
+	ESHIndirectOrdnanceType Ordnance = ESHIndirectOrdnanceType::HE_81mm;
 
 	/** Target center in world space. */
 	UPROPERTY(BlueprintReadOnly)
@@ -82,7 +82,7 @@ struct SHATTEREDHORIZON2032_API FSHFireMission
 
 	/** Current state. */
 	UPROPERTY(BlueprintReadOnly)
-	ESHFireMissionState State = ESHFireMissionState::Pending;
+	ESHIndirectFireMissionState State = ESHIndirectFireMissionState::Pending;
 
 	/** World time the mission was approved / rounds left the tube. */
 	float FireTime = 0.f;
@@ -111,8 +111,8 @@ struct SHATTEREDHORIZON2032_API FSHFireMission
 //  Delegates
 // -----------------------------------------------------------------------
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFireMissionStateChanged, const FSHFireMission&, Mission);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnIndirectImpact, FVector, ImpactLocation, ESHOrdnanceType, Ordnance);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFireMissionStateChanged, const FSHIndirectFireMission&, Mission);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnIndirectImpact, FVector, ImpactLocation, ESHIndirectOrdnanceType, Ordnance);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCounterBatteryDetected, FVector, DetectedFiringOrigin);
 
 /**
@@ -149,7 +149,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SH|IndirectFire")
 	FGuid RequestFireMission(
 		AActor* Observer,
-		ESHOrdnanceType Ordnance,
+		ESHIndirectOrdnanceType Ordnance,
 		FVector TargetLocation,
 		int32 RoundCount = 3);
 
@@ -163,7 +163,7 @@ public:
 
 	/** Query a fire mission by ID. */
 	UFUNCTION(BlueprintCallable, Category = "SH|IndirectFire")
-	bool GetFireMission(const FGuid& MissionId, FSHFireMission& OutMission) const;
+	bool GetFireMission(const FGuid& MissionId, FSHIndirectFireMission& OutMission) const;
 
 	// ------------------------------------------------------------------
 	//  Counter-battery
@@ -216,13 +216,13 @@ private:
 	// ------------------------------------------------------------------
 
 	/** Populate ordnance parameters (TOF, splash, damage, CEP). */
-	void GetOrdnanceParams(ESHOrdnanceType Type, float& OutTOF, float& OutSplashCm, float& OutDamage, float& OutCEP) const;
+	void GetOrdnanceParams(ESHIndirectOrdnanceType Type, float& OutTOF, float& OutSplashCm, float& OutDamage, float& OutCEP) const;
 
 	/** Check if any friendlies are within danger close radius of target. */
 	bool CheckDangerClose(FVector TargetLocation) const;
 
 	/** Apply a single round impact at location. */
-	void ApplyImpact(const FSHFireMission& Mission, FVector ImpactLocation);
+	void ApplyImpact(const FSHIndirectFireMission& Mission, FVector ImpactLocation);
 
 	/** Compute a CEP-dispersed impact point. */
 	FVector ComputeDispersedImpact(FVector Center, float CEP) const;
@@ -231,7 +231,7 @@ private:
 	FDelegateHandle TickDelegateHandle;
 
 	/** Active fire missions. */
-	TArray<FSHFireMission> ActiveMissions;
+	TArray<FSHIndirectFireMission> ActiveMissions;
 
 	/** Detected enemy battery positions (counter-battery). */
 	TArray<FVector> DetectedBatteries;

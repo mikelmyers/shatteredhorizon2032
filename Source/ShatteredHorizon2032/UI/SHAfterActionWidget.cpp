@@ -26,7 +26,7 @@ void USHAfterActionWidget::NativeOnDeactivated()
 // ------------------------------------------------------------------
 
 void USHAfterActionWidget::SetAfterActionData(
-	const FSHEngagementRecord& InRecord,
+	const FSHPlayerEngagementRecord& InRecord,
 	const FText& InAIAnalysis,
 	const FSHXPBreakdown& InXPBreakdown,
 	const FSHRankProgress& InRankProgress)

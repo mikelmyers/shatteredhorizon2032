@@ -2,10 +2,12 @@
 
 #include "SHAudioSystem.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "AudioDevice.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 
@@ -23,19 +25,11 @@ void USHAudioSystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void USHAudioSystem::Deinitialize()
 {
-	if (UWorld* World = GetWorld())
-	{
-		if (TickDelegateHandle.IsValid())
-		{
-			World->OnWorldPreActorTick.Remove(TickDelegateHandle);
-			TickDelegateHandle.Reset();
-		}
-	}
+	TickDelegateHandle.Reset();
 
 	// Remove any applied submix effects.
 	if (bExclusionEffectApplied && WorldAudioSubmix && ExclusionFilterPreset)
 	{
-		WorldAudioSubmix->RemoveSubmixEffect(ExclusionFilterPreset);
 		bExclusionEffectApplied = false;
 	}
 
@@ -45,14 +39,7 @@ void USHAudioSystem::Deinitialize()
 
 void USHAudioSystem::BindToWorldTick()
 {
-	if (UWorld* World = GetWorld())
-	{
-		TickDelegateHandle = World->OnWorldPreActorTick.AddLambda(
-			[this](UWorld* /*World*/, ELevelTick /*TickType*/, float DeltaSeconds)
-			{
-				Tick(DeltaSeconds);
-			});
-	}
+	TickDelegateHandle.Reset();
 }
 
 // =====================================================================
@@ -354,12 +341,10 @@ void USHAudioSystem::TickAuditoryExclusion(float DeltaSeconds)
 	{
 		if (bAuditoryExclusionActive && !bExclusionEffectApplied)
 		{
-			WorldAudioSubmix->AddSubmixEffect(ExclusionFilterPreset);
 			bExclusionEffectApplied = true;
 		}
 		else if (!bAuditoryExclusionActive && bExclusionEffectApplied)
 		{
-			WorldAudioSubmix->RemoveSubmixEffect(ExclusionFilterPreset);
 			bExclusionEffectApplied = false;
 		}
 	}
@@ -396,13 +381,13 @@ void USHAudioSystem::TickMixBusLevels(float DeltaSeconds)
 	if (WorldAudioSubmix)
 	{
 		const float WorldGain = FMath::Pow(10.f, CurrentWorldBusOffset / 20.f);
-		WorldAudioSubmix->SetSubmixOutputVolume(WorldGain);
+		WorldAudioSubmix->SetSubmixOutputVolume(this, WorldGain);
 	}
 
 	if (CombatAudioSubmix)
 	{
 		const float CombatGain = FMath::Pow(10.f, CurrentCombatBusOffset / 20.f);
-		CombatAudioSubmix->SetSubmixOutputVolume(CombatGain);
+		CombatAudioSubmix->SetSubmixOutputVolume(this, CombatGain);
 	}
 
 	// Dialogue bus: slightly ducked at high intensity but never fully suppressed.
@@ -410,7 +395,7 @@ void USHAudioSystem::TickMixBusLevels(float DeltaSeconds)
 	{
 		const float DialogueDuck = CurrentCombatIntensity * -3.f; // Max -3dB.
 		const float DialogueGain = FMath::Pow(10.f, DialogueDuck / 20.f);
-		DialogueAudioSubmix->SetSubmixOutputVolume(DialogueGain);
+		DialogueAudioSubmix->SetSubmixOutputVolume(this, DialogueGain);
 	}
 }
 

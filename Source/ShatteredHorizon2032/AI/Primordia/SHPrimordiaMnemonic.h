@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "GameFramework/SaveGame.h"
 #include "SHPrimordiaMnemonic.generated.h"
 
 /* -----------------------------------------------------------------------
@@ -82,6 +83,25 @@ struct SHATTEREDHORIZON2032_API FSHCounterStrategyRecommendation
  * --------------------------------------------------------------------- */
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnProfileUpdated, const FSHPlayerBehaviorProfile&, UpdatedProfile);
+
+UCLASS()
+class SHATTEREDHORIZON2032_API USHMnemonicSaveGame : public USaveGame
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	FSHPlayerBehaviorProfile Profile;
+
+	UPROPERTY()
+	TArray<FVector> ActionLocations;
+
+	UPROPERTY()
+	TArray<FName> ActionTypes;
+
+	UPROPERTY()
+	TArray<float> ActionTimestamps;
+};
 
 /* -----------------------------------------------------------------------
  *  USHPrimordiaMnemonic

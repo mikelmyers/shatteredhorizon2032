@@ -5,9 +5,12 @@
 #include "ShatteredHorizon2032/Weapons/SHBallisticsSystem.h"
 #include "ShatteredHorizon2032/Combat/SHSuppressionSystem.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/DamageEvents.h"
 #include "TimerManager.h"
@@ -885,7 +888,7 @@ void USHCallForFireSystem::ApplyBlastDamage(const FVector& Origin, const FSHOrdn
 		Data.BlastInnerRadius,
 		Data.BlastOuterRadius,
 		1.0f, // DamageFalloff exponent
-		IndirectFireDamageType ? IndirectFireDamageType.Get() : UDamageType::StaticClass(),
+		nullptr,
 		IgnoreActors,
 		GetOwner(),
 		InstigatorController);

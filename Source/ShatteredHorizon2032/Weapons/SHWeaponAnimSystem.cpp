@@ -50,6 +50,7 @@ void USHWeaponAnimSystem::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	TickReloadMotion(DeltaTime);
 	TickBreathingSway(DeltaTime);
 	TickIdleSway(DeltaTime);
+	TickWeaponLag(DeltaTime);
 }
 
 /* -----------------------------------------------------------------------
@@ -123,6 +124,11 @@ void USHWeaponAnimSystem::SetADSAlpha(float Alpha)
 void USHWeaponAnimSystem::SetFatigueLevel(float Level)
 {
 	FatigueLevel = FMath::Clamp(Level, 0.0f, 1.0f);
+}
+
+void USHWeaponAnimSystem::SetAimRotation(FRotator InAimRotation)
+{
+	CurrentAimRotation = InAimRotation;
 }
 
 void USHWeaponAnimSystem::OnReloadStarted()
@@ -416,6 +422,45 @@ void USHWeaponAnimSystem::TickIdleSway(float DeltaTime)
 
 	ProceduralLocationOffset += IdleSwayOffset;
 	ProceduralRotationOffset += IdleSwayRotation;
+}
+
+/* -----------------------------------------------------------------------
+ *  Tick: Weapon Turn Inertia — weapon lags behind fast camera turns
+ * --------------------------------------------------------------------- */
+
+void USHWeaponAnimSystem::TickWeaponLag(float DeltaTime)
+{
+	if (DeltaTime <= 0.0f)
+	{
+		return;
+	}
+
+	/* First valid frame: seed the reference and skip (no delta yet). */
+	if (!bHasAimRotation)
+	{
+		LastAimRotation = CurrentAimRotation;
+		bHasAimRotation = true;
+		return;
+	}
+
+	/* Angular turn rate this frame (degrees/second). */
+	const float YawRate = FRotator::NormalizeAxis(CurrentAimRotation.Yaw - LastAimRotation.Yaw) / DeltaTime;
+	const float PitchRate = FRotator::NormalizeAxis(CurrentAimRotation.Pitch - LastAimRotation.Pitch) / DeltaTime;
+	LastAimRotation = CurrentAimRotation;
+
+	/* Target lag opposes the turn, scaled by turn rate and clamped. When the
+	 * turn stops the target falls to zero, so the lag settles back naturally. */
+	const float TargetYawLag = FMath::Clamp(-YawRate * WeaponLagScale, -WeaponLagMaxDegrees, WeaponLagMaxDegrees);
+	const float TargetPitchLag = FMath::Clamp(-PitchRate * WeaponLagScale, -WeaponLagMaxDegrees, WeaponLagMaxDegrees);
+
+	WeaponLagOffset.Y = FMath::FInterpTo(WeaponLagOffset.Y, TargetYawLag, DeltaTime, WeaponLagInterpSpeed);
+	WeaponLagOffset.X = FMath::FInterpTo(WeaponLagOffset.X, TargetPitchLag, DeltaTime, WeaponLagInterpSpeed);
+
+	/* Reduce while ADS so the sight picture stays steady on target. */
+	const float ADSScale = FMath::Lerp(1.0f, 0.3f, CurrentADSAlpha);
+
+	ProceduralRotationOffset.Pitch += WeaponLagOffset.X * ADSScale;
+	ProceduralRotationOffset.Yaw += WeaponLagOffset.Y * ADSScale;
 }
 
 /* -----------------------------------------------------------------------

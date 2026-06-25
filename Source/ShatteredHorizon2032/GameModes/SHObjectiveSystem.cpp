@@ -9,7 +9,6 @@
 void USHObjectiveSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	BindToWorldTick();
 }
 
 void USHObjectiveSystem::Deinitialize()
@@ -18,7 +17,7 @@ void USHObjectiveSystem::Deinitialize()
 	{
 		if (TickDelegateHandle.IsValid())
 		{
-			World->OnWorldPreActorTick.Remove(TickDelegateHandle);
+			TickDelegateHandle.Reset();
 		}
 	}
 	Super::Deinitialize();
@@ -26,14 +25,7 @@ void USHObjectiveSystem::Deinitialize()
 
 void USHObjectiveSystem::BindToWorldTick()
 {
-	if (UWorld* World = GetWorld())
-	{
-		TickDelegateHandle = World->OnWorldPreActorTick.AddLambda(
-			[this](UWorld*, ELevelTick, float DeltaSeconds)
-			{
-				Tick(DeltaSeconds);
-			});
-	}
+	TickDelegateHandle.Reset();
 }
 
 void USHObjectiveSystem::Tick(float DeltaSeconds)

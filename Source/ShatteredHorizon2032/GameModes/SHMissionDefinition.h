@@ -497,7 +497,6 @@ public:
 	// ------------------------------------------------------------------
 
 	/** Find the phase definition for a given mission phase. Returns nullptr if not found. */
-	UFUNCTION(BlueprintPure, Category = "SH|Mission")
 	const FSHPhaseDefinition* GetPhaseDefinition(ESHMissionPhase Phase) const;
 
 	/** Get the mission briefing data. */

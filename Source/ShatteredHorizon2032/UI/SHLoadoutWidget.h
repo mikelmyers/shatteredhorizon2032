@@ -10,7 +10,7 @@ class USHWeaponDataAsset;
 
 /** Attachment slot types. */
 UENUM(BlueprintType)
-enum class ESHAttachmentSlot : uint8
+enum class ESHLoadoutAttachmentSlot : uint8
 {
 	Optic			UMETA(DisplayName = "Optic"),
 	Muzzle			UMETA(DisplayName = "Muzzle"),
@@ -22,7 +22,7 @@ enum class ESHAttachmentSlot : uint8
 
 /** Equipment slot types. */
 UENUM(BlueprintType)
-enum class ESHEquipmentSlot : uint8
+enum class ESHLoadoutEquipmentSlot : uint8
 {
 	Grenade			UMETA(DisplayName = "Grenade"),
 	Utility			UMETA(DisplayName = "Utility"),
@@ -38,7 +38,7 @@ struct FSHAttachmentEntry
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
-	ESHAttachmentSlot Slot = ESHAttachmentSlot::Optic;
+	ESHLoadoutAttachmentSlot Slot = ESHLoadoutAttachmentSlot::Optic;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
 	FName AttachmentID;
@@ -57,7 +57,7 @@ struct FSHEquipmentEntry
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
-	ESHEquipmentSlot Slot = ESHEquipmentSlot::Grenade;
+	ESHLoadoutEquipmentSlot Slot = ESHLoadoutEquipmentSlot::Grenade;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
 	FName EquipmentID;
@@ -100,7 +100,7 @@ struct FSHWeaponStatsPreview
 
 /** Complete loadout configuration. */
 USTRUCT(BlueprintType)
-struct FSHLoadout
+struct FSHUILoadout
 {
 	GENERATED_BODY()
 
@@ -126,7 +126,7 @@ struct FSHLoadout
 	FText LoadoutName;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutConfirmed, const FSHLoadout&, Loadout);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutConfirmed, const FSHUILoadout&, Loadout);
 
 /**
  * USHLoadoutWidget
@@ -154,7 +154,7 @@ public:
 
 	/** Initialize the widget with an existing loadout. */
 	UFUNCTION(BlueprintCallable, Category = "SH|UI|Loadout")
-	void SetLoadout(const FSHLoadout& InLoadout);
+	void SetLoadout(const FSHUILoadout& InLoadout);
 
 	/** Calculate the total weight of the current loadout in kg. */
 	UFUNCTION(BlueprintPure, Category = "SH|UI|Loadout")
@@ -190,13 +190,13 @@ public:
 	void SetAttachment(bool bPrimary, const FSHAttachmentEntry& Attachment);
 
 	UFUNCTION(BlueprintCallable, Category = "SH|UI|Loadout")
-	void RemoveAttachment(bool bPrimary, ESHAttachmentSlot Slot);
+	void RemoveAttachment(bool bPrimary, ESHLoadoutAttachmentSlot AttachmentSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "SH|UI|Loadout")
 	void SetEquipment(const FSHEquipmentEntry& Entry);
 
 	UFUNCTION(BlueprintCallable, Category = "SH|UI|Loadout")
-	void RemoveEquipment(ESHEquipmentSlot Slot);
+	void RemoveEquipment(ESHLoadoutEquipmentSlot EquipmentSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "SH|UI|Loadout")
 	void SetCamo(FName CamoID);
@@ -222,11 +222,11 @@ protected:
 
 	/** Current working loadout. */
 	UPROPERTY(BlueprintReadOnly, Category = "SH|UI|Loadout")
-	FSHLoadout CurrentLoadout;
+	FSHUILoadout CurrentLoadout;
 
 	/** Snapshot of the loadout when the widget opened, used for revert. */
 	UPROPERTY()
-	FSHLoadout OriginalLoadout;
+	FSHUILoadout OriginalLoadout;
 
 private:
 	/** Look up a weapon data asset by its ID. Returns nullptr if not found. */

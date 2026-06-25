@@ -11,6 +11,7 @@ class USHWeaponDataAsset;
 class ASHProjectile;
 class USHBallisticsSystem;
 class USHWeaponAnimSystem;
+class USHWeaponAttachmentSystem;
 
 /* -----------------------------------------------------------------------
  *  Reload state machine
@@ -42,7 +43,7 @@ enum class ESHWeaponState : uint8
  *  Delegates
  * --------------------------------------------------------------------- */
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnAmmoChanged, int32, CurrentMag, int32, Reserve);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSHOnWeaponAmmoChanged, int32, CurrentMag, int32, Reserve);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnFireModeChanged, ESHFireMode, NewMode);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSHOnWeaponStateChanged, ESHWeaponState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSHOnWeaponFired);
@@ -76,6 +77,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
 	TObjectPtr<USHWeaponAnimSystem> WeaponAnimSystem;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
+	TObjectPtr<USHWeaponAttachmentSystem> AttachmentSystem;
 
 	/* --- Input Actions --- */
 
@@ -144,6 +148,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetIsMoving(bool bMoving) { bIsMoving = bMoving; }
 
+	/** Tell the weapon whether the owner is sprinting (drives sprint-to-fire delay). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetSprinting(bool bSprinting);
+
 	/** Set suppression level 0-1. */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetSuppressionLevel(float Level) { SuppressionLevel = FMath::Clamp(Level, 0.0f, 1.0f); }
@@ -160,10 +168,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
 	void SetAmmo(int32 MagAmmo, int32 InReserve);
 
+	/**
+	 * Set the weapon mesh's resting relative transform (its attach-pose offset).
+	 * The procedural animation system (recoil, sway, bob, breathing) composes its
+	 * per-frame offset on top of this rest pose. Call this from the holder when
+	 * positioning the weapon instead of moving the mesh directly, so procedural
+	 * motion doesn't clobber the placement.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+	void SetRestRelativeTransform(const FTransform& InRest);
+
 	/* --- Delegates --- */
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
-	FSHOnAmmoChanged OnAmmoChanged;
+	FSHOnWeaponAmmoChanged OnAmmoChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapon|Events")
 	FSHOnFireModeChanged OnFireModeChanged;
@@ -322,6 +340,11 @@ protected:
 
 	bool bIsOverheated = false;
 
+	/* --- Procedural animation --- */
+
+	/** Resting relative transform of the weapon mesh; procedural offsets compose on top. */
+	FTransform RestRelativeTransform = FTransform::Identity;
+
 	/* --- Replication --- */
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -340,4 +363,16 @@ protected:
 	FName ShellEjectSocketName = FName(TEXT("ShellEject"));
 
 	bool bIsMoving = false;
+
+	/* --- Sprint-to-fire delay --- */
+
+	/** Seconds after sprinting ends before the weapon can fire again. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Handling")
+	float SprintToFireDelay = 0.25f;
+
+	/** Remaining sprint-to-fire lockout; counts down once sprinting stops. */
+	float SprintFireLockout = 0.f;
+
+	/** Whether the owner is currently sprinting. */
+	bool bOwnerSprinting = false;
 };

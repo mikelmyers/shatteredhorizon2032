@@ -188,6 +188,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SH|Primordia|DecisionEngine")
 	void CancelOrder(const FGuid& OrderId);
 
+	/** Count unassigned squads (optionally including reserves). */
+	UFUNCTION(BlueprintPure, Category = "SH|Primordia|DecisionEngine")
+	int32 GetAvailableSquadCount(bool bIncludeReserves) const;
+
 	// ------------------------------------------------------------------
 	//  Fallback / local AI
 	// ------------------------------------------------------------------
@@ -271,9 +275,6 @@ private:
 
 	/** Find the nearest unassigned squad (optionally reserve-only). */
 	int32 FindNearestAvailableSquad(FVector Location, bool bReserveOnly = false) const;
-
-	/** Count unassigned squads (optionally including reserves). */
-	int32 GetAvailableSquadCount(bool bIncludeReserves) const;
 
 	/** Get a squad allocation by ID (mutable). */
 	FSHSquadAllocation* FindSquadAllocation(int32 SquadId);
