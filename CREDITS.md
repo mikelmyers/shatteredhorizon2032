@@ -1,0 +1,29 @@
+# Credits & Asset Attributions
+
+License-hygiene ledger for all third-party assets used in Shattered Horizon 2032.
+Rule (from [AAA_LEVEL_SPEC.md](AAA_LEVEL_SPEC.md) §3): prefer **CC0** → **CC-BY/CC-BY-SA**
+(attribution required, listed here) → **Epic/Fab license**. Avoid non-commercial.
+
+## Reference imagery (art direction only — `Tools/refs/`)
+
+Used as visual reference for level art direction (not redistributed as game content). Source:
+Wikimedia Commons.
+
+| File | License | Source |
+|---|---|---|
+| `coast_tetrapods.jpg` | CC BY-SA 3.0 | "Taiwan 2009 East Coast Beach Erosion Tetrapods" — Wikimedia Commons |
+| `coast_northtaiwan.jpg` | CC BY-SA 2.0 | "North Coast Beach, New Taipei, Taiwan 20220619" — Wikimedia Commons |
+| `taoyuan_street.jpg` | CC BY-SA 3.0 | "Longan Street and Guochiang 11th Street intersection, Taoyuan City" — Wikimedia Commons |
+| `temple.jpg` | CC BY-SA 3.0 | "Kaohsiung Confucius Temple" — Wikimedia Commons |
+
+## Game content assets
+
+*(Populated as free/AI-generated assets are imported — one row per asset: name, type, source,
+license, where used. Audio, animation, textures, VFX, UI, music.)*
+
+| Asset | Type | Source | License | Used in |
+|---|---|---|---|---|
+| FPS_Weapon_Bundle | Weapons | (in-project) | Epic | Player weapons |
+| CitySample buildings | Meshes | Epic CitySample | Epic | Urban zone |
+| UI icon set (28) | UI | (in-project) | — | HUD |
+| Niagara VFX params (62) | VFX | (in-project) | — | Combat VFX |
