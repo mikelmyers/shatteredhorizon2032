@@ -89,6 +89,17 @@ void USHDirectFireComponent::AcquireTarget()
 		}
 	}
 
+	// Detect a fresh acquisition (new target, or re-acquiring after losing one).
+	// On first sighting, impose a human reaction delay before the first burst and
+	// reset the accuracy ramp so the opening shots range in rather than snap-kill.
+	const AActor* PrevTarget = CurrentTarget.Get();
+	if (Best && Best != PrevTarget)
+	{
+		const float Now = World->GetTimeSeconds();
+		TargetAcquiredTime = Now;
+		NextBurstTime = FMath::Max(NextBurstTime, Now + FMath::FRandRange(ReactionDelayMin, ReactionDelayMax));
+	}
+
 	CurrentTarget = Best;
 }
 
@@ -180,7 +191,17 @@ void USHDirectFireComponent::FireRound()
 		}
 	}
 
-	const bool bHit = FMath::FRand() < BaseHitChance * RangeFactor * Effectiveness * MovementFactor;
+	// Fairness ramp: the first shots after acquiring a target are inaccurate
+	// (reaction + ranging in), climbing to full accuracy over AccuracyRampTime.
+	float AcquisitionFactor = 1.f;
+	if (TargetAcquiredTime > 0.f && AccuracyRampTime > 0.f)
+	{
+		const float SinceAcq = GetWorld()->GetTimeSeconds() - TargetAcquiredTime;
+		AcquisitionFactor = FMath::GetMappedRangeValueClamped(
+			FVector2D(0.f, AccuracyRampTime), FVector2D(FirstContactAccuracyMult, 1.f), SinceAcq);
+	}
+
+	const bool bHit = FMath::FRand() < BaseHitChance * RangeFactor * Effectiveness * MovementFactor * AcquisitionFactor;
 
 	if (bHit)
 	{

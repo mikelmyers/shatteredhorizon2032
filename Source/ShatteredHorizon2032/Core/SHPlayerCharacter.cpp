@@ -558,6 +558,12 @@ void ASHPlayerCharacter::TickAutoPlaytest(float DeltaSeconds)
 		StartADS();
 	}
 
+	// Reposition: strafe back and forth so the test reflects a player who moves
+	// under fire (movement defeats enemy aim) instead of a stationary target —
+	// validates both movement feel and the AI fairness dynamic.
+	const float Strafe = FMath::Sin(AutoPlaytestTime * 1.3f);
+	AddMovementInput(GetActorRightVector(), Strafe * 0.8f);
+
 	// Burst pattern: ~0.7s firing, ~0.5s pause.
 	const bool bShouldFire = FMath::Fmod(AutoPlaytestTime, 1.2f) < 0.7f;
 	if (bShouldFire && !bIsFiring)
