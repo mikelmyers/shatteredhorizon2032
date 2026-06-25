@@ -8,6 +8,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "InputModifiers.h"
+#include "InputCoreTypes.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
@@ -79,6 +81,63 @@ void ASHPlayerController::EnsureInputAssetsLoaded()
 	SH_LOAD_IA(IA_Binoculars); SH_LOAD_IA(IA_Radio);
 
 #undef SH_LOAD_IA
+
+	// If the mapping context has NO key bindings, the IMC_Default asset was created as
+	// an empty stub and never authored (DefaultInput.ini says these are "created in-editor").
+	// An empty context binds nothing -> pressing keys does nothing even though everything
+	// is wired. Build the standard FPS bindings in code. Guarded on Num()==0 so a properly
+	// authored asset is never double-mapped.
+	if (DefaultMappingContext && DefaultMappingContext->GetMappings().Num() == 0)
+	{
+		auto MakeSwizzleYXZ = [this]() -> UInputModifierSwizzleAxis*
+		{
+			UInputModifierSwizzleAxis* M = NewObject<UInputModifierSwizzleAxis>(DefaultMappingContext);
+			M->Order = EInputAxisSwizzle::YXZ;
+			return M;
+		};
+		auto MakeNegate = [this]() -> UInputModifierNegate*
+		{
+			return NewObject<UInputModifierNegate>(DefaultMappingContext);
+		};
+
+		if (IA_Move)
+		{
+			// IA_Move is Axis2D: X = right(+)/left(-), Y = forward(+)/back(-).
+			DefaultMappingContext->MapKey(IA_Move, EKeys::D);                          // +X right
+			DefaultMappingContext->MapKey(IA_Move, EKeys::A).Modifiers.Add(MakeNegate());   // -X left
+			DefaultMappingContext->MapKey(IA_Move, EKeys::W).Modifiers.Add(MakeSwizzleYXZ()); // +Y forward
+			FEnhancedActionKeyMapping& Back = DefaultMappingContext->MapKey(IA_Move, EKeys::S);
+			Back.Modifiers.Add(MakeSwizzleYXZ());
+			Back.Modifiers.Add(MakeNegate());                                          // -Y back
+		}
+		if (IA_Look)          { DefaultMappingContext->MapKey(IA_Look, EKeys::Mouse2D); }
+		if (IA_Fire)          { DefaultMappingContext->MapKey(IA_Fire, EKeys::LeftMouseButton); }
+		if (IA_ADS)           { DefaultMappingContext->MapKey(IA_ADS, EKeys::RightMouseButton); }
+		if (IA_Reload)        { DefaultMappingContext->MapKey(IA_Reload, EKeys::R); }
+		if (IA_Sprint)        { DefaultMappingContext->MapKey(IA_Sprint, EKeys::LeftShift); }
+		if (IA_Crouch)        { DefaultMappingContext->MapKey(IA_Crouch, EKeys::LeftControl); }
+		if (IA_Prone)         { DefaultMappingContext->MapKey(IA_Prone, EKeys::Z); }
+		if (IA_Jump)          { DefaultMappingContext->MapKey(IA_Jump, EKeys::SpaceBar); }
+		if (IA_Interact)      { DefaultMappingContext->MapKey(IA_Interact, EKeys::F); }
+		if (IA_CycleFireMode) { DefaultMappingContext->MapKey(IA_CycleFireMode, EKeys::B); }
+		if (IA_LeanLeft)      { DefaultMappingContext->MapKey(IA_LeanLeft, EKeys::Q); }
+		if (IA_LeanRight)     { DefaultMappingContext->MapKey(IA_LeanRight, EKeys::E); }
+		if (IA_SquadMenu)     { DefaultMappingContext->MapKey(IA_SquadMenu, EKeys::T); }
+		if (IA_PrimaryWeapon) { DefaultMappingContext->MapKey(IA_PrimaryWeapon, EKeys::One); }
+		if (IA_Sidearm)       { DefaultMappingContext->MapKey(IA_Sidearm, EKeys::Two); }
+		if (IA_Grenade)       { DefaultMappingContext->MapKey(IA_Grenade, EKeys::G); }
+		if (IA_DroneToggle)   { DefaultMappingContext->MapKey(IA_DroneToggle, EKeys::V); }
+		if (IA_Binoculars)    { DefaultMappingContext->MapKey(IA_Binoculars, EKeys::X); }
+		if (IA_Radio)         { DefaultMappingContext->MapKey(IA_Radio, EKeys::C); }
+
+		UE_LOG(LogTemp, Warning, TEXT("[SHPlayerController] IMC was EMPTY — built %d in-code key mappings"),
+			DefaultMappingContext->GetMappings().Num());
+	}
+	else if (DefaultMappingContext)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHPlayerController] IMC has %d authored mappings"),
+			DefaultMappingContext->GetMappings().Num());
+	}
 }
 
 // =======================================================================

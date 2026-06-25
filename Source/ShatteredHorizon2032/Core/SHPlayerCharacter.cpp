@@ -172,9 +172,13 @@ void ASHPlayerCharacter::FinalizeMissionSpawn()
 	if (EquippedWeapon && FirstPersonArms)
 	{
 		const bool bHasSocket = FirstPersonArms->DoesSocketExist(TEXT("WeaponSocket"));
+		// The weapon mesh's barrel points along +Y (screen-right) by default, so it reads
+		// as "pointing 90° to the right." Rotate yaw -90 to face it forward (+X). Applied
+		// in code so it doesn't depend on a DefaultGame.ini reload.
+		const FRotator CorrectedRot(WeaponViewRotation.Pitch, WeaponViewRotation.Yaw - 90.f, WeaponViewRotation.Roll);
 		const FTransform RestPose = bHasSocket
 			? FTransform::Identity
-			: FTransform(WeaponViewRotation, WeaponViewLocation);
+			: FTransform(CorrectedRot, WeaponViewLocation);
 		EquippedWeapon->SetRestRelativeTransform(RestPose);
 	}
 }
