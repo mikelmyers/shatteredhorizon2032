@@ -4,6 +4,7 @@
 #include "SHProgressionSystem.h"
 #include "Core/SHPlayerCharacter.h"
 #include "Weapons/SHWeaponBase.h"
+#include "Weapons/SHWeaponData.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
@@ -49,6 +50,32 @@ void USHLoadoutSystem::BeginPlay()
 		// Small delay so possession and pawn BeginPlay complete first.
 		GetWorld()->GetTimerManager().SetTimer(AutoApplyTimerHandle, this,
 			&USHLoadoutSystem::AutoApplyConfiguredLoadout, 0.35f, false);
+	}
+}
+
+void USHLoadoutSystem::ApplyConfiguredWeaponData(ASHWeaponBase* Weapon, FName WeaponID) const
+{
+	if (!Weapon)
+	{
+		return;
+	}
+
+	const FSoftObjectPath* DataPath = ConfigWeaponData.Find(WeaponID);
+	if (!DataPath || !DataPath->IsValid())
+	{
+		return; // No override configured — keep the Blueprint-baked data.
+	}
+
+	if (USHWeaponDataAsset* Data = Cast<USHWeaponDataAsset>(DataPath->TryLoad()))
+	{
+		Weapon->SetWeaponData(Data);
+		UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Applied configured data '%s' to weapon '%s'"),
+			*Data->GetName(), *WeaponID.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SHLoadoutSystem] ConfigWeaponData for '%s' did not resolve to a USHWeaponDataAsset: %s"),
+			*WeaponID.ToString(), *DataPath->ToString());
 	}
 }
 
@@ -346,6 +373,8 @@ void USHLoadoutSystem::ApplyLoadoutToCharacter()
 				AActor* SpawnedActor = World->SpawnActor<AActor>(*WeaponClassPtr, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 				if (ASHWeaponBase* Weapon = Cast<ASHWeaponBase>(SpawnedActor))
 				{
+					// Override with the configured DataAsset (if any) before equipping.
+					ApplyConfiguredWeaponData(Weapon, CurrentLoadout.PrimaryWeapon);
 					PlayerCharacter->EquipWeapon(Weapon);
 					UE_LOG(LogTemp, Log, TEXT("[SHLoadoutSystem] Spawned & equipped primary: %s"), *CurrentLoadout.PrimaryWeapon.ToString());
 				}
@@ -390,6 +419,10 @@ void USHLoadoutSystem::ApplyLoadoutToCharacter()
 				AActor* SpawnedActor = World->SpawnActor<AActor>(*WeaponClassPtr, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 				if (SpawnedActor)
 				{
+					if (ASHWeaponBase* SecondaryWeapon = Cast<ASHWeaponBase>(SpawnedActor))
+					{
+						ApplyConfiguredWeaponData(SecondaryWeapon, CurrentLoadout.SecondaryWeapon);
+					}
 					// Hide until equipped via weapon swap.
 					SpawnedActor->SetActorHiddenInGame(true);
 					SpawnedActor->SetActorEnableCollision(false);

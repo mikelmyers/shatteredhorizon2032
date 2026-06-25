@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
@@ -36,25 +37,55 @@ void ASHWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (WeaponData)
+	InitializeFromWeaponData();
+}
+
+void ASHWeaponBase::InitializeFromWeaponData()
+{
+	if (!WeaponData)
 	{
-		CurrentMagAmmo = WeaponData->MagazineCapacity;
-		ReserveAmmo    = WeaponData->MaxReserveAmmo;
-
-		if (WeaponData->AvailableFireModes.Num() > 0)
-		{
-			CurrentFireMode = WeaponData->AvailableFireModes[0];
-		}
-
-		// Ensure we can fire immediately
-		TimeSinceLastShot = WeaponData->GetSecondsBetweenShots();
+		return;
 	}
 
-	// Wire weapon animation system with weapon data.
-	if (WeaponAnimSystem && WeaponData)
+	CurrentMagAmmo = WeaponData->MagazineCapacity;
+	ReserveAmmo    = WeaponData->MaxReserveAmmo;
+
+	if (WeaponData->AvailableFireModes.Num() > 0)
+	{
+		CurrentFireMode = WeaponData->AvailableFireModes[0];
+	}
+
+	// Ensure we can fire immediately.
+	TimeSinceLastShot = WeaponData->GetSecondsBetweenShots();
+
+	// Wire the animation system with this weapon's recoil pattern.
+	if (WeaponAnimSystem)
 	{
 		WeaponAnimSystem->SetRecoilPattern(WeaponData->RecoilPattern);
 	}
+
+	// Data-driven mesh: if the data asset specifies a mesh, apply it so a single
+	// chassis Blueprint can represent any weapon (falls back to the BP mesh when unset).
+	if (WeaponMeshComp && !WeaponData->WeaponMesh.IsNull())
+	{
+		if (USkeletalMesh* Mesh = WeaponData->WeaponMesh.LoadSynchronous())
+		{
+			WeaponMeshComp->SetSkeletalMesh(Mesh);
+		}
+	}
+
+	OnAmmoChanged.Broadcast(CurrentMagAmmo, ReserveAmmo);
+}
+
+void ASHWeaponBase::SetWeaponData(USHWeaponDataAsset* InWeaponData)
+{
+	if (!InWeaponData)
+	{
+		return;
+	}
+
+	WeaponData = InWeaponData;
+	InitializeFromWeaponData();
 }
 
 /* -----------------------------------------------------------------------

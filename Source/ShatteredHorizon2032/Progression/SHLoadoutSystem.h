@@ -122,6 +122,10 @@ protected:
 	/** Resolve ConfigWeaponClasses into WeaponClassRegistry, then apply AutoLoadout. */
 	void AutoApplyConfiguredLoadout();
 
+	/** Apply a configured DataAsset (ConfigWeaponData) to a freshly-spawned weapon. No-op
+	 *  if the weapon ID has no configured data (weapon keeps its Blueprint-baked data). */
+	void ApplyConfiguredWeaponData(class ASHWeaponBase* Weapon, FName WeaponID) const;
+
 	FTimerHandle AutoApplyTimerHandle;
 
 public:
@@ -196,6 +200,12 @@ public:
 	 *  WeaponClassRegistry at BeginPlay. Allows wiring weapon Blueprints from DefaultGame.ini. */
 	UPROPERTY(Config, EditAnywhere, Category = "SH|Loadout")
 	TMap<FName, FSoftClassPath> ConfigWeaponClasses;
+
+	/** Config-driven weapon DataAsset overrides (weapon ID -> DA path). Applied to the
+	 *  spawned weapon so one chassis Blueprint can serve every weapon — the per-weapon
+	 *  stats come from the data asset, not a hand-authored Blueprint each. */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|Loadout")
+	TMap<FName, FSoftObjectPath> ConfigWeaponData;
 
 	/** When true, AutoLoadout is set and applied automatically shortly after BeginPlay.
 	 *  Used for direct-to-mission launches that skip the loadout menu. */
