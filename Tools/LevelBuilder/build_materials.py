@@ -70,11 +70,13 @@ def build_one(name, tiling):
         mel.connect_material_expressions(mul, "", s_norm, "UVs")
         mel.connect_material_property(s_norm, "RGB", unreal.MaterialProperty.MP_NORMAL)
 
-    # Roughness.
+    # Roughness. The rough map is a linear RGB texture, so use a LINEAR_COLOR
+    # sampler (LINEAR_GRAYSCALE would fail to compile on a 3-channel texture) and
+    # drive roughness from the R channel.
     if rough:
         s_rough = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -400, 400)
         s_rough.set_editor_property("texture", rough)
-        s_rough.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE)
+        s_rough.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR)
         mel.connect_material_expressions(mul, "", s_rough, "UVs")
         mel.connect_material_property(s_rough, "R", unreal.MaterialProperty.MP_ROUGHNESS)
 
