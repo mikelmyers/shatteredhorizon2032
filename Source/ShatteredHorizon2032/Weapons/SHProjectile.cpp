@@ -319,6 +319,13 @@ void ASHProjectile::ApplyDamage(AActor* HitActor, float Damage, const FHitResult
 		DamageEvent,
 		InstigatorController,
 		this);
+
+	// Shooter feedback: route through the firing weapon so the player gets a hit
+	// marker for ranged kills (most combat resolves as projectiles at distance).
+	if (ASHWeaponBase* Weapon = Cast<ASHWeaponBase>(WeaponOwner.Get()))
+	{
+		Weapon->ReportHitFeedback(HitActor, HitResult, SimulatedVelocity.GetSafeNormal());
+	}
 }
 
 /* -----------------------------------------------------------------------

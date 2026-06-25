@@ -4,9 +4,34 @@
 #include "Core/SHPlayerCharacter.h"
 #include "Core/SHGameState.h"
 #include "Weapons/SHWeaponBase.h"
+#include "Combat/SHHitFeedback.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
+
+void ASHSimpleHUD::EnsureHitMarkerBound()
+{
+	if (bHitMarkerBound)
+	{
+		return;
+	}
+
+	if (ASHPlayerCharacter* Player = Cast<ASHPlayerCharacter>(GetOwningPawn()))
+	{
+		if (USHHitFeedback* HitFeedback = Player->HitFeedback)
+		{
+			HitFeedback->OnHitMarkerTriggered.AddDynamic(this, &ASHSimpleHUD::HandleHitMarker);
+			bHitMarkerBound = true;
+		}
+	}
+}
+
+void ASHSimpleHUD::HandleHitMarker(bool bKill)
+{
+	LastHitMarkerTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	bLastHitWasKill = bKill;
+}
 
 void ASHSimpleHUD::DrawHUD()
 {
@@ -42,6 +67,31 @@ void ASHSimpleHUD::DrawHUD()
 	DrawLine(CX + Gap, CY, CX + Gap + Arm, CY, HudGreen, 1.5f);
 	DrawLine(CX, CY - Gap - Arm, CX, CY - Gap, HudGreen, 1.5f);
 	DrawLine(CX, CY + Gap, CX, CY + Gap + Arm, HudGreen, 1.5f);
+
+	// --- Hit marker: brief fading "X" at center when the player lands a hit;
+	//     white for a hit, red and heavier for a kill. Drawn procedurally so it
+	//     needs no art assets (matches the canvas crosshair). ---
+	EnsureHitMarkerBound();
+	if (LastHitMarkerTime > 0.f)
+	{
+		const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		const float Age = Now - LastHitMarkerTime;
+		const float MarkerDuration = bLastHitWasKill ? 0.5f : 0.35f;
+		if (Age >= 0.f && Age < MarkerDuration)
+		{
+			const float Alpha = 1.f - (Age / MarkerDuration);
+			const FLinearColor MarkerColor = bLastHitWasKill
+				? FLinearColor(1.f, 0.25f, 0.2f, Alpha)
+				: FLinearColor(1.f, 1.f, 1.f, Alpha);
+			const float Inner = 4.f;
+			const float Outer = 11.f + (1.f - Alpha) * 4.f; // expands slightly as it fades
+			const float Thick = bLastHitWasKill ? 2.6f : 1.8f;
+			DrawLine(CX - Outer, CY - Outer, CX - Inner, CY - Inner, MarkerColor, Thick);
+			DrawLine(CX + Inner, CY - Inner, CX + Outer, CY - Outer, MarkerColor, Thick);
+			DrawLine(CX - Outer, CY + Outer, CX - Inner, CY + Inner, MarkerColor, Thick);
+			DrawLine(CX + Inner, CY + Inner, CX + Outer, CY + Outer, MarkerColor, Thick);
+		}
+	}
 
 	if (!Player)
 	{

@@ -81,6 +81,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
 	TObjectPtr<USHWeaponAttachmentSystem> AttachmentSystem;
 
+	/**
+	 * Route an outgoing damaging hit on an enemy through the owner's HitFeedback
+	 * component so the shooter gets a hit marker (and the target a flinch). Called
+	 * from both the hitscan and projectile damage paths. No-op for non-enemy hits.
+	 */
+	void ReportHitFeedback(AActor* HitActor, const FHitResult& Hit, const FVector& ShotDirection);
+
 	/* --- Input Actions --- */
 
 	/** Call to begin firing (press). */

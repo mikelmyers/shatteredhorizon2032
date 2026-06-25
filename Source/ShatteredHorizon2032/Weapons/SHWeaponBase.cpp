@@ -15,6 +15,8 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Combat/SHHitFeedback.h"
+#include "AI/SHEnemyCharacter.h"
 
 /* -----------------------------------------------------------------------
  *  Construction
@@ -496,8 +498,49 @@ void ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector&
 			DamageEvent.ShotDirection = ShotDirection;
 
 			HitActor->TakeDamage(FinalDamage, DamageEvent, GetInstigatorController(), this);
+
+			// Shooter feedback: hit marker + target flinch (kill state read after damage).
+			ReportHitFeedback(HitActor, HitResult, ShotDirection);
 		}
 	}
+}
+
+void ASHWeaponBase::ReportHitFeedback(AActor* HitActor, const FHitResult& Hit, const FVector& ShotDirection)
+{
+	// Only enemy hits produce a marker — avoids false positives on world geometry
+	// and misleading markers on friendly fire.
+	ASHEnemyCharacter* Enemy = Cast<ASHEnemyCharacter>(HitActor);
+	if (!Enemy)
+	{
+		return;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	USHHitFeedback* HitFeedback = OwnerActor->FindComponentByClass<USHHitFeedback>();
+	if (!HitFeedback)
+	{
+		return;
+	}
+
+	const bool bHeadshot = Hit.BoneName.ToString().Contains(TEXT("head"), ESearchCase::IgnoreCase);
+
+	FSHDamageInfo Info;
+	Info.Instigator = OwnerActor;
+	Info.ImpactLocation = Hit.ImpactPoint;
+	Info.DamageDirection = ShotDirection;
+	Info.HitZone = bHeadshot ? ESHHitZone::Head : ESHHitZone::Torso;
+
+	FSHDamageResult Result;
+	Result.DamageDealt = 1.f;            // non-zero so the feedback guard passes
+	Result.bIsLethal = Enemy->IsDead();  // queried after TakeDamage resolved
+	Result.HitZone = Info.HitZone;
+
+	HitFeedback->OnDamageDealt(Info, Result);
 }
 
 void ASHWeaponBase::SpawnProjectile(const FVector& MuzzleLocation, const FVector& ShotDirection)
