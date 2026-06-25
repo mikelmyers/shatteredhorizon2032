@@ -90,6 +90,14 @@ ASHPlayerCharacter::ASHPlayerCharacter()
 		CMC->SetCrouchedHalfHeight(48.f);
 	}
 
+	// First-person pawn: the body faces where the player looks so weapon muzzle
+	// direction, squad facing, and aim trace origin stay consistent.
+	bUseControllerRotationYaw = true;
+
+	// Apply the rest of the movement-feel tuning (also re-applied in BeginPlay
+	// so Live Coding iteration picks up edits without a constructor re-run).
+	ApplyMovementTuning();
+
 	// Initialize limb states.
 	LimbStates.SetNum(6);
 	LimbStates[0] = { ESHLimb::Head,     1.f, false, false };
@@ -106,6 +114,10 @@ void ASHPlayerCharacter::BeginPlay()
 	CurrentHealth = MaxHealth;
 	Stamina = MaxStamina;
 	RecalculateWeight();
+
+	// Re-apply movement-feel tuning here (constructor edits don't reach an
+	// editor iterating via Live Coding — see project notes).
+	ApplyMovementTuning();
 
 	// Apply first-person arms mesh + AnimBP as a matched pair. If config didn't supply
 	// an AnimBP (e.g. DefaultGame.ini not reloaded after a Live Coding rebuild), fall back
@@ -292,6 +304,10 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		TargetSpeed *= GetMovementSpeedMultiplier();
 
 		CMC->MaxWalkSpeed = TargetSpeed;
+		// Prone uses the engine's crouch state (Crouch() is called as its base),
+		// so the engine clamps to MaxWalkSpeedCrouched while prone — keep it in
+		// sync with the stance target or prone would crawl at full crouch speed.
+		CMC->MaxWalkSpeedCrouched = TargetSpeed;
 	}
 }
 
@@ -470,6 +486,35 @@ void ASHPlayerCharacter::Die()
 // =======================================================================
 //  Movement
 // =======================================================================
+
+void ASHPlayerCharacter::ApplyMovementTuning()
+{
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!CMC)
+	{
+		return;
+	}
+
+	// Ground response: crisp start, slight settle on stop (gear momentum).
+	CMC->MaxAcceleration = MoveMaxAcceleration;
+	CMC->BrakingDecelerationWalking = MoveBrakingDeceleration;
+	CMC->GroundFriction = MoveGroundFriction;
+	CMC->bUseSeparateBrakingFriction = true;
+	CMC->BrakingFriction = MoveBrakingFriction;
+
+	// Air/jump: give the player real mid-air steering (engine default 0.05 feels
+	// floaty and locked) while keeping the jump modest for a loaded soldier.
+	CMC->AirControl = MoveAirControl;
+	CMC->JumpZVelocity = MoveJumpZVelocity;
+
+	// Traversal: clear urban curbs/rubble and handle beach dune slopes smoothly.
+	CMC->MaxStepHeight = MoveMaxStepHeight;
+	CMC->SetWalkableFloorAngle(MoveWalkableFloorAngle);
+	// Flat-base floor checks stop the capsule from catching/teetering on edges.
+	CMC->bUseFlatBaseForFloorChecks = true;
+	// Keep horizontal speed when stepping off ledges rather than dead-dropping.
+	CMC->bMaintainHorizontalGroundVelocity = true;
+}
 
 void ASHPlayerCharacter::StartSprint()
 {

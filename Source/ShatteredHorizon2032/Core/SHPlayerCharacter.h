@@ -292,6 +292,10 @@ protected:
 	void TickBleeding(float DeltaSeconds);
 	void TickLean(float DeltaSeconds);
 
+	/** Apply movement-feel tuning to the CharacterMovementComponent. Called from
+	 *  BeginPlay (Live-Coding-proof) and the constructor (packaged builds). */
+	void ApplyMovementTuning();
+
 	/** Perform a vault trace and execute if geometry permits. */
 	bool CanVault() const;
 	void ExecuteVault();
@@ -353,6 +357,46 @@ protected:
 	/** Prone speed multiplier. */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement")
 	float ProneSpeedMultiplier = 0.25f;
+
+	// ------------------------------------------------------------------
+	//  Movement "feel" tuning (applied to the CharacterMovementComponent
+	//  in BeginPlay so changes survive Live Coding iteration, which never
+	//  re-runs the constructor). Engine defaults read as floaty/icy for an
+	//  FPS — these give a grounded, intentional, gear-laden soldier feel.
+	// ------------------------------------------------------------------
+
+	/** Ground acceleration (cm/s^2). Higher = crisper start. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveMaxAcceleration = 1800.f;
+
+	/** Walking braking deceleration (cm/s^2). Lower = more momentum/settle on stop. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveBrakingDeceleration = 1500.f;
+
+	/** Ground friction while steering. Higher = grippier turns. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveGroundFriction = 8.f;
+
+	/** Separate braking friction (used when stopping). Slightly below ground
+	 *  friction gives a believable weight-shift settle rather than a dead stop. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveBrakingFriction = 6.f;
+
+	/** Mid-air directional control (0 = none/floaty-locked, 1 = full). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveAirControl = 0.4f;
+
+	/** Jump launch velocity (cm/s). Modest for a loaded soldier. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveJumpZVelocity = 450.f;
+
+	/** Step height (cm) — how tall a ledge/curb can be auto-stepped. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveMaxStepHeight = 50.f;
+
+	/** Walkable floor angle (deg) — steepest slope treated as ground. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveWalkableFloorAngle = 50.f;
 
 	/** Maximum carry weight (kg) before movement is severely impaired. */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Weight")
