@@ -124,8 +124,29 @@ public:
 	UPROPERTY(Config)
 	float SoakScreenshotInterval = 12.f;
 
+	/** Dev/QA: when true, samples frame time every tick and writes a perf CSV
+	 *  (avg/min FPS, frame ms) to Saved/Logs each interval. The Wave 0/8 baseline. */
+	UPROPERTY(Config)
+	bool bPerfReport = false;
+
+	/** Seconds per perf-report CSV row. */
+	UPROPERTY(Config)
+	float PerfReportInterval = 5.f;
+
 protected:
 	FTimerHandle SoakScreenshotTimerHandle;
+
+	/** Sample frame time and emit a perf CSV row every PerfReportInterval. */
+	void TickPerfReport(float DeltaSeconds);
+
+	// Perf-sampling accumulators (window between CSV rows).
+	bool   bPerfHeaderWritten = false;
+	double PerfElapsed = 0.0;       // total session seconds
+	double PerfWindow = 0.0;        // seconds in current window
+	int32  PerfFrames = 0;          // frames in current window
+	double PerfWorstFrameMs = 0.0;  // worst frame in window
+	double PerfBestFrameMs = 1e9;   // best frame in window
+	FString PerfCsvPath;
 
 public:
 

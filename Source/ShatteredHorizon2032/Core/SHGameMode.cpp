@@ -15,6 +15,9 @@
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "UnrealClient.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
 
 ASHGameMode::ASHGameMode()
 {
@@ -78,6 +81,65 @@ void ASHGameMode::Tick(float DeltaSeconds)
 	TickReinforcementScheduler(DeltaSeconds);
 	TickTimeOfDay(DeltaSeconds);
 	TickPrimordiaAI(DeltaSeconds);
+
+	if (bPerfReport)
+	{
+		TickPerfReport(DeltaSeconds);
+	}
+}
+
+void ASHGameMode::TickPerfReport(float DeltaSeconds)
+{
+	// Accumulate one CSV row per PerfReportInterval: avg/min/max frame time over
+	// the window. This is the Wave 0 baseline + the Wave 8 measurement tool.
+	if (DeltaSeconds <= 0.f)
+	{
+		return;
+	}
+
+	const double FrameMs = DeltaSeconds * 1000.0;
+	PerfElapsed += DeltaSeconds;
+	PerfWindow += DeltaSeconds;
+	PerfFrames++;
+	PerfWorstFrameMs = FMath::Max(PerfWorstFrameMs, FrameMs);
+	PerfBestFrameMs = FMath::Min(PerfBestFrameMs, FrameMs);
+
+	if (PerfWindow < FMath::Max(1.f, PerfReportInterval))
+	{
+		return;
+	}
+
+	const double AvgFrameMs = (PerfWindow * 1000.0) / FMath::Max(1, PerfFrames);
+	const double AvgFps = 1000.0 / FMath::Max(0.001, AvgFrameMs);
+	const double MinFps = 1000.0 / FMath::Max(0.001, PerfWorstFrameMs); // worst frame -> min fps
+	const double MaxFps = 1000.0 / FMath::Max(0.001, PerfBestFrameMs);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Perf] t=%.0fs avgFPS=%.1f minFPS=%.1f maxFPS=%.1f avgMs=%.1f worstMs=%.1f"),
+		PerfElapsed, AvgFps, MinFps, MaxFps, AvgFrameMs, PerfWorstFrameMs);
+
+	// Append a CSV row (header once). Path resolved on first write.
+	if (PerfCsvPath.IsEmpty())
+	{
+		PerfCsvPath = FPaths::ProjectSavedDir() / TEXT("Logs") / TEXT("perf_report.csv");
+	}
+	if (!bPerfHeaderWritten)
+	{
+		FFileHelper::SaveStringToFile(
+			TEXT("time_s,avg_fps,min_fps,max_fps,avg_frame_ms,worst_frame_ms\n"),
+			*PerfCsvPath);
+		bPerfHeaderWritten = true;
+	}
+	const FString Row = FString::Printf(TEXT("%.0f,%.1f,%.1f,%.1f,%.2f,%.2f\n"),
+		PerfElapsed, AvgFps, MinFps, MaxFps, AvgFrameMs, PerfWorstFrameMs);
+	FFileHelper::SaveStringToFile(Row, *PerfCsvPath,
+		FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
+
+	// Reset window.
+	PerfWindow = 0.0;
+	PerfFrames = 0;
+	PerfWorstFrameMs = 0.0;
+	PerfBestFrameMs = 1e9;
 }
 
 void ASHGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)

@@ -1,0 +1,5 @@
+{
+  "_comment": "Batch-import manifest + license ledger. Drop files into incoming_dir, add a row, run Tools/LevelBuilder/import_assets.py headless. Keep CREDITS.md in sync. types: texture|normal|mesh|audio|anim. license: prefer CC0 > CC-BY > Epic; avoid non-commercial.",
+  "incoming_dir": "Tools/incoming",
+  "assets": []
+}
