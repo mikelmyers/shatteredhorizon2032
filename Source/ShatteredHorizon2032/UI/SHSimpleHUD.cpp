@@ -179,9 +179,22 @@ void ASHSimpleHUD::DrawHUD()
 	// --- Ammo (bottom-right) ---
 	if (const ASHWeaponBase* Weapon = Player->GetEquippedWeapon())
 	{
-		const FString AmmoStr = FString::Printf(TEXT("%d / %d"),
-			Weapon->GetCurrentMagAmmo(), Weapon->GetReserveAmmo());
-		DrawText(AmmoStr, HudGreen, Canvas->ClipX - 170.f, Canvas->ClipY - 80.f, Font, 1.6f);
+		const int32 MagAmmo = Weapon->GetCurrentMagAmmo();
+		const int32 Capacity = Weapon->WeaponData ? Weapon->WeaponData->MagazineCapacity : 0;
+
+		// Ammo color clarifies urgency: red when empty, amber when low (<30% mag).
+		FLinearColor AmmoColor = HudGreen;
+		if (MagAmmo <= 0)
+		{
+			AmmoColor = FLinearColor(0.9f, 0.25f, 0.2f, 0.95f);
+		}
+		else if (Capacity > 0 && MagAmmo <= FMath::CeilToInt(Capacity * 0.3f))
+		{
+			AmmoColor = FLinearColor(0.95f, 0.65f, 0.2f, 0.95f);
+		}
+
+		const FString AmmoStr = FString::Printf(TEXT("%d / %d"), MagAmmo, Weapon->GetReserveAmmo());
+		DrawText(AmmoStr, AmmoColor, Canvas->ClipX - 170.f, Canvas->ClipY - 80.f, Font, 1.6f);
 
 		// Fire-mode indicator under the ammo count.
 		const TCHAR* ModeStr = TEXT("SEMI");
@@ -192,6 +205,21 @@ void ASHSimpleHUD::DrawHUD()
 		default:                 ModeStr = TEXT("SEMI");  break;
 		}
 		DrawText(ModeStr, HudGreen, Canvas->ClipX - 170.f, Canvas->ClipY - 54.f, Font, 1.1f);
+
+		// Weapon-state line: tells the player why fire is unavailable.
+		const TCHAR* StateStr = nullptr;
+		FLinearColor StateColor(0.95f, 0.65f, 0.2f, 0.95f);
+		switch (Weapon->GetWeaponState())
+		{
+		case ESHWeaponState::Reloading:     StateStr = TEXT("RELOADING"); break;
+		case ESHWeaponState::Overheated:    StateStr = TEXT("OVERHEAT");  StateColor = FLinearColor(0.9f, 0.3f, 0.15f, 0.95f); break;
+		case ESHWeaponState::Malfunctioned: StateStr = TEXT("JAM");       StateColor = FLinearColor(0.9f, 0.3f, 0.15f, 0.95f); break;
+		default: break;
+		}
+		if (StateStr)
+		{
+			DrawText(StateStr, StateColor, Canvas->ClipX - 170.f, Canvas->ClipY - 30.f, Font, 1.1f);
+		}
 	}
 
 	// --- Compass heading (top-center) ---
