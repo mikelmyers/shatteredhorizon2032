@@ -56,14 +56,36 @@ void USHFootstepSystem::PlayFootstep(bool bIsRightFoot)
 	{
 		SoundArray = &Entry->WalkSounds;
 	}
-	if (!SoundArray || SoundArray->Num() == 0)
-	{
-		return;
-	}
 
-	// Random sound selection (avoid repeating the same sound twice).
-	const int32 SoundIndex = FMath::RandRange(0, SoundArray->Num() - 1);
-	USoundBase* Sound = (*SoundArray)[SoundIndex].LoadSynchronous();
+	USoundBase* Sound = nullptr;
+	if (SoundArray && SoundArray->Num() > 0)
+	{
+		const int32 SoundIndex = FMath::RandRange(0, SoundArray->Num() - 1);
+		Sound = (*SoundArray)[SoundIndex].LoadSynchronous();
+	}
+	// Fallback: synthesized CC0 footstep per surface so movement isn't silent
+	// until authored footstep banks are imported.
+	if (!Sound)
+	{
+		const TCHAR* Path = TEXT("/Game/SH/Audio/Footsteps/sh_step_concrete_01.sh_step_concrete_01");
+		switch (CurrentSurface)
+		{
+		case ESHSurfaceType::Sand:
+		case ESHSurfaceType::Mud:
+		case ESHSurfaceType::Dirt:
+		case ESHSurfaceType::Gravel:
+			Path = TEXT("/Game/SH/Audio/Footsteps/sh_step_sand_01.sh_step_sand_01");
+			break;
+		case ESHSurfaceType::Grass:
+		case ESHSurfaceType::Snow:
+		case ESHSurfaceType::Carpet:
+			Path = TEXT("/Game/SH/Audio/Footsteps/sh_step_grass_01.sh_step_grass_01");
+			break;
+		default:
+			break; // concrete / asphalt / metal / tile / etc.
+		}
+		Sound = LoadObject<USoundBase>(nullptr, Path);
+	}
 	if (!Sound)
 	{
 		return;

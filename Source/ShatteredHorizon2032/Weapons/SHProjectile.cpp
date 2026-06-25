@@ -12,6 +12,7 @@
 #include "GameFramework/Pawn.h"
 #include "Engine/DamageEvents.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Sound/SoundBase.h"
 
 /* -----------------------------------------------------------------------
  *  Construction
@@ -361,10 +362,16 @@ void ASHProjectile::SpawnImpactEffects(const FHitResult& HitResult)
 			World, EffectToSpawn, HitResult.ImpactPoint, ImpactRotation, true);
 	}
 
-	// Impact sound
-	if (ImpactSound)
+	// Impact sound (fallback to a synthesized CC0 impact if none assigned).
+	USoundBase* ImpactSnd = ImpactSound;
+	if (!ImpactSnd)
 	{
-		UGameplayStatics::PlaySoundAtLocation(World, ImpactSound, HitResult.ImpactPoint);
+		ImpactSnd = LoadObject<USoundBase>(nullptr,
+			TEXT("/Game/SH/Audio/Impacts/sh_impact_01.sh_impact_01"));
+	}
+	if (ImpactSnd)
+	{
+		UGameplayStatics::PlaySoundAtLocation(World, ImpactSnd, HitResult.ImpactPoint);
 	}
 }
 

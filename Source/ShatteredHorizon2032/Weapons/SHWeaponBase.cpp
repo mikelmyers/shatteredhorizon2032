@@ -1227,6 +1227,19 @@ void ASHWeaponBase::PlayFireSound()
 	}
 
 	USoundBase* SoundToPlay = WeaponData->SoundProfile.FireSound.LoadSynchronous();
+
+	// Fallback: if the weapon data has no fire sound assigned, use one of the
+	// synthesized CC0 fire variants (cycled for variety) so the gun isn't silent.
+	if (!SoundToPlay)
+	{
+		static const TCHAR* FireVariants[] = {
+			TEXT("/Game/SH/Audio/Weapons/sh_wpn_fire_01.sh_wpn_fire_01"),
+			TEXT("/Game/SH/Audio/Weapons/sh_wpn_fire_02.sh_wpn_fire_02"),
+			TEXT("/Game/SH/Audio/Weapons/sh_wpn_fire_03.sh_wpn_fire_03") };
+		const int32 Idx = FMath::Abs(TotalRoundsFired) % 3;
+		SoundToPlay = LoadObject<USoundBase>(nullptr, FireVariants[Idx]);
+	}
+
 	USoundAttenuation* Attenuation = WeaponData->SoundProfile.FireAttenuation.LoadSynchronous();
 
 	// A suppressor (or other muzzle device) lowers the report volume.

@@ -2,28 +2,374 @@
   "_comment": "Batch-import manifest + license ledger. Drop files into incoming_dir, add a row, run Tools/LevelBuilder/import_assets.py headless. Keep CREDITS.md in sync. types: texture|normal|mesh|audio|anim. license: prefer CC0 > CC-BY > Epic; avoid non-commercial.",
   "incoming_dir": "Tools/incoming",
   "assets": [
-    {"file": "sh_ground054_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Ground054", "license": "CC0", "used_in": "terrain dirt"},
-    {"file": "sh_ground054_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground054", "license": "CC0", "used_in": "terrain dirt"},
-    {"file": "sh_ground054_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground054", "license": "CC0", "used_in": "terrain dirt"},
-
-    {"file": "sh_beachsand_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Ground080", "license": "CC0", "used_in": "beach sand"},
-    {"file": "sh_beachsand_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground080", "license": "CC0", "used_in": "beach sand"},
-    {"file": "sh_beachsand_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground080", "license": "CC0", "used_in": "beach sand"},
-
-    {"file": "sh_concrete_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Concrete034", "license": "CC0", "used_in": "sea wall / buildings / defenses"},
-    {"file": "sh_concrete_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Concrete034", "license": "CC0", "used_in": "sea wall / buildings / defenses"},
-    {"file": "sh_concrete_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Concrete034", "license": "CC0", "used_in": "sea wall / buildings / defenses"},
-
-    {"file": "sh_asphalt_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Asphalt031", "license": "CC0", "used_in": "urban roads"},
-    {"file": "sh_asphalt_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Asphalt031", "license": "CC0", "used_in": "urban roads"},
-    {"file": "sh_asphalt_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Asphalt031", "license": "CC0", "used_in": "urban roads"},
-
-    {"file": "sh_rock_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Rock064", "license": "CC0", "used_in": "headlands / tetrapods / cliffs"},
-    {"file": "sh_rock_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Rock064", "license": "CC0", "used_in": "headlands / tetrapods / cliffs"},
-    {"file": "sh_rock_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Rock064", "license": "CC0", "used_in": "headlands / tetrapods / cliffs"},
-
-    {"file": "sh_grass_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Grass005", "license": "CC0", "used_in": "dunes / hills vegetation"},
-    {"file": "sh_grass_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Grass005", "license": "CC0", "used_in": "dunes / hills vegetation"},
-    {"file": "sh_grass_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Grass005", "license": "CC0", "used_in": "dunes / hills vegetation"}
+    {
+      "file": "sh_ground054_color.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": true,
+      "source": "ambientCG Ground054",
+      "license": "CC0",
+      "used_in": "terrain dirt"
+    },
+    {
+      "file": "sh_ground054_normal.jpg",
+      "type": "normal",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Ground054",
+      "license": "CC0",
+      "used_in": "terrain dirt"
+    },
+    {
+      "file": "sh_ground054_rough.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Ground054",
+      "license": "CC0",
+      "used_in": "terrain dirt"
+    },
+    {
+      "file": "sh_beachsand_color.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": true,
+      "source": "ambientCG Ground080",
+      "license": "CC0",
+      "used_in": "beach sand"
+    },
+    {
+      "file": "sh_beachsand_normal.jpg",
+      "type": "normal",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Ground080",
+      "license": "CC0",
+      "used_in": "beach sand"
+    },
+    {
+      "file": "sh_beachsand_rough.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Ground080",
+      "license": "CC0",
+      "used_in": "beach sand"
+    },
+    {
+      "file": "sh_concrete_color.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": true,
+      "source": "ambientCG Concrete034",
+      "license": "CC0",
+      "used_in": "sea wall / buildings / defenses"
+    },
+    {
+      "file": "sh_concrete_normal.jpg",
+      "type": "normal",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Concrete034",
+      "license": "CC0",
+      "used_in": "sea wall / buildings / defenses"
+    },
+    {
+      "file": "sh_concrete_rough.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Concrete034",
+      "license": "CC0",
+      "used_in": "sea wall / buildings / defenses"
+    },
+    {
+      "file": "sh_asphalt_color.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": true,
+      "source": "ambientCG Asphalt031",
+      "license": "CC0",
+      "used_in": "urban roads"
+    },
+    {
+      "file": "sh_asphalt_normal.jpg",
+      "type": "normal",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Asphalt031",
+      "license": "CC0",
+      "used_in": "urban roads"
+    },
+    {
+      "file": "sh_asphalt_rough.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Asphalt031",
+      "license": "CC0",
+      "used_in": "urban roads"
+    },
+    {
+      "file": "sh_rock_color.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": true,
+      "source": "ambientCG Rock064",
+      "license": "CC0",
+      "used_in": "headlands / tetrapods / cliffs"
+    },
+    {
+      "file": "sh_rock_normal.jpg",
+      "type": "normal",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Rock064",
+      "license": "CC0",
+      "used_in": "headlands / tetrapods / cliffs"
+    },
+    {
+      "file": "sh_rock_rough.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Rock064",
+      "license": "CC0",
+      "used_in": "headlands / tetrapods / cliffs"
+    },
+    {
+      "file": "sh_grass_color.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": true,
+      "source": "ambientCG Grass005",
+      "license": "CC0",
+      "used_in": "dunes / hills vegetation"
+    },
+    {
+      "file": "sh_grass_normal.jpg",
+      "type": "normal",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Grass005",
+      "license": "CC0",
+      "used_in": "dunes / hills vegetation"
+    },
+    {
+      "file": "sh_grass_rough.jpg",
+      "type": "texture",
+      "dest": "/Game/SH/Textures/Surfaces",
+      "srgb": false,
+      "source": "ambientCG Grass005",
+      "license": "CC0",
+      "used_in": "dunes / hills vegetation"
+    },
+    {
+      "file": "sh_wpn_fire_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Weapons",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "weapon fire"
+    },
+    {
+      "file": "sh_wpn_fire_02.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Weapons",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "weapon fire"
+    },
+    {
+      "file": "sh_wpn_fire_03.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Weapons",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "weapon fire"
+    },
+    {
+      "file": "sh_boltrelease_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Weapons",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "weapon mech"
+    },
+    {
+      "file": "sh_dryfire_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Weapons",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "weapon mech"
+    },
+    {
+      "file": "sh_magin_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Weapons",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "weapon mech"
+    },
+    {
+      "file": "sh_step_concrete_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Footsteps",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "footstep"
+    },
+    {
+      "file": "sh_step_concrete_02.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Footsteps",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "footstep"
+    },
+    {
+      "file": "sh_step_grass_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Footsteps",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "footstep"
+    },
+    {
+      "file": "sh_step_sand_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Footsteps",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "footstep"
+    },
+    {
+      "file": "sh_step_sand_02.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Footsteps",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "footstep"
+    },
+    {
+      "file": "sh_crack_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Impacts",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "impact/crack"
+    },
+    {
+      "file": "sh_impact_01.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Impacts",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "impact/crack"
+    },
+    {
+      "file": "sh_impact_02.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Impacts",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "impact/crack"
+    },
+    {
+      "file": "sh_vo_clear.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_contact.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_enemydown.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_fragout.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_mandown.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_movingup.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_reloading.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_takingfire.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    },
+    {
+      "file": "sh_vo_test.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/VO",
+      "sound_class": "",
+      "source": "synth/SAPI (ours)",
+      "license": "CC0",
+      "used_in": "radio VO"
+    }
   ]
 }
