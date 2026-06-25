@@ -135,6 +135,15 @@ void ASHPlayerCharacter::BeginPlay()
 			FirstPersonArms->SetAnimInstanceClass(ArmsAnim);
 			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms AnimBP applied: %s"), *ArmsAnim->GetName());
 		}
+
+		// Position the arms in front of the camera. SK_Mannequin_Arms is rooted at the
+		// body origin, so attached at the camera the hands render ~150cm too high (out of
+		// view) — drop the mesh so the hands sit at eye level in front. TUNABLE: if the
+		// hands look too low/high or offset, adjust this Z / X.
+		FirstPersonArms->SetRelativeLocationAndRotation(
+			FVector(-30.f, 0.f, -150.f), FRotator(0.f, 0.f, 0.f));
+		FirstPersonArms->SetVisibility(true, true);
+		FirstPersonArms->SetOnlyOwnerSee(true);
 	}
 
 	// Deferred fixup after possession + loadout auto-apply.
