@@ -2,6 +2,7 @@
 
 #include "SHPlayerController.h"
 #include "SHPlayerCharacter.h"
+#include "SHCameraSystem.h"
 #include "SHInteractable.h"
 #include "Weapons/SHWeaponBase.h"
 #include "EnhancedInputComponent.h"
@@ -503,8 +504,20 @@ void ASHPlayerController::Input_Move(const FInputActionValue& Value)
 void ASHPlayerController::Input_Look(const FInputActionValue& Value)
 {
 	const FVector2D LookInput = Value.Get<FVector2D>();
-	AddYawInput(LookInput.X);
-	AddPitchInput(LookInput.Y);
+
+	// Scale look sensitivity down as the camera zooms in (ADS), so precision aiming
+	// feels controlled instead of twitchy. Derived from the camera's current FOV,
+	// which the camera system lerps smoothly, so the scale eases in/out with the ADS
+	// transition. Floored at ADSLookSensitivityScale; sprint FOV boost (>hip) clamps to 1.
+	float SensScale = 1.f;
+	if (SHCharacter && SHCharacter->CameraSystem && HipFOVForSensitivity > 1.f)
+	{
+		const float CurFOV = SHCharacter->CameraSystem->GetCurrentFOV();
+		SensScale = FMath::Clamp(CurFOV / HipFOVForSensitivity, ADSLookSensitivityScale, 1.f);
+	}
+
+	AddYawInput(LookInput.X * SensScale);
+	AddPitchInput(LookInput.Y * SensScale);
 }
 
 void ASHPlayerController::Input_Fire_Started(const FInputActionValue& Value)
