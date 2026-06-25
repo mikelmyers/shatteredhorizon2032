@@ -10,9 +10,9 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 
-void ASHSimpleHUD::EnsureHitMarkerBound()
+void ASHSimpleHUD::EnsureFeedbackBound()
 {
-	if (bHitMarkerBound)
+	if (bFeedbackBound)
 	{
 		return;
 	}
@@ -22,7 +22,8 @@ void ASHSimpleHUD::EnsureHitMarkerBound()
 		if (USHHitFeedback* HitFeedback = Player->HitFeedback)
 		{
 			HitFeedback->OnHitMarkerTriggered.AddDynamic(this, &ASHSimpleHUD::HandleHitMarker);
-			bHitMarkerBound = true;
+			HitFeedback->OnHitIndicator.AddDynamic(this, &ASHSimpleHUD::HandleHitIndicator);
+			bFeedbackBound = true;
 		}
 	}
 }
@@ -31,6 +32,65 @@ void ASHSimpleHUD::HandleHitMarker(bool bKill)
 {
 	LastHitMarkerTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	bLastHitWasKill = bKill;
+}
+
+void ASHSimpleHUD::HandleHitIndicator(float Angle, float Intensity, float Duration)
+{
+	FSHActiveHitIndicator Indicator;
+	Indicator.Angle = Angle;
+	Indicator.Intensity = FMath::Clamp(Intensity, 0.1f, 1.f);
+	Indicator.StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	Indicator.Duration = FMath::Max(Duration, 0.1f);
+
+	// Cap the active set so a barrage can't grow it unbounded.
+	if (ActiveIndicators.Num() >= 8)
+	{
+		ActiveIndicators.RemoveAt(0);
+	}
+	ActiveIndicators.Add(Indicator);
+}
+
+void ASHSimpleHUD::DrawDamageIndicators(float CX, float CY)
+{
+	if (ActiveIndicators.Num() == 0)
+	{
+		return;
+	}
+
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const float Radius = 90.f; // distance from center to the chevron
+
+	for (int32 i = ActiveIndicators.Num() - 1; i >= 0; --i)
+	{
+		const FSHActiveHitIndicator& Ind = ActiveIndicators[i];
+		const float Age = Now - Ind.StartTime;
+		if (Age < 0.f || Age >= Ind.Duration)
+		{
+			ActiveIndicators.RemoveAt(i);
+			continue;
+		}
+
+		const float Fade = 1.f - (Age / Ind.Duration);
+		const float Alpha = Fade * FMath::Lerp(0.45f, 0.95f, Ind.Intensity);
+		const FLinearColor Color(0.95f, 0.2f, 0.15f, Alpha);
+
+		// 0 = ahead (top of screen), clockwise. Radial points from center to threat.
+		const float Rad = FMath::DegreesToRadians(Ind.Angle);
+		const FVector2D Radial(FMath::Sin(Rad), -FMath::Cos(Rad));
+		const FVector2D Perp(-Radial.Y, Radial.X);
+
+		const FVector2D Base(CX + Radial.X * Radius, CY + Radial.Y * Radius);
+		const float Wing = 16.f * FMath::Lerp(0.7f, 1.2f, Ind.Intensity);
+		const float Depth = 11.f;
+
+		// Chevron pointing outward toward the threat.
+		const FVector2D Tip = Base + Radial * Depth;
+		const FVector2D ArmL = Base + Perp * Wing - Radial * (Depth * 0.4f);
+		const FVector2D ArmR = Base - Perp * Wing - Radial * (Depth * 0.4f);
+
+		DrawLine(ArmL.X, ArmL.Y, Tip.X, Tip.Y, Color, 2.4f);
+		DrawLine(ArmR.X, ArmR.Y, Tip.X, Tip.Y, Color, 2.4f);
+	}
 }
 
 void ASHSimpleHUD::DrawHUD()
@@ -68,10 +128,14 @@ void ASHSimpleHUD::DrawHUD()
 	DrawLine(CX, CY - Gap - Arm, CX, CY - Gap, HudGreen, 1.5f);
 	DrawLine(CX, CY + Gap, CX, CY + Gap + Arm, HudGreen, 1.5f);
 
+	// --- Directional damage indicators: chevrons around the crosshair pointing
+	//     toward incoming fire (data computed by USHHitFeedback). ---
+	EnsureFeedbackBound();
+	DrawDamageIndicators(CX, CY);
+
 	// --- Hit marker: brief fading "X" at center when the player lands a hit;
 	//     white for a hit, red and heavier for a kill. Drawn procedurally so it
 	//     needs no art assets (matches the canvas crosshair). ---
-	EnsureHitMarkerBound();
 	if (LastHitMarkerTime > 0.f)
 	{
 		const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
