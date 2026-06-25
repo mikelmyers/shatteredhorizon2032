@@ -7,6 +7,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Animation/AnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/DamageEvents.h"
@@ -112,6 +113,17 @@ void ASHPlayerCharacter::BeginPlay()
 		if (USkeletalMesh* ArmsMesh = DefaultArmsMesh.LoadSynchronous())
 		{
 			FirstPersonArms->SetSkeletalMesh(ArmsMesh);
+		}
+	}
+
+	// Apply the first-person arms AnimBP so the arms are posed (holding the weapon)
+	// rather than rendering in bind pose at the camera — which is why the weapon can
+	// look like it's floating with no hands.
+	if (FirstPersonArms && !FirstPersonArms->GetAnimInstance() && !DefaultArmsAnimClass.IsNull())
+	{
+		if (UClass* ArmsAnim = DefaultArmsAnimClass.LoadSynchronous())
+		{
+			FirstPersonArms->SetAnimInstanceClass(ArmsAnim);
 		}
 	}
 

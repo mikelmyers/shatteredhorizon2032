@@ -6,6 +6,9 @@
 #include "Weapons/SHWeaponBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
@@ -14,6 +17,44 @@
 ASHPlayerController::ASHPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Provide default Enhanced Input assets in C++ so movement/look/fire work even
+	// when a Blueprint subclass (BP_SHPlayerController) doesn't wire them. A BP that
+	// assigns these overrides the C++ default. Without this, every BindAction and the
+	// AddMappingContext call silently no-op and the player can't move, look, or shoot.
+	{
+		static ConstructorHelpers::FObjectFinder<UInputMappingContext> IMCFinder(
+			TEXT("/Game/SH/Input/IMC_Default.IMC_Default"));
+		if (IMCFinder.Succeeded()) { DefaultMappingContext = IMCFinder.Object; }
+	}
+
+#define SH_BIND_DEFAULT_IA(Prop) \
+	{ static ConstructorHelpers::FObjectFinder<UInputAction> Finder( \
+		TEXT("/Game/SH/Input/Actions/" #Prop "." #Prop)); \
+	  if (Finder.Succeeded()) { Prop = Finder.Object; } }
+
+	SH_BIND_DEFAULT_IA(IA_Move);
+	SH_BIND_DEFAULT_IA(IA_Look);
+	SH_BIND_DEFAULT_IA(IA_Fire);
+	SH_BIND_DEFAULT_IA(IA_ADS);
+	SH_BIND_DEFAULT_IA(IA_Reload);
+	SH_BIND_DEFAULT_IA(IA_Sprint);
+	SH_BIND_DEFAULT_IA(IA_Crouch);
+	SH_BIND_DEFAULT_IA(IA_Prone);
+	SH_BIND_DEFAULT_IA(IA_Jump);
+	SH_BIND_DEFAULT_IA(IA_LeanLeft);
+	SH_BIND_DEFAULT_IA(IA_LeanRight);
+	SH_BIND_DEFAULT_IA(IA_Interact);
+	SH_BIND_DEFAULT_IA(IA_SquadMenu);
+	SH_BIND_DEFAULT_IA(IA_CycleFireMode);
+	SH_BIND_DEFAULT_IA(IA_PrimaryWeapon);
+	SH_BIND_DEFAULT_IA(IA_Sidearm);
+	SH_BIND_DEFAULT_IA(IA_Grenade);
+	SH_BIND_DEFAULT_IA(IA_DroneToggle);
+	SH_BIND_DEFAULT_IA(IA_Binoculars);
+	SH_BIND_DEFAULT_IA(IA_Radio);
+
+#undef SH_BIND_DEFAULT_IA
 }
 
 // =======================================================================

@@ -19,6 +19,7 @@ class USHReverbZoneManager;
 class USHAmbientSoundscape;
 class USHCommsDisruption;
 class ASHWeaponBase;
+class UAnimInstance;
 
 /** Limb identifiers for the injury system. */
 UENUM(BlueprintType)
@@ -246,6 +247,12 @@ public:
 	/** First-person arms mesh applied at BeginPlay if none set (config-driven). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
 	TSoftObjectPtr<USkeletalMesh> DefaultArmsMesh;
+
+	/** Animation Blueprint for the first-person arms, applied at BeginPlay. Without a
+	 *  posed AnimBP the arms render in bind pose at the camera origin (invisible), which
+	 *  makes the weapon appear to float. Point this at an FP arms AnimBP matching the mesh. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
+	TSoftClassPtr<UAnimInstance> DefaultArmsAnimClass;
 
 	/** Relative placement applied to the equipped weapon when the arms mesh has no
 	 *  'WeaponSocket' (keeps the viewmodel believable without authored sockets). */
