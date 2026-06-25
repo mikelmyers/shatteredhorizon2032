@@ -27,3 +27,4 @@ license, where used. Audio, animation, textures, VFX, UI, music.)*
 | CitySample buildings | Meshes | Epic CitySample | Epic | Urban zone |
 | UI icon set (28) | UI | (in-project) | — | HUD |
 | Niagara VFX params (62) | VFX | (in-project) | — | Combat VFX |
+| Ground054 (Color/Normal/Rough/AO) | PBR texture | ambientCG | **CC0** | Beach/terrain surface (`/Game/SH/Textures/Surfaces`) |

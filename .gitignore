@@ -32,3 +32,6 @@ Content/
 *.png
 *.url
 *.aaa-backup
+
+# Raw downloaded asset sources (regenerable via manifest)
+Tools/incoming/

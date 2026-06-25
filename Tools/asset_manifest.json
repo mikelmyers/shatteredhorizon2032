@@ -1,5 +1,10 @@
 {
   "_comment": "Batch-import manifest + license ledger. Drop files into incoming_dir, add a row, run Tools/LevelBuilder/import_assets.py headless. Keep CREDITS.md in sync. types: texture|normal|mesh|audio|anim. license: prefer CC0 > CC-BY > Epic; avoid non-commercial.",
   "incoming_dir": "Tools/incoming",
-  "assets": []
+  "assets": [
+    {"file": "sh_ground054_color.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": true, "source": "ambientCG Ground054", "license": "CC0", "used_in": "beach/terrain"},
+    {"file": "sh_ground054_normal.jpg", "type": "normal", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground054", "license": "CC0", "used_in": "beach/terrain"},
+    {"file": "sh_ground054_rough.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground054", "license": "CC0", "used_in": "beach/terrain"},
+    {"file": "sh_ground054_ao.jpg", "type": "texture", "dest": "/Game/SH/Textures/Surfaces", "srgb": false, "source": "ambientCG Ground054", "license": "CC0", "used_in": "beach/terrain"}
+  ]
 }

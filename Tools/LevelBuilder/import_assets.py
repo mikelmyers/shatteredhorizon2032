@@ -30,14 +30,16 @@ import os
 
 import unreal
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
-PROJECT = os.path.dirname(ROOT) if os.path.basename(ROOT) == "Tools" else ROOT
-MANIFEST = os.path.join(ROOT, "asset_manifest.json")
-RESULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "import_result.txt")
+HERE = os.path.dirname(os.path.abspath(__file__))   # Tools/LevelBuilder
+TOOLS = os.path.dirname(HERE)                        # Tools
+REPO = os.path.dirname(TOOLS)                         # repo root
+MANIFEST = os.path.join(TOOLS, "asset_manifest.json")
+RESULT = os.path.join(HERE, "output", "import_result.txt")
 
 
 def _abs_incoming(incoming_dir, rel):
-    base = incoming_dir if os.path.isabs(incoming_dir) else os.path.join(ROOT, incoming_dir)
+    # incoming_dir in the manifest is relative to the repo root (e.g. "Tools/incoming").
+    base = incoming_dir if os.path.isabs(incoming_dir) else os.path.join(REPO, incoming_dir)
     return os.path.normpath(os.path.join(base, rel))
 
 
