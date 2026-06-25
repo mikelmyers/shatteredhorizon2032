@@ -100,6 +100,16 @@ def _import_one(entry, incoming_dir):
             obj.set_editor_property("srgb", bool(entry.get("srgb", True)))
         unreal.EditorAssetLibrary.save_loaded_asset(obj)
 
+    if atype == "audio" and obj and entry.get("loop"):
+        # Looping ambience beds need bLooping on the USoundWave.
+        for prop in ("looping", "loop", "b_looping"):
+            try:
+                obj.set_editor_property(prop, True)
+                break
+            except Exception:  # noqa: BLE001
+                continue
+        unreal.EditorAssetLibrary.save_loaded_asset(obj)
+
     if atype == "audio" and obj and entry.get("sound_class"):
         sc = unreal.load_asset("/Game/SH/Audio/Classes/%s" % entry["sound_class"])
         if sc:

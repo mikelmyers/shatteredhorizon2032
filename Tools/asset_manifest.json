@@ -370,6 +370,26 @@
       "source": "synth/SAPI (ours)",
       "license": "CC0",
       "used_in": "radio VO"
+    },
+    {
+      "file": "sh_amb_wind.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Ambient",
+      "sound_class": "",
+      "loop": true,
+      "source": "synth (ours)",
+      "license": "CC0",
+      "used_in": "ambient wind bed"
+    },
+    {
+      "file": "sh_amb_battle.wav",
+      "type": "audio",
+      "dest": "/Game/SH/Audio/Ambient",
+      "sound_class": "",
+      "loop": true,
+      "source": "synth (ours)",
+      "license": "CC0",
+      "used_in": "ambient distant-battle bed"
     }
   ]
 }
