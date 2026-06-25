@@ -15,6 +15,11 @@ USHDamageSystem::USHDamageSystem()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 	PrimaryComponentTick.TickInterval = 0.1f; // Bleed tick doesn't need every frame.
+
+	// Populate the hit-zone multipliers immediately (idempotent; also re-run in
+	// BeginPlay) so a freshly-constructed component always has valid zone data —
+	// not only after BeginPlay. (Caught by SH2032.Combat.Damage.HitZones tests.)
+	InitDefaultZoneMultipliers();
 }
 
 // =====================================================================

@@ -150,7 +150,10 @@ bool FWeaponPhysicsConsistency::RunTest(const FString&)
 	TestTrue(TEXT(".50 BMG heavier than .338 Lapua"), M2->Ballistics.BulletMassGrams > Lapua->Ballistics.BulletMassGrams);
 	TestTrue(TEXT(".338 Lapua heavier than 7.62x51"), Lapua->Ballistics.BulletMassGrams > M110->Ballistics.BulletMassGrams);
 	TestTrue(TEXT("7.62x51 heavier than 5.56x45"), M110->Ballistics.BulletMassGrams > M27->Ballistics.BulletMassGrams);
-	TestTrue(TEXT("5.56x45 heavier than 9x19"), M27->Ballistics.BulletMassGrams > M17->Ballistics.BulletMassGrams);
+	// A 9x19 pistol bullet (~7-8 g) is actually HEAVIER than a 5.56x45 rifle bullet
+	// (~4 g) — the rifle round is faster/more energetic, not heavier. (Prior assertion
+	// had this backwards; the weapon data is physically correct.)
+	TestTrue(TEXT("9x19 heavier than 5.56x45"), M17->Ballistics.BulletMassGrams > M27->Ballistics.BulletMassGrams);
 
 	// Higher caliber = more penetration through wood
 	float M2_WoodPen = 0, M27_WoodPen = 0, M17_WoodPen = 0;
