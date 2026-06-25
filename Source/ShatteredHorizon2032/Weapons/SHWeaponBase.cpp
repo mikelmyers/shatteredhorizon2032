@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Combat/SHHitFeedback.h"
 #include "AI/SHEnemyCharacter.h"
+#include "Core/SHCameraSystem.h"
 
 /* -----------------------------------------------------------------------
  *  Construction
@@ -731,6 +732,16 @@ void ASHWeaponBase::ApplyRecoil()
 		{
 			PC->AddPitchInput(-VerticalKick);
 			PC->AddYawInput(HorizontalKick);
+		}
+
+		// Visceral additive camera kick on top of the aim-walking recoil above.
+		// Scaled by the felt vertical kick (already post-ADS/attachment), so heavy
+		// weapons thump harder and ADS softens it. No-op for non-player owners
+		// (enemies have no camera system).
+		if (USHCameraSystem* Cam = OwnerPawn->FindComponentByClass<USHCameraSystem>())
+		{
+			const float KickIntensity = FMath::Clamp(FMath::Abs(VerticalKick) * 2.0f, 0.25f, 2.0f);
+			Cam->ApplyFireKick(KickIntensity);
 		}
 	}
 }

@@ -123,6 +123,21 @@ void USHCameraSystem::ApplyScreenPunch(const FVector& DamageDirection, float Int
 	PunchVelocity += FRotator(PunchPitch, PunchYaw, 0.f) * PunchRecoverySpeed;
 }
 
+void USHCameraSystem::ApplyFireKick(float Intensity)
+{
+	Intensity = FMath::Clamp(Intensity, 0.f, 3.f);
+	if (Intensity <= 0.f)
+	{
+		return;
+	}
+
+	// Upward jolt plus a small random horizontal component, injected into the
+	// punch spring so it settles immediately. Aim is unaffected.
+	const float Pitch = FireKickPitch * Intensity;
+	const float Yaw = FMath::FRandRange(-1.f, 1.f) * FireKickYaw * Intensity;
+	PunchVelocity += FRotator(Pitch, Yaw, 0.f) * PunchRecoverySpeed;
+}
+
 void USHCameraSystem::ApplyLandingDip(float Intensity)
 {
 	Intensity = FMath::Clamp(Intensity, 0.f, 1.f);

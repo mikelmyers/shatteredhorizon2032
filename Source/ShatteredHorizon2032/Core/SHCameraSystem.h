@@ -85,6 +85,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void ApplyLandingDip(float Intensity);
 
+	/**
+	 * Per-shot additive camera kick — a quick upward jolt with slight random yaw
+	 * that recovers to zero through the punch spring. This is purely visceral: it
+	 * does NOT move the controller aim (that's the weapon's separate recoil), it
+	 * just gives each shot a satisfying thump on top.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
+	void ApplyFireKick(float Intensity = 1.f);
+
 	/** Update the camera context from character state each frame. */
 	UFUNCTION(BlueprintCallable, Category = "SH|Camera")
 	void SetCameraContext(const FSHCameraContext& InContext);
@@ -188,6 +197,14 @@ protected:
 	/** Screen punch recovery speed (degrees per second). */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|Punch")
 	float PunchRecoverySpeed = 15.f;
+
+	/** Base upward camera kick per shot (degrees) at intensity 1. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|Punch")
+	float FireKickPitch = 0.4f;
+
+	/** Base random horizontal camera kick per shot (degrees) at intensity 1. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Camera|Punch")
+	float FireKickYaw = 0.2f;
 
 private:
 	void TickHeadBob(float DeltaTime);
