@@ -19,6 +19,7 @@
 #include "Combat/SHFatigueSystem.h"
 #include "Audio/SHReverbZoneManager.h"
 #include "Audio/SHAmbientSoundscape.h"
+#include "Audio/SHFootstepSystem.h"
 #include "EW/SHCommsDisruption.h"
 #include "Progression/SHLoadoutSystem.h"
 #include "Squad/SHSquadManager.h"
@@ -81,6 +82,9 @@ ASHPlayerCharacter::ASHPlayerCharacter()
 
 	// Squad command and roster management.
 	SquadManager = CreateDefaultSubobject<USHSquadManager>(TEXT("SquadManager"));
+
+	// Footstep audio + AI noise (surface-aware), driven by code stride detection.
+	FootstepSystem = CreateDefaultSubobject<USHFootstepSystem>(TEXT("FootstepSystem"));
 
 	// Configure movement defaults.
 	UCharacterMovementComponent* CMC = GetCharacterMovement();
@@ -245,6 +249,7 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 	TickSuppression(DeltaSeconds);
 	TickBleeding(DeltaSeconds);
 	TickLean(DeltaSeconds);
+	TickFootsteps(DeltaSeconds);
 
 	// --- Feed camera system with current character state ---
 	if (CameraSystem)
@@ -426,6 +431,12 @@ void ASHPlayerCharacter::Landed(const FHitResult& Hit)
 	if (CameraSystem && Intensity > 0.f)
 	{
 		CameraSystem->ApplyLandingDip(Intensity);
+	}
+
+	// Landing thud (surface-aware) + AI noise, scaled by impact speed.
+	if (FootstepSystem)
+	{
+		FootstepSystem->PlayLanding(ImpactSpeed);
 	}
 
 	LastFallingZSpeed = 0.f;
@@ -1054,6 +1065,47 @@ void ASHPlayerCharacter::TickLean(float DeltaSeconds)
 	{
 		CameraSystem->SetLeanOffset(CurrentLeanAlpha * LeanOffsetDistance,
 									CurrentLeanAlpha * LeanAngleDeg);
+	}
+}
+
+void ASHPlayerCharacter::TickFootsteps(float DeltaSeconds)
+{
+	if (!FootstepSystem)
+	{
+		return;
+	}
+
+	const UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!CMC || CMC->IsFalling())
+	{
+		return; // airborne — no steps; landing is handled in Landed()
+	}
+
+	const float Speed = GetVelocity().Size2D();
+	if (Speed < 10.f)
+	{
+		return; // standing still
+	}
+
+	// Stride length scales with stance: longer strides at speed, shorter crouched/prone.
+	float StrideLen = 175.f; // standing walk/run
+	if (bIsSprinting)
+	{
+		StrideLen = 230.f;
+	}
+	switch (CurrentStance)
+	{
+	case ESHStance::Crouching: StrideLen = 130.f; break;
+	case ESHStance::Prone:     StrideLen = 90.f;  break;
+	default: break;
+	}
+
+	StrideAccumCm += Speed * DeltaSeconds;
+	if (StrideAccumCm >= StrideLen)
+	{
+		StrideAccumCm = 0.f;
+		FootstepSystem->PlayFootstep(bNextFootRight); // surface-aware sound + MakeNoise (AI hearing)
+		bNextFootRight = !bNextFootRight;
 	}
 }
 

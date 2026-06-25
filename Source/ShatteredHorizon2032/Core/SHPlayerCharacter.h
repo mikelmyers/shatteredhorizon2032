@@ -18,6 +18,7 @@ class USHFatigueSystem;
 class USHReverbZoneManager;
 class USHAmbientSoundscape;
 class USHCommsDisruption;
+class USHFootstepSystem;
 class ASHWeaponBase;
 class UAnimInstance;
 
@@ -244,6 +245,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
 	TObjectPtr<USHSquadManager> SquadManager;
 
+	/** Footstep audio + AI-noise (surface-aware). Driven by code stride detection
+	 *  here (no anim notifies needed); plays nothing until sounds are imported, but
+	 *  the MakeNoise -> AI-hearing path is live regardless. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHFootstepSystem> FootstepSystem;
+
 	/** First-person arms mesh applied at BeginPlay if none set (config-driven). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
 	TSoftObjectPtr<USkeletalMesh> DefaultArmsMesh;
@@ -291,6 +298,16 @@ protected:
 	void TickSuppression(float DeltaSeconds);
 	void TickBleeding(float DeltaSeconds);
 	void TickLean(float DeltaSeconds);
+
+	/** Code-driven stride detection: emits footsteps (sound + AI noise) at a
+	 *  stance/speed-scaled stride length while grounded and moving. */
+	void TickFootsteps(float DeltaSeconds);
+
+	/** Distance accumulated since the last footstep (cm). */
+	float StrideAccumCm = 0.f;
+
+	/** Alternating foot for the next step. */
+	bool bNextFootRight = false;
 
 	/** Apply movement-feel tuning to the CharacterMovementComponent. Called from
 	 *  BeginPlay (Live-Coding-proof) and the constructor (packaged builds). */
