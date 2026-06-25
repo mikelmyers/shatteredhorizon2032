@@ -56,6 +56,10 @@ public:
 	// ------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
+
+	/** Load any unset input action / mapping-context assets at runtime (fallback for
+	 *  Live Coding, which doesn't re-run the constructor). Safe to call repeatedly. */
+	void EnsureInputAssetsLoaded();
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void Tick(float DeltaSeconds) override;
 

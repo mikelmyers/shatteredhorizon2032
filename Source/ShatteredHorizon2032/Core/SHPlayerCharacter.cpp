@@ -107,34 +107,33 @@ void ASHPlayerCharacter::BeginPlay()
 	Stamina = MaxStamina;
 	RecalculateWeight();
 
-	// Apply the configured first-person arms mesh + AnimBP as a matched pair. Forced
-	// (not just when empty) so a stale Blueprint mesh without an AnimBP can't leave the
-	// arms in bind pose at the camera (the "floating weapon, no hands" symptom).
-	if (FirstPersonArms && !DefaultArmsMesh.IsNull())
+	// Apply first-person arms mesh + AnimBP as a matched pair. If config didn't supply
+	// an AnimBP (e.g. DefaultGame.ini not reloaded after a Live Coding rebuild), fall back
+	// to the Epic FirstPerson pack set in code — posed hands beat an unposed bind-pose
+	// mesh that reads as a floating weapon with no hands.
+	if (FirstPersonArms)
 	{
-		if (USkeletalMesh* ArmsMesh = DefaultArmsMesh.LoadSynchronous())
+		USkeletalMesh* ArmsMesh = DefaultArmsMesh.IsNull() ? nullptr : DefaultArmsMesh.LoadSynchronous();
+		UClass* ArmsAnim = DefaultArmsAnimClass.IsNull() ? nullptr : DefaultArmsAnimClass.LoadSynchronous();
+
+		if (!ArmsAnim)
+		{
+			ArmsMesh = LoadObject<USkeletalMesh>(nullptr,
+				TEXT("/Game/CT_Components/Demos/EpicContents/FirstPersonPack/FirstPersonArms/Character/Mesh/SK_Mannequin_Arms.SK_Mannequin_Arms"));
+			ArmsAnim = LoadClass<UAnimInstance>(nullptr,
+				TEXT("/Game/CT_Components/Demos/EpicContents/FirstPersonPack/FirstPersonArms/Animations/FirstPerson_AnimBP.FirstPerson_AnimBP_C"));
+			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms: using hardcoded FirstPerson-pack fallback"));
+		}
+
+		if (ArmsMesh)
 		{
 			FirstPersonArms->SetSkeletalMesh(ArmsMesh);
 			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms mesh applied: %s"), *ArmsMesh->GetName());
 		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("[SHPlayerCharacter] FP arms mesh FAILED to load: %s"),
-				*DefaultArmsMesh.ToString());
-		}
-	}
-
-	if (FirstPersonArms && !DefaultArmsAnimClass.IsNull())
-	{
-		if (UClass* ArmsAnim = DefaultArmsAnimClass.LoadSynchronous())
+		if (ArmsAnim)
 		{
 			FirstPersonArms->SetAnimInstanceClass(ArmsAnim);
 			UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] FP arms AnimBP applied: %s"), *ArmsAnim->GetName());
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("[SHPlayerCharacter] FP arms AnimBP FAILED to load: %s"),
-				*DefaultArmsAnimClass.ToString());
 		}
 	}
 

@@ -57,6 +57,30 @@ ASHPlayerController::ASHPlayerController()
 #undef SH_BIND_DEFAULT_IA
 }
 
+void ASHPlayerController::EnsureInputAssetsLoaded()
+{
+	// Runtime fallback for any unset input asset. The constructor sets these on the
+	// CDO, but Live Coding (Ctrl+Alt+F11) does NOT re-run constructors, so a hot-reload
+	// would otherwise leave them null. Loading here runs on every play/possess, so
+	// input works regardless of how the editor was rebuilt.
+	if (!DefaultMappingContext)
+	{
+		DefaultMappingContext = LoadObject<UInputMappingContext>(nullptr, TEXT("/Game/SH/Input/IMC_Default.IMC_Default"));
+	}
+
+#define SH_LOAD_IA(Prop) \
+	if (!Prop) { Prop = LoadObject<UInputAction>(nullptr, TEXT("/Game/SH/Input/Actions/" #Prop "." #Prop)); }
+
+	SH_LOAD_IA(IA_Move);   SH_LOAD_IA(IA_Look);   SH_LOAD_IA(IA_Fire);   SH_LOAD_IA(IA_ADS);
+	SH_LOAD_IA(IA_Reload); SH_LOAD_IA(IA_Sprint); SH_LOAD_IA(IA_Crouch); SH_LOAD_IA(IA_Prone);
+	SH_LOAD_IA(IA_Jump);   SH_LOAD_IA(IA_LeanLeft); SH_LOAD_IA(IA_LeanRight); SH_LOAD_IA(IA_Interact);
+	SH_LOAD_IA(IA_SquadMenu); SH_LOAD_IA(IA_CycleFireMode); SH_LOAD_IA(IA_PrimaryWeapon);
+	SH_LOAD_IA(IA_Sidearm); SH_LOAD_IA(IA_Grenade); SH_LOAD_IA(IA_DroneToggle);
+	SH_LOAD_IA(IA_Binoculars); SH_LOAD_IA(IA_Radio);
+
+#undef SH_LOAD_IA
+}
+
 // =======================================================================
 //  APlayerController overrides
 // =======================================================================
@@ -64,6 +88,8 @@ ASHPlayerController::ASHPlayerController()
 void ASHPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	EnsureInputAssetsLoaded();
 
 	// Register the default mapping context with the Enhanced Input subsystem.
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
@@ -89,6 +115,9 @@ void ASHPlayerController::BeginPlay()
 void ASHPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+
+	// Ensure the action assets exist before binding (defeats Live Coding staleness).
+	EnsureInputAssetsLoaded();
 
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!EIC)
