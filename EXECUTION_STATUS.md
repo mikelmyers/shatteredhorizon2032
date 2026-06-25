@@ -22,7 +22,7 @@ local AI tools. Where I could prove a gate, I did (see Wave 7).
 | Wave | Autonomous scope — DONE | Gated remainder (and why) |
 |---|---|---|
 | **0 Foundations** | ✅ Scalability split, perf sampler + **baseline (~7–8 FPS dev box)**, batch asset importer, auto-playtest harness | — |
-| **1 Audio** | ✅ Footstep system wired (code stride detection + AI-noise); weapon/impact/reload **call sites exist** | **Sound assets** — need you to run a local AI-audio tool (AudioGen/ElevenLabs) → drop in `Tools/incoming/` → I import+wire. (I can't run GPU AI-gen here.) |
+| **1 Audio** | ✅ **The game has sound.** Synthesized 14 CC0 SFX (`gen_sfx.py`: weapon fire ×3, footsteps/surface, impacts, supersonic crack, mech) + 8 radio VO callouts via **Windows SAPI TTS** (`gen_vo.ps1`) — fully autonomous, no auth. Imported (23 → `/Game/SH/Audio`) + wired as code fallbacks (fire/footstep/impact/voice-line, all 15 line types). Validated: fires + plays, zero audio errors. | **Higher-fidelity banks** — drop authored/AI-gen SFX/VO into `Tools/incoming/` to override the synth placeholders. Music *playback system* not built (only a volume exists). |
 | **2 Animation** | — (no authored anims possible without assets) | **Fab/Mixamo/Cascadeur assets** (your Epic login / local tool). Pipeline ready to import+retarget. |
 | **3 Visuals** | ✅ 6 CC0 PBR surface sets acquired + imported + **6 master materials built** (all headless, no auth) | **Megascans hero assets** (Fab login). CC0 path is proven and continues. |
 | **4 HUD** | ✅ Canvas HUD with hit markers, damage indicators, ammo states, fire-mode (functional) | **Production UMG** — editor-GUI authoring I can't drive headlessly. |
@@ -30,7 +30,7 @@ local AI tools. Where I could prove a gate, I did (see Wave 7).
 | **6 Level composition** | ✅ Shoreline fortifications + urban checkpoints/rubble built into the map; **city verified fully built** (0 empty blocks) | Hero set-dressing (scooters, neon signage, temple detail) needs real meshes (Fab/Megascans). |
 | **7 Feel/look tuning** | ⛔ **PROVEN human-gated.** I attempted an autonomous exposure/grade fix → it **degraded the look** (hazy/washed-out) → reverted. Concrete evidence the look/feel is a human sign-off, not an autonomous task. | The whole wave: in-hand feel + look tuning. Needs your eye. |
 | **8 Performance** | ✅ **Measured**: forced-Low scalability ≈ baseline (~7 FPS) on the dev box → it is **GPU-bound by the UHD630**, a hardware floor, not a settings issue. The scalability split pays off on target HW (3060+/console). LWC `Ensure` is **benign** (non-fatal; the proper fix is a risky world-rebase — not worth degrading the level). | Hitting 60fps needs **target hardware** + a GUI lighting bake. The dev box is the authoring floor by design. |
-| **9 Cohesion/ship** | ✅ Mission flow exists + loads: *"M01_TaoyuanBeach (4 phases), StartPlay — PreInvasion"*; phase progression PreInvasion→BeachAssault→UrbanFallback→Counterattack in code | **Music/VO assets** (local AI-gen / your choice) + the **final human playthrough sign-off**. |
+| **9 Cohesion/ship** | ✅ Mission flow loads + progresses (4 phases); **radio VO now wired** (SAPI). | A **music playback system** (not built — only a volume setting exists) + the **final human playthrough sign-off**. |
 
 ## The honest bottom line
 
