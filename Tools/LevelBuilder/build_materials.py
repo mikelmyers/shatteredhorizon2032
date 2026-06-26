@@ -13,14 +13,15 @@ TEX_DIR = "/Game/SH/Textures/Surfaces"
 MAT_DIR = "/Game/SH/Materials"
 RESULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "materials_result.txt")
 
-# name -> (default UV tiling). Tiling tuned so 1K textures read at a believable scale.
+# name -> (UV tiling, albedo brightness). Brightness < 1 darkens so light surfaces
+# (concrete/asphalt) don't blow out to white under the level's hot exposure.
 SURFACES = {
-    "beachsand": 8.0,
-    "concrete": 4.0,
-    "asphalt": 6.0,
-    "rock": 3.0,
-    "grass": 10.0,
-    "ground054": 8.0,
+    "beachsand": (8.0, 1.0),
+    "concrete": (4.0, 0.5),
+    "asphalt": (6.0, 0.45),
+    "rock": (3.0, 0.7),
+    "grass": (10.0, 1.0),
+    "ground054": (8.0, 0.9),
 }
 
 mel = unreal.MaterialEditingLibrary
@@ -32,7 +33,7 @@ def _load_tex(name, suffix):
     return unreal.load_asset(path)
 
 
-def build_one(name, tiling):
+def build_one(name, tiling, brightness=1.0):
     color = _load_tex(name, "color")
     normal = _load_tex(name, "normal")
     rough = _load_tex(name, "rough")
@@ -56,11 +57,19 @@ def build_one(name, tiling):
     mel.connect_material_expressions(texcoord, "", mul, "A")
     mel.connect_material_expressions(tiling_const, "", mul, "B")
 
-    # Base color.
+    # Base color, scaled by `brightness` so light surfaces don't blow out white.
     s_color = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -400, -200)
     s_color.set_editor_property("texture", color)
     mel.connect_material_expressions(mul, "", s_color, "UVs")
-    mel.connect_material_property(s_color, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+    if brightness != 1.0:
+        bmul = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -150, -200)
+        bconst = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -300, -100)
+        bconst.set_editor_property("r", float(brightness))
+        mel.connect_material_expressions(s_color, "RGB", bmul, "A")
+        mel.connect_material_expressions(bconst, "", bmul, "B")
+        mel.connect_material_property(bmul, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    else:
+        mel.connect_material_property(s_color, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
 
     # Normal.
     if normal:
@@ -88,9 +97,9 @@ def build_one(name, tiling):
 def main():
     lines = []
     ok = 0
-    for name, tiling in SURFACES.items():
+    for name, (tiling, brightness) in SURFACES.items():
         try:
-            success, msg = build_one(name, tiling)
+            success, msg = build_one(name, tiling, brightness)
         except Exception as e:  # noqa: BLE001
             success, msg = False, "EXC %s: %s" % (name, e)
         ok += 1 if success else 0
