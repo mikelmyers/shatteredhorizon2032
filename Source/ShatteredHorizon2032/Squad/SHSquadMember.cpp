@@ -605,6 +605,40 @@ void ASHSquadMember::PlayVoiceLine(ESHVoiceLineType LineType)
 		VoiceAudioComponent->Play();
 		VoiceCooldownRemaining = VoiceCooldownDuration;
 	}
+	else if (VoiceAudioComponent)
+	{
+		// Fallback: synthesized SAPI radio VO so squad callouts aren't silent until
+		// authored voice banks are imported. Maps each line type to a generated line.
+		const TCHAR* Path = nullptr;
+		switch (LineType)
+		{
+		case ESHVoiceLineType::ContactReport:   Path = TEXT("/Game/SH/Audio/VO/sh_vo_contact.sh_vo_contact"); break;
+		case ESHVoiceLineType::Reloading:
+		case ESHVoiceLineType::AmmoLow:         Path = TEXT("/Game/SH/Audio/VO/sh_vo_reloading.sh_vo_reloading"); break;
+		case ESHVoiceLineType::Suppressed:
+		case ESHVoiceLineType::FriendlyFire:    Path = TEXT("/Game/SH/Audio/VO/sh_vo_takingfire.sh_vo_takingfire"); break;
+		case ESHVoiceLineType::WoundedSelf:
+		case ESHVoiceLineType::WoundedFriendly:
+		case ESHVoiceLineType::ManDown:         Path = TEXT("/Game/SH/Audio/VO/sh_vo_mandown.sh_vo_mandown"); break;
+		case ESHVoiceLineType::GrenadeThrowing:
+		case ESHVoiceLineType::EnemyGrenade:    Path = TEXT("/Game/SH/Audio/VO/sh_vo_fragout.sh_vo_fragout"); break;
+		case ESHVoiceLineType::AllClear:        Path = TEXT("/Game/SH/Audio/VO/sh_vo_clear.sh_vo_clear"); break;
+		case ESHVoiceLineType::TargetDown:      Path = TEXT("/Game/SH/Audio/VO/sh_vo_enemydown.sh_vo_enemydown"); break;
+		case ESHVoiceLineType::MovingUp:
+		case ESHVoiceLineType::CoverMe:
+		case ESHVoiceLineType::OrderAcknowledge: Path = TEXT("/Game/SH/Audio/VO/sh_vo_movingup.sh_vo_movingup"); break;
+		default: break;
+		}
+		if (Path)
+		{
+			if (USoundBase* VO = LoadObject<USoundBase>(nullptr, Path))
+			{
+				VoiceAudioComponent->SetSound(VO);
+				VoiceAudioComponent->Play();
+				VoiceCooldownRemaining = VoiceCooldownDuration;
+			}
+		}
+	}
 }
 
 void ASHSquadMember::ReportContact(AActor* SpottedEnemy, const FVector& EnemyLocation)

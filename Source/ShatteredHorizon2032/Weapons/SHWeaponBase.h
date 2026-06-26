@@ -81,6 +81,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Components")
 	TObjectPtr<USHWeaponAttachmentSystem> AttachmentSystem;
 
+	/**
+	 * Route an outgoing damaging hit on an enemy through the owner's HitFeedback
+	 * component so the shooter gets a hit marker (and the target a flinch). Called
+	 * from both the hitscan and projectile damage paths. No-op for non-enemy hits.
+	 */
+	void ReportHitFeedback(AActor* HitActor, const FHitResult& Hit, const FVector& ShotDirection);
+
 	/* --- Input Actions --- */
 
 	/** Call to begin firing (press). */
@@ -212,8 +219,10 @@ protected:
 	/** Execute a single shot (hitscan or projectile). */
 	virtual void FireShot();
 
-	/** Perform a hitscan trace for close-range fire. */
-	void ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection);
+	/** Perform a hitscan trace for close-range fire, applying damage + feedback on a
+	 *  hit. Returns true if something was hit within hitscan range (so the caller can
+	 *  fall back to a projectile only when nothing was hit). */
+	bool ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection);
 
 	/** Spawn a projectile actor for distance fire. */
 	void SpawnProjectile(const FVector& MuzzleLocation, const FVector& ShotDirection);

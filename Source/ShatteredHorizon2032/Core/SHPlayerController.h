@@ -274,6 +274,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Squad")
 	float SquadCommandTraceDistance = 50000.f;
 
+	/** Look sensitivity multiplier at full ADS zoom. Scaled smoothly by the camera's
+	 *  current FOV so aiming tightens for precision without feeling sluggish. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Input", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float ADSLookSensitivityScale = 0.65f;
+
+	/** Reference hip FOV used to derive the ADS look-sensitivity zoom ratio. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Input")
+	float HipFOVForSensitivity = 90.f;
+
 private:
 	UPROPERTY()
 	TObjectPtr<ASHPlayerCharacter> SHCharacter = nullptr;

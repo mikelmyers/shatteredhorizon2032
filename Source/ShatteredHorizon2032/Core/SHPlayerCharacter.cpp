@@ -19,12 +19,15 @@
 #include "Combat/SHFatigueSystem.h"
 #include "Audio/SHReverbZoneManager.h"
 #include "Audio/SHAmbientSoundscape.h"
+#include "Audio/SHFootstepSystem.h"
 #include "EW/SHCommsDisruption.h"
 #include "Progression/SHLoadoutSystem.h"
 #include "Squad/SHSquadManager.h"
 #include "Squad/SHSquadMember.h"
 #include "Engine/SkeletalMesh.h"
 #include "Kismet/GameplayStatics.h"
+#include "EngineUtils.h"
+#include "AI/SHEnemyCharacter.h"
 
 ASHPlayerCharacter::ASHPlayerCharacter()
 {
@@ -80,6 +83,9 @@ ASHPlayerCharacter::ASHPlayerCharacter()
 	// Squad command and roster management.
 	SquadManager = CreateDefaultSubobject<USHSquadManager>(TEXT("SquadManager"));
 
+	// Footstep audio + AI noise (surface-aware), driven by code stride detection.
+	FootstepSystem = CreateDefaultSubobject<USHFootstepSystem>(TEXT("FootstepSystem"));
+
 	// Configure movement defaults.
 	UCharacterMovementComponent* CMC = GetCharacterMovement();
 	if (CMC)
@@ -89,6 +95,14 @@ ASHPlayerCharacter::ASHPlayerCharacter()
 		CMC->NavAgentProps.bCanCrouch = true;
 		CMC->SetCrouchedHalfHeight(48.f);
 	}
+
+	// First-person pawn: the body faces where the player looks so weapon muzzle
+	// direction, squad facing, and aim trace origin stay consistent.
+	bUseControllerRotationYaw = true;
+
+	// Apply the rest of the movement-feel tuning (also re-applied in BeginPlay
+	// so Live Coding iteration picks up edits without a constructor re-run).
+	ApplyMovementTuning();
 
 	// Initialize limb states.
 	LimbStates.SetNum(6);
@@ -106,6 +120,10 @@ void ASHPlayerCharacter::BeginPlay()
 	CurrentHealth = MaxHealth;
 	Stamina = MaxStamina;
 	RecalculateWeight();
+
+	// Re-apply movement-feel tuning here (constructor edits don't reach an
+	// editor iterating via Live Coding — see project notes).
+	ApplyMovementTuning();
 
 	// Apply first-person arms mesh + AnimBP as a matched pair. If config didn't supply
 	// an AnimBP (e.g. DefaultGame.ini not reloaded after a Live Coding rebuild), fall back
@@ -215,6 +233,8 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
+	TickAutoPlaytest(DeltaSeconds);
+
 	// Track downward speed while airborne so Landed() can scale the impact dip
 	// (vertical velocity is zeroed by the time Landed fires).
 	if (const UCharacterMovementComponent* CMCFall = GetCharacterMovement())
@@ -229,6 +249,7 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 	TickSuppression(DeltaSeconds);
 	TickBleeding(DeltaSeconds);
 	TickLean(DeltaSeconds);
+	TickFootsteps(DeltaSeconds);
 
 	// --- Feed camera system with current character state ---
 	if (CameraSystem)
@@ -292,6 +313,10 @@ void ASHPlayerCharacter::Tick(float DeltaSeconds)
 		TargetSpeed *= GetMovementSpeedMultiplier();
 
 		CMC->MaxWalkSpeed = TargetSpeed;
+		// Prone uses the engine's crouch state (Crouch() is called as its base),
+		// so the engine clamps to MaxWalkSpeedCrouched while prone — keep it in
+		// sync with the stance target or prone would crawl at full crouch speed.
+		CMC->MaxWalkSpeedCrouched = TargetSpeed;
 	}
 }
 
@@ -408,6 +433,12 @@ void ASHPlayerCharacter::Landed(const FHitResult& Hit)
 		CameraSystem->ApplyLandingDip(Intensity);
 	}
 
+	// Landing thud (surface-aware) + AI noise, scaled by impact speed.
+	if (FootstepSystem)
+	{
+		FootstepSystem->PlayLanding(ImpactSpeed);
+	}
+
 	LastFallingZSpeed = 0.f;
 }
 
@@ -470,6 +501,118 @@ void ASHPlayerCharacter::Die()
 // =======================================================================
 //  Movement
 // =======================================================================
+
+void ASHPlayerCharacter::ApplyMovementTuning()
+{
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!CMC)
+	{
+		return;
+	}
+
+	// Ground response: crisp start, slight settle on stop (gear momentum).
+	CMC->MaxAcceleration = MoveMaxAcceleration;
+	CMC->BrakingDecelerationWalking = MoveBrakingDeceleration;
+	CMC->GroundFriction = MoveGroundFriction;
+	CMC->bUseSeparateBrakingFriction = true;
+	CMC->BrakingFriction = MoveBrakingFriction;
+
+	// Air/jump: give the player real mid-air steering (engine default 0.05 feels
+	// floaty and locked) while keeping the jump modest for a loaded soldier.
+	CMC->AirControl = MoveAirControl;
+	CMC->JumpZVelocity = MoveJumpZVelocity;
+
+	// Traversal: clear urban curbs/rubble and handle beach dune slopes smoothly.
+	CMC->MaxStepHeight = MoveMaxStepHeight;
+	CMC->SetWalkableFloorAngle(MoveWalkableFloorAngle);
+	// Flat-base floor checks stop the capsule from catching/teetering on edges.
+	CMC->bUseFlatBaseForFloorChecks = true;
+	// Keep horizontal speed when stepping off ledges rather than dead-dropping.
+	CMC->bMaintainHorizontalGroundVelocity = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("[SHPlayerCharacter] Movement tuning applied: AirControl=%.2f MaxAccel=%.0f BrakeDecel=%.0f StepHeight=%.0f"),
+		CMC->AirControl, CMC->MaxAcceleration, CMC->BrakingDecelerationWalking, CMC->MaxStepHeight);
+}
+
+void ASHPlayerCharacter::TickAutoPlaytest(float DeltaSeconds)
+{
+	if (!bAutoPlaytest)
+	{
+		return;
+	}
+
+	AutoPlaytestTime += DeltaSeconds;
+	AController* Ctrl = GetController();
+
+	// Phase 1 (first 3s): walk forward to exercise movement feel.
+	if (AutoPlaytestTime < 3.f)
+	{
+		AddMovementInput(GetActorForwardVector(), 1.f);
+		return;
+	}
+
+	// Phase 2: face the nearest enemy, aim down sights, and fire in bursts.
+	AActor* Enemy = FindNearestEnemy();
+	if (!Enemy || !Ctrl)
+	{
+		if (bIsFiring) { StopFire(); }
+		return;
+	}
+
+	const FVector EyeLoc = FirstPersonCamera ? FirstPersonCamera->GetComponentLocation() : GetActorLocation();
+	const FVector AimDir = ((Enemy->GetActorLocation() + FVector(0.f, 0.f, 40.f)) - EyeLoc).GetSafeNormal();
+	const FRotator NewRot = FMath::RInterpTo(Ctrl->GetControlRotation(), AimDir.Rotation(), DeltaSeconds, 6.f);
+	Ctrl->SetControlRotation(NewRot);
+
+	if (!bIsADS)
+	{
+		StartADS();
+	}
+
+	// Reposition: strafe back and forth so the test reflects a player who moves
+	// under fire (movement defeats enemy aim) instead of a stationary target —
+	// validates both movement feel and the AI fairness dynamic.
+	const float Strafe = FMath::Sin(AutoPlaytestTime * 1.3f);
+	AddMovementInput(GetActorRightVector(), Strafe * 0.8f);
+
+	// Burst pattern: ~0.7s firing, ~0.5s pause.
+	const bool bShouldFire = FMath::Fmod(AutoPlaytestTime, 1.2f) < 0.7f;
+	if (bShouldFire && !bIsFiring)
+	{
+		const float DistM = FVector::Dist(GetActorLocation(), Enemy->GetActorLocation()) / 100.f;
+		UE_LOG(LogTemp, Warning, TEXT("[Playtest] firing burst at %s (%.0f m), ADS=%d"),
+			*Enemy->GetName(), DistM, bIsADS ? 1 : 0);
+		StartFire();
+	}
+	else if (!bShouldFire && bIsFiring)
+	{
+		StopFire();
+	}
+}
+
+AActor* ASHPlayerCharacter::FindNearestEnemy() const
+{
+	AActor* Best = nullptr;
+	float BestDistSq = TNumericLimits<float>::Max();
+	const FVector MyLoc = GetActorLocation();
+
+	for (TActorIterator<ASHEnemyCharacter> It(GetWorld()); It; ++It)
+	{
+		ASHEnemyCharacter* Enemy = *It;
+		if (!Enemy || Enemy->IsDead())
+		{
+			continue;
+		}
+		const float DistSq = FVector::DistSquared(MyLoc, Enemy->GetActorLocation());
+		if (DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			Best = Enemy;
+		}
+	}
+
+	return Best;
+}
 
 void ASHPlayerCharacter::StartSprint()
 {
@@ -922,6 +1065,47 @@ void ASHPlayerCharacter::TickLean(float DeltaSeconds)
 	{
 		CameraSystem->SetLeanOffset(CurrentLeanAlpha * LeanOffsetDistance,
 									CurrentLeanAlpha * LeanAngleDeg);
+	}
+}
+
+void ASHPlayerCharacter::TickFootsteps(float DeltaSeconds)
+{
+	if (!FootstepSystem)
+	{
+		return;
+	}
+
+	const UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!CMC || CMC->IsFalling())
+	{
+		return; // airborne — no steps; landing is handled in Landed()
+	}
+
+	const float Speed = GetVelocity().Size2D();
+	if (Speed < 10.f)
+	{
+		return; // standing still
+	}
+
+	// Stride length scales with stance: longer strides at speed, shorter crouched/prone.
+	float StrideLen = 175.f; // standing walk/run
+	if (bIsSprinting)
+	{
+		StrideLen = 230.f;
+	}
+	switch (CurrentStance)
+	{
+	case ESHStance::Crouching: StrideLen = 130.f; break;
+	case ESHStance::Prone:     StrideLen = 90.f;  break;
+	default: break;
+	}
+
+	StrideAccumCm += Speed * DeltaSeconds;
+	if (StrideAccumCm >= StrideLen)
+	{
+		StrideAccumCm = 0.f;
+		FootstepSystem->PlayFootstep(bNextFootRight); // surface-aware sound + MakeNoise (AI hearing)
+		bNextFootRight = !bNextFootRight;
 	}
 }
 

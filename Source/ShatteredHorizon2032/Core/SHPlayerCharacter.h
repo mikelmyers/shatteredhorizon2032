@@ -18,6 +18,7 @@ class USHFatigueSystem;
 class USHReverbZoneManager;
 class USHAmbientSoundscape;
 class USHCommsDisruption;
+class USHFootstepSystem;
 class ASHWeaponBase;
 class UAnimInstance;
 
@@ -244,6 +245,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
 	TObjectPtr<USHSquadManager> SquadManager;
 
+	/** Footstep audio + AI-noise (surface-aware). Driven by code stride detection
+	 *  here (no anim notifies needed); plays nothing until sounds are imported, but
+	 *  the MakeNoise -> AI-hearing path is live regardless. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SH|Components")
+	TObjectPtr<USHFootstepSystem> FootstepSystem;
+
 	/** First-person arms mesh applied at BeginPlay if none set (config-driven). */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|FirstPerson")
 	TSoftObjectPtr<USkeletalMesh> DefaultArmsMesh;
@@ -291,6 +298,36 @@ protected:
 	void TickSuppression(float DeltaSeconds);
 	void TickBleeding(float DeltaSeconds);
 	void TickLean(float DeltaSeconds);
+
+	/** Code-driven stride detection: emits footsteps (sound + AI noise) at a
+	 *  stance/speed-scaled stride length while grounded and moving. */
+	void TickFootsteps(float DeltaSeconds);
+
+	/** Distance accumulated since the last footstep (cm). */
+	float StrideAccumCm = 0.f;
+
+	/** Alternating foot for the next step. */
+	bool bNextFootRight = false;
+
+	/** Apply movement-feel tuning to the CharacterMovementComponent. Called from
+	 *  BeginPlay (Live-Coding-proof) and the constructor (packaged builds). */
+	void ApplyMovementTuning();
+
+	/** Dev-only automated playtest driver: walks, then faces the nearest enemy and
+	 *  fires bursts so the combat-feel systems (recoil, fire kick, hit markers, ADS)
+	 *  can be exercised and screenshotted without a human at the controls. Config-gated
+	 *  by bAutoPlaytest; never runs in normal play. */
+	void TickAutoPlaytest(float DeltaSeconds);
+
+	/** Find the nearest living enemy to the player (for the auto-playtest driver). */
+	AActor* FindNearestEnemy() const;
+
+	/** Enable the dev auto-playtest driver (set via -ini:Game override for QA runs). */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "SH|Dev")
+	bool bAutoPlaytest = false;
+
+	/** Seconds elapsed since the auto-playtest began. */
+	float AutoPlaytestTime = 0.f;
 
 	/** Perform a vault trace and execute if geometry permits. */
 	bool CanVault() const;
@@ -353,6 +390,46 @@ protected:
 	/** Prone speed multiplier. */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement")
 	float ProneSpeedMultiplier = 0.25f;
+
+	// ------------------------------------------------------------------
+	//  Movement "feel" tuning (applied to the CharacterMovementComponent
+	//  in BeginPlay so changes survive Live Coding iteration, which never
+	//  re-runs the constructor). Engine defaults read as floaty/icy for an
+	//  FPS — these give a grounded, intentional, gear-laden soldier feel.
+	// ------------------------------------------------------------------
+
+	/** Ground acceleration (cm/s^2). Higher = crisper start. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveMaxAcceleration = 1800.f;
+
+	/** Walking braking deceleration (cm/s^2). Lower = more momentum/settle on stop. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveBrakingDeceleration = 1500.f;
+
+	/** Ground friction while steering. Higher = grippier turns. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveGroundFriction = 8.f;
+
+	/** Separate braking friction (used when stopping). Slightly below ground
+	 *  friction gives a believable weight-shift settle rather than a dead stop. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveBrakingFriction = 6.f;
+
+	/** Mid-air directional control (0 = none/floaty-locked, 1 = full). */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveAirControl = 0.4f;
+
+	/** Jump launch velocity (cm/s). Modest for a loaded soldier. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveJumpZVelocity = 450.f;
+
+	/** Step height (cm) — how tall a ledge/curb can be auto-stepped. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveMaxStepHeight = 50.f;
+
+	/** Walkable floor angle (deg) — steepest slope treated as ground. */
+	UPROPERTY(EditDefaultsOnly, Category = "SH|Movement|Feel")
+	float MoveWalkableFloorAngle = 50.f;
 
 	/** Maximum carry weight (kg) before movement is severely impaired. */
 	UPROPERTY(EditDefaultsOnly, Category = "SH|Weight")

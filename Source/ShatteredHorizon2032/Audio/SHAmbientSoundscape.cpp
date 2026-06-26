@@ -24,6 +24,35 @@ void USHAmbientSoundscape::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Fallback: if no layers were configured, build a default battlefield ambience
+	// bed from the synthesized CC0 loops so the scene has atmosphere instead of
+	// silence (authored ambience overrides by configuring AmbientLayers).
+	if (AmbientLayers.Num() == 0)
+	{
+		if (USoundBase* WindSnd = LoadObject<USoundBase>(nullptr,
+			TEXT("/Game/SH/Audio/Ambient/sh_amb_wind.sh_amb_wind")))
+		{
+			FSHAmbientLayer Wind;
+			Wind.LayerName = TEXT("Wind");
+			Wind.Sound = WindSnd;
+			Wind.BaseVolume = 0.35f;
+			Wind.CrossfadeSpeed = 0.5f;
+			AmbientLayers.Add(Wind);
+		}
+		if (USoundBase* BattleSnd = LoadObject<USoundBase>(nullptr,
+			TEXT("/Game/SH/Audio/Ambient/sh_amb_battle.sh_amb_battle")))
+		{
+			FSHAmbientLayer Battle;
+			Battle.LayerName = TEXT("DistantBattle");
+			Battle.Sound = BattleSnd;
+			Battle.BaseVolume = 0.45f;
+			Battle.CrossfadeSpeed = 0.3f;
+			AmbientLayers.Add(Battle);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[SHAmbientSoundscape] No layers configured — added %d default ambience beds."),
+			AmbientLayers.Num());
+	}
+
 	// Clamp layer count.
 	if (AmbientLayers.Num() > MaxAmbientLayers)
 	{

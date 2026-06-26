@@ -12,6 +12,7 @@
 #include "GameFramework/Pawn.h"
 #include "Engine/DamageEvents.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Sound/SoundBase.h"
 
 /* -----------------------------------------------------------------------
  *  Construction
@@ -319,6 +320,13 @@ void ASHProjectile::ApplyDamage(AActor* HitActor, float Damage, const FHitResult
 		DamageEvent,
 		InstigatorController,
 		this);
+
+	// Shooter feedback: route through the firing weapon so the player gets a hit
+	// marker for ranged kills (most combat resolves as projectiles at distance).
+	if (ASHWeaponBase* Weapon = Cast<ASHWeaponBase>(WeaponOwner.Get()))
+	{
+		Weapon->ReportHitFeedback(HitActor, HitResult, SimulatedVelocity.GetSafeNormal());
+	}
 }
 
 /* -----------------------------------------------------------------------
@@ -354,10 +362,16 @@ void ASHProjectile::SpawnImpactEffects(const FHitResult& HitResult)
 			World, EffectToSpawn, HitResult.ImpactPoint, ImpactRotation, true);
 	}
 
-	// Impact sound
-	if (ImpactSound)
+	// Impact sound (fallback to a synthesized CC0 impact if none assigned).
+	USoundBase* ImpactSnd = ImpactSound;
+	if (!ImpactSnd)
 	{
-		UGameplayStatics::PlaySoundAtLocation(World, ImpactSound, HitResult.ImpactPoint);
+		ImpactSnd = LoadObject<USoundBase>(nullptr,
+			TEXT("/Game/SH/Audio/Impacts/sh_impact_01.sh_impact_01"));
+	}
+	if (ImpactSnd)
+	{
+		UGameplayStatics::PlaySoundAtLocation(World, ImpactSnd, HitResult.ImpactPoint);
 	}
 }
 

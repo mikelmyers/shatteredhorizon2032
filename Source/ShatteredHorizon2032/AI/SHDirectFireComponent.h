@@ -77,6 +77,25 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "SH|DirectFire")
 	float SuppressionPerNearMiss = 0.05f;
 
+	// --- Fairness: human reaction + first-contact ranging-in ---
+	// Without these, an enemy fires a full-accuracy shot the instant it sees you,
+	// so first contact is unfairly lethal (the Ready-or-Not "crack shot" problem).
+
+	/** Min/max human reaction delay before the first burst on a fresh sighting (s). */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|DirectFire|Fairness")
+	float ReactionDelayMin = 0.45f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "SH|DirectFire|Fairness")
+	float ReactionDelayMax = 1.1f;
+
+	/** Seconds over which accuracy ramps from first-contact to full (ranging in). */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|DirectFire|Fairness")
+	float AccuracyRampTime = 2.0f;
+
+	/** Accuracy multiplier on the first shots after acquiring a target (0..1). */
+	UPROPERTY(Config, EditAnywhere, Category = "SH|DirectFire|Fairness")
+	float FirstContactAccuracyMult = 0.25f;
+
 	/** Fire report sound. */
 	UPROPERTY(Config, EditAnywhere, Category = "SH|DirectFire|FX")
 	TSoftObjectPtr<USoundBase> FireSound;
@@ -119,4 +138,7 @@ protected:
 	float NextTargetScanTime = 0.f;
 	float NextRepathTime = 0.f;
 	bool bHasLoggedFirstBurst = false;
+
+	/** World time the current target was first acquired (for the accuracy ramp). */
+	float TargetAcquiredTime = -1000.f;
 };

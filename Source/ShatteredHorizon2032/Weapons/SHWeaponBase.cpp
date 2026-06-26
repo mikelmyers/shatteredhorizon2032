@@ -15,6 +15,9 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Combat/SHHitFeedback.h"
+#include "AI/SHEnemyCharacter.h"
+#include "Core/SHCameraSystem.h"
 
 /* -----------------------------------------------------------------------
  *  Construction
@@ -388,27 +391,14 @@ void ASHWeaponBase::FireShot()
 	{
 		const FVector ShotDir = ApplySpread(MuzzleFwd);
 
-		// Hitscan for close range, projectile for distance
+		// Hitscan for close range, projectile for distance. ExecuteHitscan does the
+		// single trace and reports whether it hit; only spawn a projectile when it
+		// didn't (avoids a redundant identical trace per pellet).
 		if (WeaponData->HitscanRangeCm > 0.0f)
 		{
-			// Do a short hitscan trace first
-			FHitResult HitResult;
-			const FVector TraceEnd = MuzzleLoc + ShotDir * WeaponData->HitscanRangeCm;
-
-			FCollisionQueryParams QueryParams;
-			QueryParams.AddIgnoredActor(this);
-			QueryParams.AddIgnoredActor(GetOwner());
-			QueryParams.bReturnPhysicalMaterial = true;
-
-			if (GetWorld()->LineTraceSingleByChannel(HitResult, MuzzleLoc, TraceEnd,
-				ECC_GameTraceChannel1, QueryParams))
+			if (!ExecuteHitscan(MuzzleLoc, ShotDir))
 			{
-				// Hit something within hitscan range — apply damage directly
-				ExecuteHitscan(MuzzleLoc, ShotDir);
-			}
-			else
-			{
-				// Nothing hit in hitscan range — spawn projectile from hitscan endpoint
+				// Nothing hit in hitscan range — continue as a projectile.
 				SpawnProjectile(MuzzleLoc, ShotDir);
 			}
 		}
@@ -452,11 +442,11 @@ void ASHWeaponBase::FireShot()
 	}
 }
 
-void ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection)
+bool ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector& ShotDirection)
 {
 	if (!WeaponData)
 	{
-		return;
+		return false;
 	}
 
 	FHitResult HitResult;
@@ -496,7 +486,60 @@ void ASHWeaponBase::ExecuteHitscan(const FVector& MuzzleLocation, const FVector&
 			DamageEvent.ShotDirection = ShotDirection;
 
 			HitActor->TakeDamage(FinalDamage, DamageEvent, GetInstigatorController(), this);
+
+			// Shooter feedback: hit marker + target flinch (kill state read after damage).
+			ReportHitFeedback(HitActor, HitResult, ShotDirection);
 		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void ASHWeaponBase::ReportHitFeedback(AActor* HitActor, const FHitResult& Hit, const FVector& ShotDirection)
+{
+	// Only enemy hits produce a marker — avoids false positives on world geometry
+	// and misleading markers on friendly fire.
+	ASHEnemyCharacter* Enemy = Cast<ASHEnemyCharacter>(HitActor);
+	if (!Enemy)
+	{
+		return;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	USHHitFeedback* HitFeedback = OwnerActor->FindComponentByClass<USHHitFeedback>();
+	if (!HitFeedback)
+	{
+		return;
+	}
+
+	const bool bHeadshot = Hit.BoneName.ToString().Contains(TEXT("head"), ESearchCase::IgnoreCase);
+
+	FSHDamageInfo Info;
+	Info.Instigator = OwnerActor;
+	Info.ImpactLocation = Hit.ImpactPoint;
+	Info.DamageDirection = ShotDirection;
+	Info.HitZone = bHeadshot ? ESHHitZone::Head : ESHHitZone::Torso;
+
+	FSHDamageResult Result;
+	Result.DamageDealt = 1.f;            // non-zero so the feedback guard passes
+	Result.bIsLethal = Enemy->IsDead();  // queried after TakeDamage resolved
+	Result.HitZone = Info.HitZone;
+
+	HitFeedback->OnDamageDealt(Info, Result);
+
+	// Kill confirmation (also proves the full shooter-feedback pipeline:
+	// trace -> enemy hit -> lethality -> kill marker). Log-level, low volume.
+	if (Result.bIsLethal)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SHWeapon] Kill confirmed on %s (%s)"),
+			*Enemy->GetName(), Info.HitZone == ESHHitZone::Head ? TEXT("head") : TEXT("body"));
 	}
 }
 
@@ -688,6 +731,16 @@ void ASHWeaponBase::ApplyRecoil()
 		{
 			PC->AddPitchInput(-VerticalKick);
 			PC->AddYawInput(HorizontalKick);
+		}
+
+		// Visceral additive camera kick on top of the aim-walking recoil above.
+		// Scaled by the felt vertical kick (already post-ADS/attachment), so heavy
+		// weapons thump harder and ADS softens it. No-op for non-player owners
+		// (enemies have no camera system).
+		if (USHCameraSystem* Cam = OwnerPawn->FindComponentByClass<USHCameraSystem>())
+		{
+			const float KickIntensity = FMath::Clamp(FMath::Abs(VerticalKick) * 2.0f, 0.25f, 2.0f);
+			Cam->ApplyFireKick(KickIntensity);
 		}
 	}
 }
@@ -1174,6 +1227,21 @@ void ASHWeaponBase::PlayFireSound()
 	}
 
 	USoundBase* SoundToPlay = WeaponData->SoundProfile.FireSound.LoadSynchronous();
+
+	// Fallback: if the weapon data has no fire sound assigned, use a real rifle
+	// shot from the in-project FreeGunSounds pack (cycled for variety) so the gun
+	// isn't silent. (Replaces the earlier synthesized placeholder.)
+	if (!SoundToPlay)
+	{
+		static const TCHAR* FireVariants[] = {
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot01.WAV_Rifle_shot01"),
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot02.WAV_Rifle_shot02"),
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot03.WAV_Rifle_shot03"),
+			TEXT("/Game/FreeGunSounds/Wav/Rifle/WAV_Rifle_shot04.WAV_Rifle_shot04") };
+		const int32 Idx = FMath::Abs(TotalRoundsFired) % 4;
+		SoundToPlay = LoadObject<USoundBase>(nullptr, FireVariants[Idx]);
+	}
+
 	USoundAttenuation* Attenuation = WeaponData->SoundProfile.FireAttenuation.LoadSynchronous();
 
 	// A suppressor (or other muzzle device) lowers the report volume.
